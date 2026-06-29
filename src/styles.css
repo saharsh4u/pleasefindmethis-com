@@ -253,6 +253,11 @@ main {
   white-space: nowrap;
 }
 
+.mobile-hero-title,
+.mobile-hero-actions {
+  display: none;
+}
+
 .micro-line {
   display: flex;
   flex-wrap: wrap;
@@ -451,6 +456,11 @@ main {
 .primary-button:hover {
   border-color: var(--green);
   background: var(--green);
+}
+
+.primary-button:disabled {
+  opacity: 0.68;
+  cursor: wait;
 }
 
 .hero-cta {
@@ -1679,6 +1689,38 @@ main {
   font-weight: 650;
 }
 
+.checkout-note {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 0.72rem;
+  align-items: start;
+  padding: 0.9rem;
+  border: 1px solid rgba(42, 164, 188, 0.32);
+  border-radius: 8px;
+  background: #eef9fb;
+  color: #24464d;
+}
+
+.checkout-note svg {
+  color: var(--cyan);
+}
+
+.checkout-note span,
+.checkout-note strong {
+  display: block;
+}
+
+.checkout-note strong {
+  color: #102f35;
+  font-size: 0.9rem;
+  font-weight: 880;
+}
+
+.checkout-note span {
+  font-size: 0.84rem;
+  font-weight: 680;
+}
+
 .browse-toolbar {
   display: grid;
   grid-template-columns: minmax(16rem, 1fr) auto auto;
@@ -2521,7 +2563,7 @@ main {
 
   .hero-section {
     margin-top: 0;
-    padding: 0.9rem 0.72rem 1.2rem;
+    padding: 0.9rem max(1rem, 4vw) 1.35rem;
   }
 
   .canvas-nav {
@@ -2531,43 +2573,55 @@ main {
 
   .hero-copy {
     width: 100%;
-    max-width: 22rem;
-    margin-top: 1.2rem;
+    max-width: 21rem;
+    margin: 1.25rem auto 0;
   }
 
   .hero-copy h1 {
+    display: none;
+  }
+
+  .hero-copy .mobile-hero-title {
+    display: block;
     width: 100%;
     max-width: 100%;
-    font-size: clamp(1.8rem, 8vw, 2.85rem);
+    font-size: clamp(2.28rem, 10.2vw, 3rem);
     line-height: 1;
     letter-spacing: 0;
     overflow-wrap: anywhere;
   }
 
   .micro-line {
-    display: grid;
-    grid-template-columns: 1fr;
-    justify-items: stretch;
-    gap: 0.36rem;
-    width: min(100%, 18.3rem);
-    max-width: 18.3rem;
-    margin-top: 0.85rem;
-    font-size: 0.73rem;
-    font-weight: 650;
-    text-align: center;
-  }
-
-  .micro-line span {
-    justify-content: center;
-    min-height: 1.9rem;
-    padding: 0.34rem 0.58rem;
-    border: 1px solid rgba(17, 21, 19, 0.12);
-    border-radius: 999px;
-    background: #fff;
-  }
-
-  .micro-line svg {
     display: none;
+  }
+
+  .mobile-hero-actions {
+    display: grid;
+    justify-items: center;
+    gap: 0.48rem;
+    width: min(100%, 16rem);
+    margin: 0.9rem auto 0;
+  }
+
+  .mobile-post-button {
+    min-height: 2.55rem;
+    width: 100%;
+    font-size: 0.82rem;
+  }
+
+  .mobile-browse-button {
+    min-height: auto;
+    border: 0;
+    background: transparent;
+    color: #18201c;
+    font-size: 0.9rem;
+    font-weight: 850;
+    line-height: 1.15;
+  }
+
+  .market-preview {
+    width: min(100%, 21rem);
+    margin-top: 1.3rem;
   }
 
   .featured-grid {
@@ -2796,13 +2850,12 @@ main {
 }
 
 @media (max-width: 380px) {
-  .hero-copy h1 {
-    font-size: 1.65rem;
+  .hero-copy {
+    max-width: 18.5rem;
   }
 
-  .micro-line {
-    width: 100%;
-    max-width: 19rem;
+  .hero-copy .mobile-hero-title {
+    font-size: 2.28rem;
   }
 }
 

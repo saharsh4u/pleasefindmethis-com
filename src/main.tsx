@@ -93,9 +93,43 @@ type FeedItem = {
   image: string;
 };
 
+type RequestCategory = "audio" | "camera" | "watch" | "gaming" | "parts";
+type RequestDuration = 14 | 30 | 60;
+
+type PostDraft = {
+  itemName: string;
+  category: RequestCategory;
+  details: string;
+  reward: number;
+  durationDays: RequestDuration;
+};
+
+type EscrowBreakdown = {
+  reward: number;
+  platformFee: number;
+  protection: number;
+  total: number;
+};
+
 const siteName = "pleasefindmethis.com";
 const requestSingular = "request";
 const requestPlural = "requests";
+
+const requestCategories: Array<{ value: RequestCategory; label: string }> = [
+  { value: "audio", label: "Portable audio" },
+  { value: "camera", label: "Camera gear" },
+  { value: "watch", label: "Watches" },
+  { value: "gaming", label: "Gaming" },
+  { value: "parts", label: "Replacement parts" },
+];
+
+const initialPostDraft: PostDraft = {
+  itemName: "Sony Walkman WM-D6C",
+  category: "audio",
+  details: "",
+  reward: 180,
+  durationDays: 30,
+};
 
 const protectedPages = new Set<Page>([
   "post-describe",
@@ -889,12 +923,30 @@ function routeHref(page: Page) {
   return `#/${pageRoutes[page]}`;
 }
 
+function getCategoryLabel(category: RequestCategory) {
+  return requestCategories.find((item) => item.value === category)?.label ?? "General";
+}
+
+function getEscrowBreakdown(reward: number): EscrowBreakdown {
+  const normalizedReward = Math.max(25, Math.round(Number.isFinite(reward) ? reward : initialPostDraft.reward));
+  const platformFee = Math.max(12, Math.round(normalizedReward * 0.08));
+  const protection = Math.round(normalizedReward * 0.03);
+
+  return {
+    reward: normalizedReward,
+    platformFee,
+    protection,
+    total: normalizedReward + platformFee + protection,
+  };
+}
+
 function App() {
   const [route, setRoute] = useState<Page>(() => parseRoute());
   const [menuOpen, setMenuOpen] = useState(false);
-  const [signedIn, setSignedIn] = useState(false);
+  const [signedIn, setSignedIn] = useState(() => window.sessionStorage.getItem("pleasefindmethis-signed-in") === "true");
   const [pendingRoute, setPendingRoute] = useState<Page>("post-describe");
   const [authMode, setAuthMode] = useState<AuthMode>("signup");
+  const [postDraft, setPostDraft] = useState<PostDraft>(initialPostDraft);
   const [selectedFeedBounty, setSelectedFeedBounty] = useState(feedItems[0].bounty);
   const [activeBountyId, setActiveBountyId] = useState(bountyListings[0].id);
   const [videoPlaying, setVideoPlaying] = useState(false);
@@ -952,8 +1004,13 @@ function App() {
   };
 
   const completeAuth = () => {
+    window.sessionStorage.setItem("pleasefindmethis-signed-in", "true");
     setSignedIn(true);
     navigate(pendingRoute);
+  };
+
+  const updatePostDraft = (updates: Partial<PostDraft>) => {
+    setPostDraft((draft) => ({ ...draft, ...updates }));
   };
 
   const visibleRoute = !signedIn && protectedPages.has(route) ? "auth" : route;
@@ -1009,9 +1066,13 @@ function App() {
               onPublicBrowse={() => navigate("browse")}
             />
           ) : null}
-          {visibleRoute === "post-describe" ? <PostDescribePage onBack={() => navigate("landing")} onNext={() => navigate("post-reward")} /> : null}
-          {visibleRoute === "post-reward" ? <PostRewardPage onBack={() => navigate("post-describe")} onNext={() => navigate("post-pay")} /> : null}
-          {visibleRoute === "post-pay" ? <PostPayPage onBack={() => navigate("post-reward")} onDashboard={() => navigate("poster-dashboard")} /> : null}
+          {visibleRoute === "post-describe" ? (
+            <PostDescribePage draft={postDraft} onBack={() => navigate("landing")} onDraftChange={updatePostDraft} onNext={() => navigate("post-reward")} />
+          ) : null}
+          {visibleRoute === "post-reward" ? (
+            <PostRewardPage draft={postDraft} onBack={() => navigate("post-describe")} onDraftChange={updatePostDraft} onNext={() => navigate("post-pay")} />
+          ) : null}
+          {visibleRoute === "post-pay" ? <PostPayPage draft={postDraft} onBack={() => navigate("post-reward")} onDashboard={() => navigate("poster-dashboard")} /> : null}
           {visibleRoute === "browse" ? (
             <BrowsePage onBrowseAll={() => navigate("browse-all")} onDetail={goToDetail} onPost={() => requireAuth("post-describe")} />
           ) : null}
@@ -1196,6 +1257,7 @@ function LandingPage({
           <h1>
             Can&apos;t find it anywhere? Post it on <span className="hero-domain">pleasefindmethis.com</span>.
           </h1>
+          <h1 className="mobile-hero-title">Can&apos;t find it anywhere?</h1>
           <p className="micro-line">
             <span>Post what you need</span>
             <ArrowRight size={16} />
@@ -1203,6 +1265,14 @@ function LandingPage({
             <ArrowRight size={16} />
             <span>you pay only when it&apos;s found.</span>
           </p>
+          <div className="mobile-hero-actions" aria-label="Mobile hero actions">
+            <button className="primary-button mobile-post-button" type="button" onClick={onPost}>
+              Post it now
+            </button>
+            <button className="mobile-browse-button" type="button" onClick={onBrowse}>
+              Browse feed
+            </button>
+          </div>
         </div>
 
         <aside className="market-preview" aria-label="Featured request preview">
@@ -1563,7 +1633,17 @@ function PostProgress({ current }: { current: 1 | 2 | 3 }) {
   );
 }
 
-function PostDescribePage({ onBack, onNext }: { onBack: () => void; onNext: () => void }) {
+function PostDescribePage({
+  draft,
+  onBack,
+  onDraftChange,
+  onNext,
+}: {
+  draft: PostDraft;
+  onBack: () => void;
+  onDraftChange: (updates: Partial<PostDraft>) => void;
+  onNext: () => void;
+}) {
   return (
     <main className="route-page" aria-labelledby="describe-title">
       <PostProgress current={1} />
@@ -1576,21 +1656,25 @@ function PostDescribePage({ onBack, onNext }: { onBack: () => void; onNext: () =
           <p>Clear details help expert finders avoid lookalikes and weak leads.</p>
           <label>
             Item name
-            <input placeholder="Sony Walkman WM-D6C, working condition" />
+            <input value={draft.itemName} placeholder="Sony Walkman WM-D6C, working condition" onChange={(event) => onDraftChange({ itemName: event.target.value })} />
           </label>
           <label>
             Category
-            <select defaultValue="audio">
-              <option value="audio">Portable audio</option>
-              <option value="camera">Camera gear</option>
-              <option value="watch">Watches</option>
-              <option value="gaming">Gaming</option>
-              <option value="parts">Replacement parts</option>
+            <select value={draft.category} onChange={(event) => onDraftChange({ category: event.target.value as RequestCategory })}>
+              {requestCategories.map((category) => (
+                <option value={category.value} key={category.value}>
+                  {category.label}
+                </option>
+              ))}
             </select>
           </label>
           <label>
             Must-have details
-            <textarea placeholder="Model numbers, color, serial range, condition, shipping limits, authenticity requirements..." />
+            <textarea
+              value={draft.details}
+              placeholder="Model numbers, color, serial range, condition, shipping limits, authenticity requirements..."
+              onChange={(event) => onDraftChange({ details: event.target.value })}
+            />
           </label>
           <div className="upload-box">
             <ImagePlus size={24} />
@@ -1608,8 +1692,8 @@ function PostDescribePage({ onBack, onNext }: { onBack: () => void; onNext: () =
           <div className="mini-bounty-card">
             <img src={bountyListings[5].image} alt="" />
             <div>
-              <strong>Sony Walkman WM-D6C</strong>
-              <span>Portable audio · Open to worldwide sources</span>
+              <strong>{draft.itemName || "Your request"}</strong>
+              <span>{getCategoryLabel(draft.category)} · Open to worldwide sources</span>
             </div>
           </div>
           <ul className="check-list">
@@ -1629,11 +1713,25 @@ function PostDescribePage({ onBack, onNext }: { onBack: () => void; onNext: () =
   );
 }
 
-function PostRewardPage({ onBack, onNext }: { onBack: () => void; onNext: () => void }) {
-  const [reward, setReward] = useState(180);
-  const platformFee = Math.max(12, Math.round(reward * 0.08));
-  const protection = Math.round(reward * 0.03);
-  const total = reward + platformFee + protection;
+function PostRewardPage({
+  draft,
+  onBack,
+  onDraftChange,
+  onNext,
+}: {
+  draft: PostDraft;
+  onBack: () => void;
+  onDraftChange: (updates: Partial<PostDraft>) => void;
+  onNext: () => void;
+}) {
+  const breakdown = getEscrowBreakdown(draft.reward);
+  const setReward = (value: string) => {
+    const nextReward = Number(value);
+
+    if (Number.isFinite(nextReward)) {
+      onDraftChange({ reward: Math.max(25, Math.round(nextReward)) });
+    }
+  };
 
   return (
     <main className="route-page" aria-labelledby="reward-title">
@@ -1647,10 +1745,10 @@ function PostRewardPage({ onBack, onNext }: { onBack: () => void; onNext: () => 
           <p>The reward is what the finder earns after your item is delivered and accepted.</p>
           <label>
             Reward amount
-            <input type="number" min="25" value={reward} onChange={(event) => setReward(Number(event.target.value))} />
+            <input type="number" min="25" value={draft.reward} onChange={(event) => setReward(event.target.value)} />
           </label>
           <div className="reward-slider">
-            <input type="range" min="25" max="1000" value={reward} onChange={(event) => setReward(Number(event.target.value))} />
+            <input type="range" min="25" max="1000" value={Math.min(draft.reward, 1000)} onChange={(event) => setReward(event.target.value)} />
             <div>
               <span>Low urgency</span>
               <span>High urgency</span>
@@ -1658,15 +1756,15 @@ function PostRewardPage({ onBack, onNext }: { onBack: () => void; onNext: () => 
           </div>
           <div className="radio-grid" role="group" aria-label="Request duration">
             <label>
-              <input type="radio" name="duration" defaultChecked />
+              <input type="radio" name="duration" checked={draft.durationDays === 30} onChange={() => onDraftChange({ durationDays: 30 })} />
               <span>30 days</span>
             </label>
             <label>
-              <input type="radio" name="duration" />
+              <input type="radio" name="duration" checked={draft.durationDays === 14} onChange={() => onDraftChange({ durationDays: 14 })} />
               <span>14 days</span>
             </label>
             <label>
-              <input type="radio" name="duration" />
+              <input type="radio" name="duration" checked={draft.durationDays === 60} onChange={() => onDraftChange({ durationDays: 60 })} />
               <span>60 days</span>
             </label>
           </div>
@@ -1679,23 +1777,23 @@ function PostRewardPage({ onBack, onNext }: { onBack: () => void; onNext: () => 
           <dl>
             <div>
               <dt>Finder reward</dt>
-              <dd>US${reward}</dd>
+              <dd>US${breakdown.reward}</dd>
             </div>
             <div>
-              <dt>Marketplace fee</dt>
-              <dd>US${platformFee}</dd>
+              <dt>Your service fee</dt>
+              <dd>US${breakdown.platformFee}</dd>
             </div>
             <div>
               <dt>Protection reserve</dt>
-              <dd>US${protection}</dd>
+              <dd>US${breakdown.protection}</dd>
             </div>
             <div className="total-row">
               <dt>Total due today</dt>
-              <dd>US${total}</dd>
+              <dd>US${breakdown.total}</dd>
             </div>
           </dl>
           <p>
-            <LockKeyhole size={18} /> If no valid find is accepted in 30 days, the reward is returned.
+            <LockKeyhole size={18} /> The buyer pays into your Dodo account. You keep the service fee and handle finder payout after delivery.
           </p>
         </aside>
       </section>
@@ -1703,8 +1801,51 @@ function PostRewardPage({ onBack, onNext }: { onBack: () => void; onNext: () => 
   );
 }
 
-function PostPayPage({ onBack, onDashboard }: { onBack: () => void; onDashboard: () => void }) {
-  const [published, setPublished] = useState(false);
+function PostPayPage({ draft, onBack }: { draft: PostDraft; onBack: () => void; onDashboard: () => void }) {
+  const [customerEmail, setCustomerEmail] = useState("");
+  const [customerName, setCustomerName] = useState("");
+  const [checkoutStatus, setCheckoutStatus] = useState<"idle" | "loading" | "error">("idle");
+  const [checkoutMessage, setCheckoutMessage] = useState("");
+  const breakdown = getEscrowBreakdown(draft.reward);
+  const itemName = draft.itemName.trim() || "your request";
+
+  const startCheckout = async () => {
+    setCheckoutStatus("loading");
+    setCheckoutMessage("");
+
+    try {
+      const response = await fetch("/api/dodo/checkout", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          customer: {
+            email: customerEmail,
+            name: customerName,
+          },
+          draft: {
+            itemName,
+            category: getCategoryLabel(draft.category),
+            details: draft.details,
+            reward: breakdown.reward,
+            durationDays: draft.durationDays,
+          },
+        }),
+      });
+
+      const payload = await response.json().catch(() => null);
+
+      if (!response.ok || !payload?.checkoutUrl) {
+        throw new Error(payload?.error || "Could not start Dodo checkout.");
+      }
+
+      window.location.assign(payload.checkoutUrl);
+    } catch (error) {
+      setCheckoutStatus("error");
+      setCheckoutMessage(error instanceof Error ? error.message : "Could not start Dodo checkout.");
+    }
+  };
 
   return (
     <main className="route-page" aria-labelledby="pay-title">
@@ -1714,49 +1855,68 @@ function PostPayPage({ onBack, onDashboard }: { onBack: () => void; onDashboard:
           <button className="back-button" type="button" onClick={onBack}>
             <ArrowLeft size={17} /> Reward
           </button>
-          <h1 id="pay-title">{published ? "Your request is ready for review." : "Fund escrow to publish your request."}</h1>
+          <h1 id="pay-title">Fund escrow with Dodo Payments.</h1>
           <p>
-            This is the paywall. Your request goes live only after escrow is funded, and finders are paid after successful delivery.
+            Your request goes live after the hosted checkout is paid. The full payment lands in your Dodo account, including your service fee.
           </p>
           <label>
-            Card number
-            <input inputMode="numeric" placeholder="4242 4242 4242 4242" />
+            Receipt email
+            <input type="email" value={customerEmail} placeholder="you@example.com" onChange={(event) => setCustomerEmail(event.target.value)} />
           </label>
-          <div className="form-grid">
-            <label>
-              Expiry
-              <input placeholder="MM / YY" />
-            </label>
-            <label>
-              CVC
-              <input placeholder="123" />
-            </label>
+          <label>
+            Name
+            <input value={customerName} placeholder="Buyer name" onChange={(event) => setCustomerName(event.target.value)} />
+          </label>
+          <div className="checkout-note">
+            <ExternalLink size={19} />
+            <span>
+              <strong>Dodo hosted checkout</strong>
+              Card details are collected by Dodo, not by this app. Use the API key and product from your own Dodo dashboard so payments settle to you.
+            </span>
           </div>
-          <button className="primary-button" type="button" onClick={() => setPublished(true)}>
-            <CreditCard size={18} /> Pay and publish request
+          <button className="primary-button" type="button" disabled={checkoutStatus === "loading"} onClick={startCheckout}>
+            <CreditCard size={18} /> {checkoutStatus === "loading" ? "Opening Dodo checkout..." : `Pay US$${breakdown.total} with Dodo`}
           </button>
-          {published ? (
-            <button className="section-link section-button" type="button" onClick={onDashboard}>
-              Go to poster dashboard <ArrowRight size={17} />
-            </button>
+          {checkoutMessage ? (
+            <p className="dialog-error" role="status">
+              {checkoutMessage}
+            </p>
           ) : null}
         </div>
-        <aside className="side-panel payment-summary">
+        <aside className="side-panel payment-summary receipt-panel">
           <h2>Payment summary</h2>
           <div className="summary-card">
             <DollarSign size={28} />
-            <strong>US$206 due today</strong>
-            <span>Includes US$180 finder reward, marketplace fee, and protection reserve.</span>
+            <strong>US${breakdown.total} due today</strong>
+            <span>Charged through your Dodo merchant account for {itemName}.</span>
           </div>
+          <dl>
+            <div>
+              <dt>Finder reward</dt>
+              <dd>US${breakdown.reward}</dd>
+            </div>
+            <div>
+              <dt>Your service fee</dt>
+              <dd>US${breakdown.platformFee}</dd>
+            </div>
+            <div>
+              <dt>Protection reserve</dt>
+              <dd>US${breakdown.protection}</dd>
+            </div>
+            <div className="total-row">
+              <dt>Total charged</dt>
+              <dd>US${breakdown.total}</dd>
+            </div>
+          </dl>
           <ul className="check-list">
             <li>
-              <ShieldCheck size={18} /> Reward held until acceptance
+              <ShieldCheck size={18} /> You receive the full Dodo payment
             </li>
             <li>
-              <TimerReset size={18} /> 30-day protection window
+              <Banknote size={18} /> Service fee stays with the marketplace
             </li>
             <li>
-              <Headphones size={18} /> Dispute support included
+              <TimerReset size={18} /> Finder payout is handled after delivery
             </li>
           </ul>
         </aside>
