@@ -839,6 +839,20 @@ const workSteps = [
   },
 ];
 
+const leftFindRequests = [
+  "My daughter lost the only plush that still gets her to sleep.",
+  "Can anyone identify the tiny saddle that fits this little horse?",
+  "Trying to find the fairy dollhouse my fiancee remembers from childhood.",
+  "Need the old commercial my friend was in before it disappears.",
+];
+
+const rightFindRequests = [
+  "Does anyone know where this olive oil bottle came from?",
+  "Looking for the first source of this character art.",
+  "Trying to replace the blue blanket we bought years ago overseas.",
+  "I have one blurry photo and no brand name.",
+];
+
 const safetySteps = [
   {
     icon: LockKeyhole,
@@ -1251,6 +1265,28 @@ function LandingPage({
               </button>
             </nav>
           ) : null}
+        </div>
+
+        <div className="side-find-rail side-find-rail-left" aria-hidden="true">
+          <div className="side-find-track side-find-track-down">
+            {[...leftFindRequests, ...leftFindRequests].map((request, index) => (
+              <span className="side-find-card" key={`left-find-${index}`}>
+                <span className="side-find-dot" />
+                {request}
+              </span>
+            ))}
+          </div>
+        </div>
+
+        <div className="side-find-rail side-find-rail-right" aria-hidden="true">
+          <div className="side-find-track side-find-track-up">
+            {[...rightFindRequests, ...rightFindRequests].map((request, index) => (
+              <span className="side-find-card" key={`right-find-${index}`}>
+                <span className="side-find-dot" />
+                {request}
+              </span>
+            ))}
+          </div>
         </div>
 
         <div className="hero-copy">

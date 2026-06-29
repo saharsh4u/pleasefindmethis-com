@@ -119,6 +119,100 @@ main {
   transform: scaleX(-1);
 }
 
+.side-find-rail {
+  position: absolute;
+  z-index: 1;
+  top: clamp(7rem, 8.5vw, 8.25rem);
+  width: clamp(9.4rem, 12vw, 11.25rem);
+  height: clamp(15.5rem, 22vw, 18rem);
+  overflow: hidden;
+  pointer-events: none;
+  -webkit-mask-image: linear-gradient(to bottom, transparent 0%, #000 15%, #000 85%, transparent 100%);
+  mask-image: linear-gradient(to bottom, transparent 0%, #000 15%, #000 85%, transparent 100%);
+}
+
+.side-find-rail-left {
+  left: max(0.9rem, calc((100vw - 1320px) / 2));
+}
+
+.side-find-rail-right {
+  right: max(0.9rem, calc((100vw - 1320px) / 2));
+}
+
+.side-find-track {
+  display: grid;
+  gap: 0.78rem;
+  will-change: transform;
+}
+
+.side-find-track-down {
+  animation: side-find-scroll-down 30s linear infinite;
+}
+
+.side-find-track-up {
+  animation: side-find-scroll-up 30s linear infinite;
+}
+
+.side-find-card {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  align-items: start;
+  gap: 0.48rem;
+  min-height: 4.7rem;
+  padding: 0.72rem 0.78rem;
+  border: 1px solid rgba(16, 21, 18, 0.1);
+  border-radius: 1rem;
+  background: rgba(255, 251, 241, 0.86);
+  box-shadow: 0 14px 32px rgba(71, 48, 17, 0.08);
+  color: #1f2521;
+  font-size: clamp(0.76rem, 0.8vw, 0.84rem);
+  font-weight: 760;
+  line-height: 1.28;
+  letter-spacing: -0.01em;
+  backdrop-filter: blur(12px);
+}
+
+.side-find-dot {
+  width: 0.42rem;
+  height: 0.42rem;
+  margin-top: 0.33rem;
+  border-radius: 999px;
+  background: var(--green);
+  box-shadow: 0 0 0 0.25rem rgba(0, 125, 72, 0.1);
+}
+
+@keyframes side-find-scroll-down {
+  from {
+    transform: translateY(-50%);
+  }
+
+  to {
+    transform: translateY(0);
+  }
+}
+
+@keyframes side-find-scroll-up {
+  from {
+    transform: translateY(0);
+  }
+
+  to {
+    transform: translateY(-50%);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .side-find-track {
+    animation: none;
+  }
+}
+
+@media (max-width: 1180px) {
+  .side-find-rail {
+    display: none;
+  }
+}
+
 .canvas-nav {
   position: relative;
   z-index: 5;
