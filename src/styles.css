@@ -122,13 +122,13 @@ main {
 .side-find-rail {
   position: absolute;
   z-index: 1;
-  top: clamp(7rem, 8.5vw, 8.25rem);
-  width: clamp(9.4rem, 12vw, 11.25rem);
-  height: clamp(15.5rem, 22vw, 18rem);
+  top: clamp(5.7rem, 7vw, 6.8rem);
+  width: clamp(10.2rem, 12vw, 11.8rem);
+  height: clamp(31rem, 46vw, 39rem);
   overflow: hidden;
   pointer-events: none;
-  -webkit-mask-image: linear-gradient(to bottom, transparent 0%, #000 15%, #000 85%, transparent 100%);
-  mask-image: linear-gradient(to bottom, transparent 0%, #000 15%, #000 85%, transparent 100%);
+  -webkit-mask-image: linear-gradient(to bottom, transparent 0%, #000 8%, #000 91%, transparent 100%);
+  mask-image: linear-gradient(to bottom, transparent 0%, #000 8%, #000 91%, transparent 100%);
 }
 
 .side-find-rail-left {
@@ -141,44 +141,45 @@ main {
 
 .side-find-track {
   display: grid;
-  gap: 0.78rem;
+  gap: 1.05rem;
   will-change: transform;
 }
 
 .side-find-track-down {
-  animation: side-find-scroll-down 30s linear infinite;
+  animation: side-find-scroll-down 36s linear infinite;
 }
 
 .side-find-track-up {
-  animation: side-find-scroll-up 30s linear infinite;
+  animation: side-find-scroll-up 36s linear infinite;
 }
 
 .side-find-card {
-  display: grid;
-  grid-template-columns: auto 1fr;
-  align-items: start;
-  gap: 0.48rem;
-  min-height: 4.7rem;
-  padding: 0.72rem 0.78rem;
-  border: 1px solid rgba(16, 21, 18, 0.1);
-  border-radius: 1rem;
-  background: rgba(255, 251, 241, 0.86);
-  box-shadow: 0 14px 32px rgba(71, 48, 17, 0.08);
+  display: block;
+  min-height: 10.3rem;
+  padding: 0.64rem;
+  border: 0;
+  border-radius: 1.15rem;
+  background: rgba(255, 255, 255, 0.54);
+  box-shadow: none;
   color: #1f2521;
-  font-size: clamp(0.76rem, 0.8vw, 0.84rem);
+  font-size: clamp(0.75rem, 0.78vw, 0.83rem);
   font-weight: 760;
   line-height: 1.28;
   letter-spacing: -0.01em;
-  backdrop-filter: blur(12px);
+  backdrop-filter: blur(8px);
 }
 
-.side-find-dot {
-  width: 0.42rem;
-  height: 0.42rem;
-  margin-top: 0.33rem;
-  border-radius: 999px;
-  background: var(--green);
-  box-shadow: 0 0 0 0.25rem rgba(0, 125, 72, 0.1);
+.side-find-card p {
+  margin: 0;
+}
+
+.side-find-image {
+  width: 100%;
+  height: clamp(5.6rem, 7.2vw, 6.4rem);
+  margin-top: 0.52rem;
+  border-radius: 0.92rem;
+  object-fit: cover;
+  opacity: 0.94;
 }
 
 @keyframes side-find-scroll-down {

@@ -840,17 +840,41 @@ const workSteps = [
 ];
 
 const leftFindRequests = [
-  "My daughter lost the only plush that still gets her to sleep.",
-  "Can anyone identify the tiny saddle that fits this little horse?",
-  "Trying to find the fairy dollhouse my fiancee remembers from childhood.",
-  "Need the old commercial my friend was in before it disappears.",
+  {
+    copy: "Find my dad's old wallet.",
+    image: "/find-requests/wallet.jpg",
+  },
+  {
+    copy: "What are these black shoes?",
+    image: "/find-requests/black-shoes.jpg",
+  },
+  {
+    copy: "Where can I buy these coin earrings?",
+    image: "/find-requests/coin-earrings.jpg",
+  },
+  {
+    copy: "Need this dog bowl set.",
+    image: "/find-requests/dog-bowls.jpg",
+  },
 ];
 
 const rightFindRequests = [
-  "Does anyone know where this olive oil bottle came from?",
-  "Looking for the first source of this character art.",
-  "Trying to replace the blue blanket we bought years ago overseas.",
-  "I have one blurry photo and no brand name.",
+  {
+    copy: "Please help me find this floral skirt.",
+    image: "/find-requests/floral-skirt.jpg",
+  },
+  {
+    copy: "Need my toddler's plushie.",
+    image: "/find-requests/toddler-plush.jpg",
+  },
+  {
+    copy: "Looking for this orange fox plush.",
+    image: "/find-requests/fox-plush.jpg",
+  },
+  {
+    copy: "Trying to find this vintage 90s T-shirt.",
+    image: "/find-requests/vintage-shirt.jpg",
+  },
 ];
 
 const safetySteps = [
@@ -1270,10 +1294,10 @@ function LandingPage({
         <div className="side-find-rail side-find-rail-left" aria-hidden="true">
           <div className="side-find-track side-find-track-down">
             {[...leftFindRequests, ...leftFindRequests].map((request, index) => (
-              <span className="side-find-card" key={`left-find-${index}`}>
-                <span className="side-find-dot" />
-                {request}
-              </span>
+              <article className="side-find-card" key={`left-find-${index}`}>
+                <p>{request.copy}</p>
+                <img className="side-find-image" src={request.image} alt="" loading="lazy" />
+              </article>
             ))}
           </div>
         </div>
@@ -1281,10 +1305,10 @@ function LandingPage({
         <div className="side-find-rail side-find-rail-right" aria-hidden="true">
           <div className="side-find-track side-find-track-up">
             {[...rightFindRequests, ...rightFindRequests].map((request, index) => (
-              <span className="side-find-card" key={`right-find-${index}`}>
-                <span className="side-find-dot" />
-                {request}
-              </span>
+              <article className="side-find-card" key={`right-find-${index}`}>
+                <p>{request.copy}</p>
+                <img className="side-find-image" src={request.image} alt="" loading="lazy" />
+              </article>
             ))}
           </div>
         </div>
