@@ -1254,9 +1254,7 @@ function LandingPage({
         </div>
 
         <div className="hero-copy">
-          <h1>
-            Can&apos;t find it anywhere? Post it on <span className="hero-domain">pleasefindmethis.com</span>.
-          </h1>
+          <h1>Can&apos;t find it anywhere?</h1>
           <h1 className="mobile-hero-title">Can&apos;t find it anywhere?</h1>
           <p className="micro-line">
             <span>Post what you need</span>

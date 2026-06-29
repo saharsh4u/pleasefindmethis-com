@@ -253,9 +253,32 @@ main {
   white-space: nowrap;
 }
 
-.mobile-hero-title,
-.mobile-hero-actions {
+.mobile-hero-title {
   display: none;
+}
+
+.mobile-hero-actions {
+  display: grid;
+  justify-items: center;
+  gap: 0.48rem;
+  width: min(100%, 16rem);
+  margin: 0.9rem auto 0;
+}
+
+.mobile-post-button {
+  min-height: 2.55rem;
+  width: 100%;
+  font-size: 0.82rem;
+}
+
+.mobile-browse-button {
+  min-height: auto;
+  border: 0;
+  background: transparent;
+  color: #18201c;
+  font-size: 0.9rem;
+  font-weight: 850;
+  line-height: 1.15;
 }
 
 .micro-line {
