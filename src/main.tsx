@@ -841,39 +841,67 @@ const workSteps = [
 
 const leftFindRequests = [
   {
-    copy: "Find my dad's old wallet.",
+    copy: "Please find me this old wallet.",
     image: "/find-requests/wallet.jpg",
   },
   {
-    copy: "What are these black shoes?",
+    copy: "$100 reward if you find these black shoes.",
     image: "/find-requests/black-shoes.jpg",
   },
   {
-    copy: "Where can I buy these coin earrings?",
+    copy: "Can anyone help me find these coin earrings?",
     image: "/find-requests/coin-earrings.jpg",
   },
   {
-    copy: "Need this dog bowl set.",
+    copy: "Please find me this dog bowl set.",
     image: "/find-requests/dog-bowls.jpg",
+  },
+  {
+    copy: "Can anyone help me find this bunny plush?",
+    image: "/find-requests/bunny-plush.jpg",
+  },
+  {
+    copy: "$10 reward to help me find this rubber band.",
+    image: "/find-requests/purple-rubber-band.jpg",
+  },
+  {
+    copy: "Reward if you find this red taillight piece.",
+    image: "/find-requests/red-taillight.jpg",
+  },
+  {
+    copy: "Please find me this broken plate.",
+    image: "/find-requests/broken-plate.jpg",
   },
 ];
 
 const rightFindRequests = [
   {
-    copy: "Please help me find this floral skirt.",
+    copy: "Can anyone help me find this floral skirt?",
     image: "/find-requests/floral-skirt.jpg",
   },
   {
-    copy: "Need my toddler's plushie.",
+    copy: "Please find me this toddler plushie.",
     image: "/find-requests/toddler-plush.jpg",
   },
   {
-    copy: "Looking for this orange fox plush.",
+    copy: "$100 reward if you find this orange fox plush.",
     image: "/find-requests/fox-plush.jpg",
   },
   {
-    copy: "Trying to find this vintage 90s T-shirt.",
+    copy: "Can anyone help me find this vintage 90s T-shirt?",
     image: "/find-requests/vintage-shirt.jpg",
+  },
+  {
+    copy: "Please find me these celestial kitchen items.",
+    image: "/find-requests/celestial-kitchen.jpg",
+  },
+  {
+    copy: "Can anyone help me find this duck wall art?",
+    image: "/find-requests/duck-wall-art.jpg",
+  },
+  {
+    copy: "Please find me this Powerpuff Girls cup.",
+    image: "/find-requests/powerpuff-cup.jpg",
   },
 ];
 

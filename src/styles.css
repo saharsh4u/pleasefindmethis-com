@@ -146,11 +146,11 @@ main {
 }
 
 .side-find-track-down {
-  animation: side-find-scroll-down 36s linear infinite;
+  animation: side-find-scroll-down 68s linear infinite;
 }
 
 .side-find-track-up {
-  animation: side-find-scroll-up 36s linear infinite;
+  animation: side-find-scroll-up 68s linear infinite;
 }
 
 .side-find-card {
