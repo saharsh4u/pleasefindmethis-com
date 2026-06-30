@@ -281,6 +281,13 @@ const authEmailStorageKey = "pleasefindmethis-auth-email";
 const checkoutSnapshotStorageKey = "pleasefindmethis-last-checkout";
 const requestReferenceImagesBucket = "request-reference-images";
 const googleClientId = import.meta.env.VITE_GOOGLE_CLIENT_ID;
+const heroPlaceholderExamples = [
+  "Help me find this cat mug",
+  "Find this old wallet",
+  "I can pay $20",
+  "Help me find this pillow",
+  "Find this exact wall art",
+];
 
 function readStoredPendingRoute(): Page {
   const storedRoute = window.sessionStorage.getItem(pendingRouteStorageKey);
@@ -1756,7 +1763,52 @@ function LandingPage({
   videoPlaying: boolean;
 }) {
   const [heroSearch, setHeroSearch] = useState("");
+  const [heroPlaceholder, setHeroPlaceholder] = useState(heroPlaceholderExamples[0]);
   const recentBoardBounties = bountyListings.slice(0, 4);
+
+  useEffect(() => {
+    const reduceMotionQuery = window.matchMedia("(prefers-reduced-motion: reduce)");
+
+    if (reduceMotionQuery.matches) {
+      setHeroPlaceholder(heroPlaceholderExamples[0]);
+      return undefined;
+    }
+
+    let phraseIndex = 0;
+    let characterIndex = 0;
+    let deleting = false;
+    let timeoutId = 0;
+
+    const tick = () => {
+      const currentPhrase = heroPlaceholderExamples[phraseIndex];
+
+      characterIndex = deleting
+        ? Math.max(0, characterIndex - 1)
+        : Math.min(currentPhrase.length, characterIndex + 1);
+
+      setHeroPlaceholder(currentPhrase.slice(0, characterIndex));
+
+      if (!deleting && characterIndex === currentPhrase.length) {
+        deleting = true;
+        timeoutId = window.setTimeout(tick, 3600);
+        return;
+      }
+
+      if (deleting && characterIndex === 0) {
+        deleting = false;
+        phraseIndex = (phraseIndex + 1) % heroPlaceholderExamples.length;
+        timeoutId = window.setTimeout(tick, 420);
+        return;
+      }
+
+      timeoutId = window.setTimeout(tick, deleting ? 34 : 72);
+    };
+
+    setHeroPlaceholder("");
+    timeoutId = window.setTimeout(tick, 240);
+
+    return () => window.clearTimeout(timeoutId);
+  }, []);
 
   const submitHeroSearch = (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -1896,7 +1948,7 @@ function LandingPage({
           </p>
           <form className="hero-search-form" onSubmit={submitHeroSearch}>
             <Search size={20} aria-hidden="true" />
-            <input value={heroSearch} aria-label="Search requests" onChange={(event) => setHeroSearch(event.target.value)} placeholder="yellow pillow or wall art" />
+            <input value={heroSearch} aria-label="Search requests" onChange={(event) => setHeroSearch(event.target.value)} placeholder={heroPlaceholder} />
             <button type="submit">Search</button>
           </form>
           <div className="mobile-hero-actions" aria-label="Hero actions">
