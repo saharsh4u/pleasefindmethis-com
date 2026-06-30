@@ -905,6 +905,9 @@ const rightFindRequests = [
   },
 ];
 
+const mobileFindRequests = [...leftFindRequests, ...rightFindRequests];
+const reversedMobileFindRequests = [...mobileFindRequests].reverse();
+
 const safetySteps = [
   {
     icon: LockKeyhole,
@@ -1236,6 +1239,64 @@ function PageChrome({
   );
 }
 
+function formatBoardStatus(status: string) {
+  return status.toUpperCase();
+}
+
+function MobileFindTicker({ placement, requests }: { placement: "top" | "bottom"; requests: typeof mobileFindRequests }) {
+  return (
+    <div className={`mobile-find-ticker mobile-find-ticker-${placement}`} aria-hidden="true">
+      <div className="mobile-find-ticker-track">
+        {[...requests, ...requests].map((request, index) => (
+          <article className="mobile-find-ticker-card" key={`${placement}-mobile-find-${index}`}>
+            <img src={request.image} alt="" loading="lazy" />
+            <span>{request.copy}</span>
+          </article>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function BoardRequestCard({
+  bounty,
+  onDetail,
+  variant = "recent",
+}: {
+  bounty: BountyListing;
+  onDetail: (bountyId: string) => void;
+  variant?: "recent" | "reward";
+}) {
+  const activeStatus = ["Finder in touch", "Price agreed", "Found", "Delivered"].includes(bounty.status);
+
+  return (
+    <article className={`board-request-card ${variant === "reward" ? "board-request-card-reward" : ""}`}>
+      <button type="button" onClick={() => onDetail(bounty.id)} aria-label={`Open ${bounty.name}`}>
+        <span className={`board-status ${activeStatus ? "active" : ""}`}>{formatBoardStatus(bounty.status)}</span>
+        <img src={bounty.image} alt="" />
+        <span className="board-card-copy">
+          <strong>{bounty.name}</strong>
+          <em>{bounty.detail}</em>
+        </span>
+        <span className="board-card-stats" aria-label={`${bounty.reward} reward, closes in ${bounty.closes}, ${bounty.submissions} leads`}>
+          <span>
+            <small>Reward</small>
+            <b>{bounty.reward}</b>
+          </span>
+          <span>
+            <small>Closes</small>
+            <b>{bounty.closes}</b>
+          </span>
+          <span>
+            <small>Leads</small>
+            <b>{bounty.submissions}</b>
+          </span>
+        </span>
+      </button>
+    </article>
+  );
+}
+
 function LandingPage({
   menuOpen,
   onBrowse,
@@ -1263,8 +1324,26 @@ function LandingPage({
   setVideoPlaying: React.Dispatch<React.SetStateAction<boolean>>;
   videoPlaying: boolean;
 }) {
+  const [heroSearch, setHeroSearch] = useState("Sony Walkman WM-D6C");
+  const recentBoardBounties = [bountyListings[0], bountyListings[1], bountyListings[5], bountyListings[6]];
+
+  const submitHeroSearch = (event: React.FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    const normalizedQuery = heroSearch.trim().toLowerCase();
+    const match = bountyListings.find((bounty) => `${bounty.name} ${bounty.detail}`.toLowerCase().includes(normalizedQuery));
+
+    if (match) {
+      onDetail(match.id);
+      return;
+    }
+
+    onBrowse();
+  };
+
   return (
-    <main id="top">
+    <main id="top" className="landing-page">
+      <MobileFindTicker placement="top" requests={mobileFindRequests} />
+      <MobileFindTicker placement="bottom" requests={reversedMobileFindRequests} />
       <section className="hero-section">
         <div className="canvas-nav">
           <button className="brand brand-button" type="button" onClick={() => window.scrollTo({ top: 0, behavior: "smooth" })} aria-label={`${siteName} home`}>
@@ -1315,6 +1394,9 @@ function LandingPage({
               <button type="button" onClick={onFinders}>
                 For finders
               </button>
+              <button type="button" onClick={onLogin}>
+                Log in
+              </button>
             </nav>
           ) : null}
         </div>
@@ -1342,6 +1424,7 @@ function LandingPage({
         </div>
 
         <div className="hero-copy">
+          <p className="hero-site-tag">{siteName}</p>
           <h1>Can&apos;t find it anywhere?</h1>
           <h1 className="mobile-hero-title">Can&apos;t find it anywhere?</h1>
           <p className="micro-line">
@@ -1351,8 +1434,14 @@ function LandingPage({
             <ArrowRight size={16} />
             <span>you pay only when it&apos;s found.</span>
           </p>
-          <div className="mobile-hero-actions" aria-label="Mobile hero actions">
-            <button className="primary-button mobile-post-button" type="button" onClick={onPost}>
+          <form className="hero-search-form" onSubmit={submitHeroSearch}>
+            <Search size={20} aria-hidden="true" />
+            <input value={heroSearch} aria-label="Search requests" onChange={(event) => setHeroSearch(event.target.value)} placeholder="Sony Walkman WM-D6C" />
+            <button type="submit">Search</button>
+          </form>
+          <div className="mobile-hero-actions" aria-label="Hero actions">
+            <button className="primary-button mobile-post-button hero-plus-button" type="button" onClick={onPost}>
+              <span aria-hidden="true">+</span>
               Post it now
             </button>
             <button className="mobile-browse-button" type="button" onClick={onBrowse}>
@@ -1400,6 +1489,22 @@ function LandingPage({
             <LockKeyhole size={18} />
             Your reward is held safely. Not found in 30 days? You get your full reward back.
           </p>
+        </div>
+
+        <div className="landing-recent-board board-rails" aria-label="Request board preview">
+          <section className="board-row" aria-labelledby="recent-board-title">
+            <div className="board-row-head">
+              <h2 id="recent-board-title">Recently posted</h2>
+              <button className="board-view-all" type="button" onClick={onBrowse}>
+                View all <ArrowRight size={18} />
+              </button>
+            </div>
+            <div className="board-card-rail">
+              {recentBoardBounties.map((bounty) => (
+                <BoardRequestCard bounty={bounty} key={bounty.id} onDetail={onDetail} />
+              ))}
+            </div>
+          </section>
         </div>
       </section>
 
