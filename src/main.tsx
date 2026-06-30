@@ -174,6 +174,7 @@ type CheckoutSnapshot = {
 const siteName = "pleasefindmethis.com";
 const requestSingular = "request";
 const requestPlural = "requests";
+const checkoutRequestTimeoutMs = 25000;
 
 const requestCategories: Array<{ value: RequestCategory; label: string }> = [
   { value: "home", label: "Home goods" },
@@ -1154,13 +1155,7 @@ function routeHref(page: Page) {
 }
 
 function getInitialRoute(): Page {
-  const initialRoute = parseRoute();
-
-  if (initialRoute !== "landing") {
-    window.history.replaceState(null, "", `${window.location.pathname}${window.location.search}${routeHref("landing")}`);
-  }
-
-  return "landing";
+  return parseRoute();
 }
 
 function getCategoryLabel(category: RequestCategory) {
@@ -1248,6 +1243,24 @@ function formatConfirmationDate(value?: string) {
     day: "numeric",
     year: "numeric",
   }).format(date);
+}
+
+function getCheckoutErrorMessage(error: unknown) {
+  if (error instanceof Error && error.name === "AbortError") {
+    return "Checkout is taking longer than expected. Please check your connection and try again.";
+  }
+
+  if (error instanceof Error) {
+    const message = error.message || "Could not start secure checkout.";
+
+    if (message.toLowerCase().includes("auth session missing")) {
+      return "Sign in again before starting checkout.";
+    }
+
+    return message;
+  }
+
+  return "Could not start secure checkout.";
 }
 
 function App() {
@@ -2426,7 +2439,7 @@ function PostRewardPage({
     <main className="route-page" aria-labelledby="reward-title">
       <PostProgress current={2} />
       <section className="two-column-page">
-        <div className="form-panel">
+        <div className="form-panel reward-form-panel">
           <button className="back-button" type="button" onClick={onBack}>
             <ArrowLeft size={17} /> Describe
           </button>
@@ -2444,17 +2457,17 @@ function PostRewardPage({
             </div>
           </div>
           <div className="radio-grid" role="group" aria-label="Request duration">
-            <label>
+            <label className={draft.durationDays === 30 ? "duration-card selected-duration" : "duration-card"}>
               <input type="radio" name="duration" checked={draft.durationDays === 30} onChange={() => onDraftChange({ durationDays: 30 })} />
-              <span>30 days</span>
+              <span className="duration-text">30 days</span>
             </label>
-            <label>
+            <label className={draft.durationDays === 14 ? "duration-card selected-duration" : "duration-card"}>
               <input type="radio" name="duration" checked={draft.durationDays === 14} onChange={() => onDraftChange({ durationDays: 14 })} />
-              <span>14 days</span>
+              <span className="duration-text">14 days</span>
             </label>
-            <label>
+            <label className={draft.durationDays === 60 ? "duration-card selected-duration" : "duration-card"}>
               <input type="radio" name="duration" checked={draft.durationDays === 60} onChange={() => onDraftChange({ durationDays: 60 })} />
-              <span>60 days</span>
+              <span className="duration-text">60 days</span>
             </label>
           </div>
           <button className="primary-button" type="button" onClick={onNext}>
@@ -2462,18 +2475,18 @@ function PostRewardPage({
           </button>
         </div>
         <aside className="side-panel receipt-panel">
-          <h2>Escrow estimate</h2>
+          <h2>Payment summary</h2>
           <dl>
             <div>
-              <dt>Finder reward</dt>
+              <dt>Reward</dt>
               <dd>US${breakdown.reward}</dd>
             </div>
             <div>
-              <dt>Your service fee</dt>
+              <dt>Platform fee</dt>
               <dd>US${breakdown.platformFee}</dd>
             </div>
             <div>
-              <dt>Protection reserve</dt>
+              <dt>Protection</dt>
               <dd>US${breakdown.protection}</dd>
             </div>
             <div className="total-row">
@@ -2482,7 +2495,7 @@ function PostRewardPage({
             </div>
           </dl>
           <p>
-            <LockKeyhole size={18} /> The buyer pays through hosted checkout. You keep the service fee and handle finder payout after the source or handoff is accepted.
+            <LockKeyhole size={18} /> The reward is held safely until the item is returned or the source is approved.
           </p>
         </aside>
       </section>
@@ -2506,10 +2519,31 @@ function PostPayPage({
   const breakdown = getEscrowBreakdown(draft.reward);
   const itemName = draft.itemName.trim() || "your request";
 
+  useEffect(() => {
+    if (checkoutStatus !== "loading") {
+      return undefined;
+    }
+
+    const timeoutId = window.setTimeout(() => {
+      setCheckoutMessage("This is taking longer than expected. Please wait or try again.");
+    }, 4500);
+
+    return () => window.clearTimeout(timeoutId);
+  }, [checkoutStatus]);
+
   const startCheckout = async () => {
-    if (!supabase) {
+    const normalizedEmail = customerEmail.trim();
+    const normalizedName = customerName.trim();
+
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(normalizedEmail)) {
       setCheckoutStatus("error");
-      setCheckoutMessage("Supabase is not configured, so the request and photos cannot be saved yet.");
+      setCheckoutMessage("Enter a valid receipt email before checkout.");
+      return;
+    }
+
+    if (!normalizedName) {
+      setCheckoutStatus("error");
+      setCheckoutMessage("Enter your name before checkout.");
       return;
     }
 
@@ -2520,23 +2554,26 @@ function PostPayPage({
     let createdRequestId: string | null = null;
 
     try {
-      const normalizedEmail = customerEmail.trim();
-      const normalizedName = customerName.trim();
-      const {
-        data: { user },
-        error: userError,
-      } = await supabase.auth.getUser();
-
-      if (userError) {
-        throw userError;
-      }
-
-      if (!user) {
-        throw new Error("Sign in again before funding this request.");
-      }
-
       const requestId = crypto.randomUUID();
       const uploadedImages = [];
+      let user = null;
+
+      if (supabase) {
+        const {
+          data: { user: currentUser },
+          error: userError,
+        } = await supabase.auth.getUser();
+
+        if (userError && !userError.message.toLowerCase().includes("auth session missing")) {
+          throw userError;
+        }
+
+        user = currentUser;
+      }
+
+      if (!user && draft.referenceImages.length) {
+        throw new Error("Sign in again to save reference photos before checkout.");
+      }
 
       window.sessionStorage.setItem(authEmailStorageKey, normalizedEmail);
       window.sessionStorage.setItem(
@@ -2544,7 +2581,7 @@ function PostPayPage({
         JSON.stringify({
           requestId,
           itemName,
-          provider: "hosted checkout",
+          provider: "secure checkout",
           category: getCategoryLabel(draft.category),
           reward: breakdown.reward,
           platformFee: breakdown.platformFee,
@@ -2557,97 +2594,108 @@ function PostPayPage({
         } satisfies CheckoutSnapshot),
       );
 
-      for (const [index, image] of draft.referenceImages.entries()) {
-        const fileExtension = image.file.name.includes(".") ? image.file.name.split(".").pop()?.toLowerCase() ?? "jpg" : "jpg";
-        const filePath = `${user.id}/${requestId}/${index + 1}-${crypto.randomUUID()}.${fileExtension}`;
-        const { error: uploadError } = await supabase.storage
-          .from(requestReferenceImagesBucket)
-          .upload(filePath, image.file, {
-            cacheControl: "3600",
-            contentType: image.file.type || undefined,
-            upsert: false,
-          });
+      if (supabase && user) {
+        for (const [index, image] of draft.referenceImages.entries()) {
+          const fileExtension = image.file.name.includes(".") ? image.file.name.split(".").pop()?.toLowerCase() ?? "jpg" : "jpg";
+          const filePath = `${user.id}/${requestId}/${index + 1}-${crypto.randomUUID()}.${fileExtension}`;
+          const { error: uploadError } = await supabase.storage
+            .from(requestReferenceImagesBucket)
+            .upload(filePath, image.file, {
+              cacheControl: "3600",
+              contentType: image.file.type || undefined,
+              upsert: false,
+            });
 
-        if (uploadError) {
-          throw uploadError;
+          if (uploadError) {
+            throw uploadError;
+          }
+
+          uploadedPaths.push(filePath);
+          const {
+            data: { publicUrl },
+          } = supabase.storage.from(requestReferenceImagesBucket).getPublicUrl(filePath);
+
+          uploadedImages.push({
+            name: image.name,
+            path: filePath,
+            type: image.file.type || null,
+            url: publicUrl,
+          });
         }
 
-        uploadedPaths.push(filePath);
-        const {
-          data: { publicUrl },
-        } = supabase.storage.from(requestReferenceImagesBucket).getPublicUrl(filePath);
-
-        uploadedImages.push({
-          name: image.name,
-          path: filePath,
-          type: image.file.type || null,
-          url: publicUrl,
+        const { error: insertError } = await supabase.from("requests").insert({
+          id: requestId,
+          user_id: user.id,
+          item_name: itemName,
+          category: getCategoryLabel(draft.category),
+          details: draft.details,
+          currency: "USD",
+          reward: breakdown.reward,
+          service_fee: breakdown.platformFee,
+          protection_reserve: breakdown.protection,
+          total_due: breakdown.total,
+          finder_payout: breakdown.reward,
+          duration_days: draft.durationDays,
+          status: "checkout_pending",
+          payment_status: "unpaid",
+          payout_status: "not_ready",
+          platform_fee_status: "unearned",
+          customer_email: normalizedEmail,
+          customer_name: normalizedName,
+          reference_images: uploadedImages,
         });
+
+        if (insertError) {
+          throw insertError;
+        }
+
+        createdRequestId = requestId;
       }
 
-      const { error: insertError } = await supabase.from("requests").insert({
-        id: requestId,
-        user_id: user.id,
-        item_name: itemName,
-        category: getCategoryLabel(draft.category),
-        details: draft.details,
-        currency: "USD",
-        reward: breakdown.reward,
-        service_fee: breakdown.platformFee,
-        protection_reserve: breakdown.protection,
-        total_due: breakdown.total,
-        finder_payout: breakdown.reward,
-        duration_days: draft.durationDays,
-        status: "checkout_pending",
-        payment_status: "unpaid",
-        payout_status: "not_ready",
-        platform_fee_status: "unearned",
-        customer_email: normalizedEmail,
-        customer_name: normalizedName,
-        reference_images: uploadedImages,
-      });
+      const checkoutController = new AbortController();
+      const checkoutTimeoutId = window.setTimeout(() => checkoutController.abort(), checkoutRequestTimeoutMs);
+      let response: Response;
 
-      if (insertError) {
-        throw insertError;
+      try {
+        response = await fetch("/api/payments/checkout", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          signal: checkoutController.signal,
+          body: JSON.stringify({
+            customer: {
+              email: normalizedEmail,
+              name: normalizedName,
+            },
+            draft: {
+              requestId,
+              itemName,
+              category: getCategoryLabel(draft.category),
+              details: draft.details,
+              reward: breakdown.reward,
+              durationDays: draft.durationDays,
+            },
+          }),
+        });
+      } finally {
+        window.clearTimeout(checkoutTimeoutId);
       }
-
-      createdRequestId = requestId;
-
-      const response = await fetch("/api/payments/checkout", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          customer: {
-            email: normalizedEmail,
-            name: normalizedName,
-          },
-          draft: {
-            requestId,
-            itemName,
-            category: getCategoryLabel(draft.category),
-            details: draft.details,
-            reward: breakdown.reward,
-            durationDays: draft.durationDays,
-          },
-        }),
-      });
 
       const payload = await response.json().catch(() => null);
 
       if (!response.ok || !payload?.checkoutUrl) {
-        throw new Error(payload?.error || "Could not start hosted checkout.");
+        throw new Error(payload?.error || "Could not start secure checkout.");
       }
 
       window.location.assign(payload.checkoutUrl);
     } catch (error) {
-      if (!createdRequestId && uploadedPaths.length) {
+      if (supabase && !createdRequestId && uploadedPaths.length) {
         await supabase.storage.from(requestReferenceImagesBucket).remove(uploadedPaths);
       }
 
       setCheckoutStatus("error");
-      setCheckoutMessage(error instanceof Error ? error.message : "Could not start hosted checkout.");
+      setCheckoutMessage(getCheckoutErrorMessage(error));
     }
   };
 
@@ -2655,13 +2703,13 @@ function PostPayPage({
     <main className="route-page" aria-labelledby="pay-title">
       <PostProgress current={3} />
       <section className="two-column-page pay-layout">
-        <div className="form-panel">
+        <div className="form-panel payment-form-panel">
           <button className="back-button" type="button" onClick={onBack}>
             <ArrowLeft size={17} /> Reward
           </button>
           <h1 id="pay-title">Fund the reward with secure checkout.</h1>
           <p>
-            The poster pays once through hosted checkout. The payment is recorded as a marketplace split: finder payout is held for release after an accepted source, and the platform keeps the service fee plus protection reserve.
+            Pay once through secure checkout. The reward stays protected until the source is approved or the handoff is complete.
           </p>
           {checkoutReturnStatus === "cancelled" ? (
             <p className="dialog-error" role="status">
@@ -2684,17 +2732,22 @@ function PostPayPage({
           <div className="checkout-note">
             <ExternalLink size={19} />
             <span>
-              <strong>Hosted checkout</strong>
-              Card and wallet details are collected by the payment processor, not by this app. The charge settles to the platform account; this app tracks the finder payable and platform share for release, refund, or dispute handling.
+              <strong>Secure Checkout</strong>
+              Your payment is processed securely. We never store your card details. Your reward is held safely until the item is returned or the source is approved.
             </span>
           </div>
           <button className="primary-button" type="button" disabled={checkoutStatus === "loading"} onClick={startCheckout}>
-            <CreditCard size={18} /> {checkoutStatus === "loading" ? "Opening checkout..." : `Pay US$${breakdown.total} securely`}
+            <CreditCard size={18} /> {checkoutStatus === "loading" ? "Preparing secure checkout..." : checkoutStatus === "error" ? "Try checkout again" : `Go to secure checkout`}
           </button>
           {checkoutMessage ? (
-            <p className="dialog-error" role="status">
-              {checkoutMessage}
-            </p>
+            <div className={checkoutStatus === "error" ? "dialog-error checkout-status-message" : "dialog-note checkout-status-message"} role="status">
+              <span>{checkoutMessage}</span>
+              {checkoutStatus === "error" ? (
+                <button className="retry-button" type="button" onClick={startCheckout}>
+                  Retry
+                </button>
+              ) : null}
+            </div>
           ) : null}
         </div>
         <aside className="side-panel payment-summary receipt-panel">
@@ -2702,23 +2755,23 @@ function PostPayPage({
           <div className="summary-card">
             <DollarSign size={28} />
             <strong>US${breakdown.total} due today</strong>
-            <span>Poster payment for {itemName}, split into finder payable and platform share.</span>
+            <span>Total for {itemName}, including the reward and platform protection.</span>
           </div>
           <dl>
             <div>
-              <dt>Finder payout</dt>
+              <dt>Reward</dt>
               <dd>US${breakdown.reward}</dd>
             </div>
             <div>
-              <dt>Platform service fee</dt>
+              <dt>Platform fee</dt>
               <dd>US${breakdown.platformFee}</dd>
             </div>
             <div>
-              <dt>Protection reserve</dt>
+              <dt>Protection</dt>
               <dd>US${breakdown.protection}</dd>
             </div>
             <div>
-              <dt>Platform share</dt>
+              <dt>Fees total</dt>
               <dd>US${breakdown.platformShare}</dd>
             </div>
             <div className="total-row">
@@ -2731,7 +2784,7 @@ function PostPayPage({
               <ShieldCheck size={18} /> The processor collects the full poster payment
             </li>
             <li>
-              <Banknote size={18} /> Platform share is US${breakdown.platformShare}
+              <Banknote size={18} /> Fees and protection total US${breakdown.platformShare}
             </li>
             <li>
               <TimerReset size={18} /> Finder payout becomes payable after acceptance

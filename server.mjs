@@ -22,6 +22,7 @@ const host = process.env.HOST ?? "127.0.0.1";
 let port = Number(process.env.PORT ?? 5173);
 const distRoot = path.resolve(root, "dist");
 const supabaseAdmin = createSupabaseAdminClient();
+const paymentProviderTimeoutMs = 20000;
 
 const vite = isProduction ? null : await createDevViteServer();
 
@@ -219,14 +220,30 @@ async function handleCreateDodoCheckout(req, res) {
     cancel_url: `${origin}/#/post/pay?checkout=cancelled`,
   };
 
-  const dodoResponse = await fetch(`${getDodoApiBase()}/checkouts`, {
-    method: "POST",
-    headers: {
-      Authorization: `Bearer ${apiKey}`,
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify(checkoutPayload),
-  });
+  let dodoResponse;
+
+  try {
+    dodoResponse = await fetchWithTimeout(
+      `${getDodoApiBase()}/checkouts`,
+      {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${apiKey}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(checkoutPayload),
+      },
+      paymentProviderTimeoutMs,
+    );
+  } catch (error) {
+    console.error("Dodo checkout creation timed out or failed", error);
+    await updateRequestPaymentState(requestId, {
+      status: "checkout_failed",
+      payment_status: "failed",
+    });
+    sendJson(res, 504, { error: "The payment provider took too long to create checkout. Please try again." });
+    return;
+  }
 
   const responseText = await dodoResponse.text();
   const dodoPayload = parseJson(responseText);
@@ -364,15 +381,31 @@ async function handleCreateLemonSqueezyCheckout(req, res) {
     },
   };
 
-  const lemonResponse = await fetch("https://api.lemonsqueezy.com/v1/checkouts", {
-    method: "POST",
-    headers: {
-      Accept: "application/vnd.api+json",
-      Authorization: `Bearer ${apiKey}`,
-      "Content-Type": "application/vnd.api+json",
-    },
-    body: JSON.stringify(checkoutPayload),
-  });
+  let lemonResponse;
+
+  try {
+    lemonResponse = await fetchWithTimeout(
+      "https://api.lemonsqueezy.com/v1/checkouts",
+      {
+        method: "POST",
+        headers: {
+          Accept: "application/vnd.api+json",
+          Authorization: `Bearer ${apiKey}`,
+          "Content-Type": "application/vnd.api+json",
+        },
+        body: JSON.stringify(checkoutPayload),
+      },
+      paymentProviderTimeoutMs,
+    );
+  } catch (error) {
+    console.error("Lemon Squeezy checkout creation timed out or failed", error);
+    await updateRequestPaymentState(requestId, {
+      status: "checkout_failed",
+      payment_status: "failed",
+    });
+    sendJson(res, 504, { error: "The payment provider took too long to create checkout. Please try again." });
+    return;
+  }
 
   const responseText = await lemonResponse.text();
   const lemonPayload = parseJson(responseText);
@@ -792,7 +825,7 @@ async function readCheckoutRequest(req, res) {
   const itemName = parseString(draft.itemName, 120) || "Hard-to-find item";
   const requestId = parseString(draft.requestId, 64);
   const category = parseString(draft.category, 80) || "General";
-  const details = parseString(draft.details, 500);
+  const details = parseString(draft.details, 500) || "No additional details provided.";
   const durationDays = parseDuration(draft.durationDays);
   let reward;
 
@@ -946,6 +979,20 @@ function getLemonSqueezyEventType(event) {
   }
 
   return parseString(event.meta.event_name, 100) || "unknown";
+}
+
+async function fetchWithTimeout(url, options, timeoutMs) {
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
+
+  try {
+    return await fetch(url, {
+      ...options,
+      signal: controller.signal,
+    });
+  } finally {
+    clearTimeout(timeoutId);
+  }
 }
 
 async function readJson(req) {
