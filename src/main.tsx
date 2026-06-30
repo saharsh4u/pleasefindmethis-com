@@ -42,6 +42,7 @@ import {
   UserRoundCheck,
   X,
 } from "lucide-react";
+import { hasSupabaseEnv, supabase } from "./lib/supabase";
 import "./styles.css";
 
 type Page =
@@ -61,6 +62,38 @@ type Page =
   | "faq";
 
 type AuthMode = "signup" | "login";
+
+type GoogleProfile = {
+  email?: string;
+  name?: string;
+  picture?: string;
+};
+
+type GoogleTokenResponse = {
+  access_token?: string;
+  error?: string;
+  error_description?: string;
+};
+
+type GoogleAccountsApi = {
+  accounts?: {
+    oauth2?: {
+      initTokenClient?: (config: {
+        client_id: string;
+        scope: string;
+        callback: (response: GoogleTokenResponse) => void;
+      }) => {
+        requestAccessToken: (options?: { prompt?: string }) => void;
+      };
+    };
+  };
+};
+
+declare global {
+  interface Window {
+    google?: GoogleAccountsApi;
+  }
+}
 
 type BountyListing = {
   id: string;
@@ -193,6 +226,82 @@ const pageRoutes: Record<Page, string> = {
   profile: "profile",
   faq: "faq",
 };
+
+const signedInStorageKey = "pleasefindmethis-signed-in";
+const pendingRouteStorageKey = "pleasefindmethis-pending-route";
+const authProviderStorageKey = "pleasefindmethis-auth-provider";
+const googleClientId = import.meta.env.VITE_GOOGLE_CLIENT_ID;
+
+function readStoredPendingRoute(): Page {
+  const storedRoute = window.sessionStorage.getItem(pendingRouteStorageKey);
+  return storedRoute && storedRoute in pageRoutes ? (storedRoute as Page) : "post-describe";
+}
+
+function getOAuthRedirectUrl() {
+  return `${window.location.origin}${window.location.pathname}`;
+}
+
+function loadGoogleIdentityScript() {
+  return new Promise<void>((resolve, reject) => {
+    if (window.google?.accounts?.oauth2?.initTokenClient) {
+      resolve();
+      return;
+    }
+
+    const existingScript = document.querySelector<HTMLScriptElement>('script[src="https://accounts.google.com/gsi/client"]');
+    if (existingScript) {
+      existingScript.addEventListener("load", () => resolve(), { once: true });
+      existingScript.addEventListener("error", () => reject(new Error("Google sign-in script could not load.")), { once: true });
+      return;
+    }
+
+    const script = document.createElement("script");
+    script.src = "https://accounts.google.com/gsi/client";
+    script.async = true;
+    script.defer = true;
+    script.onload = () => resolve();
+    script.onerror = () => reject(new Error("Google sign-in script could not load."));
+    document.head.appendChild(script);
+  });
+}
+
+async function signInWithGoogleClientId(): Promise<GoogleProfile> {
+  if (!googleClientId) {
+    throw new Error("Google sign-in needs VITE_GOOGLE_CLIENT_ID in your environment.");
+  }
+
+  await loadGoogleIdentityScript();
+  const initTokenClient = window.google?.accounts?.oauth2?.initTokenClient;
+  if (!initTokenClient) {
+    throw new Error("Google sign-in is unavailable in this browser session.");
+  }
+
+  const response = await new Promise<GoogleTokenResponse>((resolve) => {
+    const tokenClient = initTokenClient({
+      client_id: googleClientId,
+      scope: "openid email profile",
+      callback: resolve,
+    });
+
+    tokenClient.requestAccessToken({ prompt: "consent" });
+  });
+
+  if (response.error || !response.access_token) {
+    throw new Error(response.error_description || response.error || "Google sign-in was cancelled.");
+  }
+
+  const profileResponse = await fetch("https://www.googleapis.com/oauth2/v3/userinfo", {
+    headers: {
+      Authorization: `Bearer ${response.access_token}`,
+    },
+  });
+
+  if (!profileResponse.ok) {
+    throw new Error("Google signed in, but the profile could not be verified.");
+  }
+
+  return profileResponse.json() as Promise<GoogleProfile>;
+}
 
 const bountyListings: BountyListing[] = [
   {
@@ -1012,9 +1121,11 @@ function getEscrowBreakdown(reward: number): EscrowBreakdown {
 function App() {
   const [route, setRoute] = useState<Page>(() => parseRoute());
   const [menuOpen, setMenuOpen] = useState(false);
-  const [signedIn, setSignedIn] = useState(() => window.sessionStorage.getItem("pleasefindmethis-signed-in") === "true");
-  const [pendingRoute, setPendingRoute] = useState<Page>("post-describe");
+  const [signedIn, setSignedIn] = useState(() => window.sessionStorage.getItem(signedInStorageKey) === "true");
+  const [pendingRoute, setPendingRoute] = useState<Page>(() => readStoredPendingRoute());
   const [authMode, setAuthMode] = useState<AuthMode>("signup");
+  const [authBusy, setAuthBusy] = useState(false);
+  const [authMessage, setAuthMessage] = useState("");
   const [postDraft, setPostDraft] = useState<PostDraft>(initialPostDraft);
   const [selectedFeedBounty, setSelectedFeedBounty] = useState(feedItems[0].bounty);
   const [activeBountyId, setActiveBountyId] = useState(bountyListings[0].id);
@@ -1048,6 +1159,8 @@ function App() {
   const requireAuth = (target: Page, mode: AuthMode = "signup") => {
     setPendingRoute(target);
     setAuthMode(mode);
+    setAuthMessage("");
+    window.sessionStorage.setItem(pendingRouteStorageKey, target);
     if (signedIn) {
       navigate(target);
       return;
@@ -1072,10 +1185,60 @@ function App() {
     document.getElementById(sectionId)?.scrollIntoView({ behavior: "smooth", block: "start" });
   };
 
-  const completeAuth = () => {
-    window.sessionStorage.setItem("pleasefindmethis-signed-in", "true");
+  const markSignedIn = (provider = "email-demo") => {
+    window.sessionStorage.setItem(signedInStorageKey, "true");
+    window.sessionStorage.setItem(authProviderStorageKey, provider);
+    window.sessionStorage.removeItem(pendingRouteStorageKey);
     setSignedIn(true);
     navigate(pendingRoute);
+  };
+
+  const completeAuth = () => {
+    markSignedIn("email-demo");
+  };
+
+  const signInWithGoogle = async () => {
+    setAuthBusy(true);
+    setAuthMessage("");
+    window.sessionStorage.setItem(pendingRouteStorageKey, pendingRoute);
+
+    try {
+      if (hasSupabaseEnv && supabase) {
+        const { error } = await supabase.auth.signInWithOAuth({
+          provider: "google",
+          options: {
+            redirectTo: getOAuthRedirectUrl(),
+          },
+        });
+
+        if (error) {
+          throw error;
+        }
+
+        return;
+      }
+
+      if (googleClientId) {
+        const profile = await signInWithGoogleClientId();
+        if (profile.email) {
+          window.sessionStorage.setItem("pleasefindmethis-auth-email", profile.email);
+        }
+        markSignedIn("google");
+        return;
+      }
+
+      if (window.location.hostname === "localhost" || window.location.hostname === "127.0.0.1") {
+        setAuthMessage("Google sign-in is ready. Add VITE_GOOGLE_CLIENT_ID or Supabase auth env vars for the real Google popup. Localhost is using a demo Google session.");
+        markSignedIn("google-demo");
+        return;
+      }
+
+      throw new Error("Google sign-in needs VITE_GOOGLE_CLIENT_ID or Supabase auth environment variables.");
+    } catch (error) {
+      setAuthMessage(error instanceof Error ? error.message : "Google sign-in could not start.");
+    } finally {
+      setAuthBusy(false);
+    }
   };
 
   const updatePostDraft = (updates: Partial<PostDraft>) => {
@@ -1088,12 +1251,51 @@ function App() {
     if (!signedIn && protectedPages.has(route)) {
       setPendingRoute(route);
       setAuthMode("signup");
+      window.sessionStorage.setItem(pendingRouteStorageKey, route);
       if (window.location.hash !== routeHref("auth")) {
         window.history.replaceState(null, "", routeHref("auth"));
       }
       setRoute("auth");
     }
   }, [route, signedIn]);
+
+  useEffect(() => {
+    if (!supabase) {
+      return;
+    }
+
+    let mounted = true;
+    const finishOAuthSession = () => {
+      const storedRoute = readStoredPendingRoute();
+      window.sessionStorage.setItem(signedInStorageKey, "true");
+      window.sessionStorage.setItem(authProviderStorageKey, "google");
+      window.sessionStorage.removeItem(pendingRouteStorageKey);
+      setSignedIn(true);
+      setPendingRoute(storedRoute);
+      navigate(storedRoute);
+    };
+
+    supabase.auth.getSession().then(({ data }) => {
+      if (!mounted || !data.session) {
+        return;
+      }
+      finishOAuthSession();
+    });
+
+    const {
+      data: { subscription },
+    } = supabase.auth.onAuthStateChange((_event, session) => {
+      if (!mounted || !session) {
+        return;
+      }
+      finishOAuthSession();
+    });
+
+    return () => {
+      mounted = false;
+      subscription.unsubscribe();
+    };
+  }, []);
 
   const pageProps = {
     navigate,
@@ -1128,9 +1330,12 @@ function App() {
         <PageChrome {...pageProps}>
           {visibleRoute === "auth" ? (
             <AuthPage
+              authBusy={authBusy}
+              authMessage={authMessage}
               mode={authMode}
               nextPage={pendingRoute}
               onComplete={completeAuth}
+              onGoogleAuth={signInWithGoogle}
               onModeChange={setAuthMode}
               onPublicBrowse={() => navigate("browse")}
             />
@@ -1744,15 +1949,21 @@ function LandingPage({
 }
 
 function AuthPage({
+  authBusy,
+  authMessage,
   mode,
   nextPage,
   onComplete,
+  onGoogleAuth,
   onModeChange,
   onPublicBrowse,
 }: {
+  authBusy: boolean;
+  authMessage: string;
   mode: AuthMode;
   nextPage: Page;
   onComplete: () => void;
+  onGoogleAuth: () => void;
   onModeChange: (mode: AuthMode) => void;
   onPublicBrowse: () => void;
 }) {
@@ -1775,6 +1986,25 @@ function AuthPage({
               Log in
             </button>
           </div>
+          <button className="google-auth-button" type="button" onClick={onGoogleAuth} disabled={authBusy}>
+            <span className="google-g-mark" aria-hidden="true">
+              <svg viewBox="0 0 24 24" focusable="false">
+                <path fill="#4285F4" d="M22.6 12.2c0-.7-.1-1.4-.2-2H12v3.9h5.9a5 5 0 0 1-2.2 3.3v2.7h3.5c2-1.9 3.4-4.6 3.4-7.9Z" />
+                <path fill="#34A853" d="M12 23c3 0 5.5-1 7.3-2.8l-3.5-2.7c-1 .7-2.2 1.1-3.8 1.1-2.9 0-5.3-1.9-6.1-4.6H2.3v2.8A11 11 0 0 0 12 23Z" />
+                <path fill="#FBBC05" d="M5.9 14a6.7 6.7 0 0 1 0-4.1V7.1H2.3a11 11 0 0 0 0 9.8L6 14Z" />
+                <path fill="#EA4335" d="M12 5.4c1.6 0 3.1.6 4.2 1.7l3.1-3.1A10.6 10.6 0 0 0 12 1 11 11 0 0 0 2.3 7.1L6 9.9c.8-2.6 3.2-4.5 6.1-4.5Z" />
+              </svg>
+            </span>
+            {authBusy ? "Opening Google..." : "Continue with Google"}
+          </button>
+          <div className="auth-divider">
+            <span>or continue with email</span>
+          </div>
+          {authMessage ? (
+            <p className="auth-message" role="status">
+              {authMessage}
+            </p>
+          ) : null}
           <label>
             Email
             <input type="email" placeholder="you@example.com" />
