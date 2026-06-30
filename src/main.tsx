@@ -33,7 +33,6 @@ import {
   ShieldAlert,
   ShieldCheck,
   ShieldX,
-  SlidersHorizontal,
   Sparkles,
   Star,
   Store,
@@ -471,11 +470,11 @@ const bountyListings: BountyListing[] = [
     timeline: ["Reward funded", "New request", "Finders can submit leads"],
   },
   {
-    id: "leica-m6-ttl",
-    name: "Leica M6 TTL",
-    detail: "0.72 black body",
-    reward: "US$1,450",
-    rewardValue: 1450,
+    id: "canon-eos-80d-kit",
+    name: "Canon EOS 80D",
+    detail: "Body with clean lens",
+    reward: "US$420",
+    rewardValue: 420,
     closes: "8 days",
     category: "Camera gear",
     status: "Finder in touch",
@@ -486,9 +485,9 @@ const bountyListings: BountyListing[] = [
     image:
       "https://images.unsplash.com/photo-1495707902641-75cac588d2e9?auto=format&fit=crop&w=720&q=80",
     description:
-      "Searching for a clean Leica M6 TTL 0.72 black body with working meter and clear finder.",
-    mustHaves: ["0.72 finder", "Working meter", "No shutter issue", "Serial photo required"],
-    timeline: ["Reward funded", "Finder shortlisted two bodies", "Meter video requested"],
+      "Looking for a clean Canon EOS 80D body with a working lens and recent test photos.",
+    mustHaves: ["EOS 80D body", "Lens glass is clean", "Shutter count disclosed", "Recent test photo required"],
+    timeline: ["Reward funded", "Finder shared two local options", "Shutter count requested"],
   },
   {
     id: "omega-speedmaster-125",
@@ -2903,7 +2902,7 @@ function BrowseAllPage({ onDetail, onPost }: { onDetail: (bountyId: string) => v
       <section className="gallery-hero compact-gallery-hero">
         <div>
           <h1 id="browse-all-title">Browse all requests</h1>
-          <p>Rare finds. Real rewards. New requests every day.</p>
+          <p>Search open requests by item, category, or location.</p>
         </div>
         <button className="primary-button" type="button" onClick={onPost}>
           Post a request <ArrowRight size={18} />
@@ -2921,9 +2920,6 @@ function BrowseAllPage({ onDetail, onPost }: { onDetail: (bountyId: string) => v
             </button>
           ))}
         </div>
-        <button className="icon-label-button" type="button">
-          <SlidersHorizontal size={18} /> More filters
-        </button>
       </section>
       <section className="bounty-square-grid full-gallery-grid" aria-label="All request results">
         {visibleBounties.map((bounty) => (
