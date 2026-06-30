@@ -378,6 +378,10 @@ main {
 }
 
 .mobile-browse-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.22rem;
   min-height: auto;
   border: 0;
   background: transparent;
@@ -2157,7 +2161,7 @@ main {
 
 .top-bounty-grid {
   display: grid;
-  grid-template-columns: repeat(5, minmax(0, 1fr));
+  grid-template-columns: repeat(4, minmax(0, 1fr));
   gap: clamp(0.7rem, 1.4vw, 1rem);
   margin-bottom: clamp(2.2rem, 5vw, 4rem);
 }
@@ -2368,7 +2372,7 @@ main {
 
 .bounty-square-grid {
   display: grid;
-  grid-template-columns: repeat(5, minmax(0, 1fr));
+  grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: clamp(0.7rem, 1.4vw, 1rem);
 }
 
@@ -3156,7 +3160,10 @@ main {
   }
 
   .top-bounty-grid,
-  .bounty-square-grid,
+  .bounty-square-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
   .full-gallery-grid {
     grid-template-columns: repeat(3, minmax(0, 1fr));
   }
@@ -3383,7 +3390,10 @@ main {
 
 @media (max-width: 430px) {
   .top-bounty-grid,
-  .bounty-square-grid,
+  .bounty-square-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
   .full-gallery-grid {
     grid-template-columns: 1fr;
   }

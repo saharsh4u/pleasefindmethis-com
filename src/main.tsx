@@ -892,10 +892,18 @@ const bountyListings: BountyListing[] = [
   },
 ];
 
-const featuredBounties = bountyListings.slice(0, 5);
+const featuredBountyIds = [
+  "childhood-rose-blanket",
+  "yellow-stay-home-pillow",
+  "living-and-co-cat-mug",
+  "duck-wall-art",
+];
+const featuredBounties = featuredBountyIds
+  .map((id) => bountyListings.find((bounty) => bounty.id === id))
+  .filter((bounty): bounty is BountyListing => Boolean(bounty));
 const rewardSortedBounties = [...bountyListings].sort((left, right) => right.rewardValue - left.rewardValue);
-const topFiveBounties = featuredBounties;
-const overviewBounties = bountyListings.slice(5, 20);
+const browseFeaturedBounties = rewardSortedBounties.slice(0, 4);
+const browseRemainingBounties = rewardSortedBounties.slice(4);
 
 const feedItems: FeedItem[] = [
   {
@@ -1489,6 +1497,7 @@ function App() {
         <LandingPage
           menuOpen={menuOpen}
           onBrowse={() => navigate("browse")}
+          onBrowseAll={() => navigate("browse-all")}
           onDetail={goToDetail}
           onFinders={() => requireAuth("finder-dashboard")}
           onLogin={() => {
@@ -1715,6 +1724,7 @@ function LandingPage({
   menuOpen,
   onAccount,
   onBrowse,
+  onBrowseAll,
   onDetail,
   onFinders,
   onLogin,
@@ -1731,6 +1741,7 @@ function LandingPage({
   menuOpen: boolean;
   onAccount: () => void;
   onBrowse: () => void;
+  onBrowseAll: () => void;
   onDetail: (bountyId: string) => void;
   onFinders: () => void;
   onLogin: () => void;
@@ -1887,8 +1898,8 @@ function LandingPage({
               <span aria-hidden="true">+</span>
               Post it now
             </button>
-            <button className="mobile-browse-button" type="button" onClick={onBrowse}>
-              Browse feed
+            <button className="mobile-browse-button" type="button" onClick={onBrowseAll}>
+              Browse all <ArrowRight size={14} />
             </button>
           </div>
         </div>
@@ -2821,7 +2832,7 @@ function BrowsePage({
       </section>
 
       <section className="top-bounty-grid" aria-label="Featured requests">
-        {topFiveBounties.map((bounty, index) => (
+        {browseFeaturedBounties.map((bounty, index) => (
           <BountySquareCard bounty={bounty} featured={index === 0} key={bounty.id} onDetail={onDetail} rank={index + 1} />
         ))}
       </section>
@@ -2837,8 +2848,8 @@ function BrowsePage({
           </button>
         </div>
         <div className="bounty-square-grid">
-          {overviewBounties.map((bounty, index) => (
-            <BountySquareCard bounty={bounty} compact key={bounty.id} onDetail={onDetail} rank={index + 6} />
+          {browseRemainingBounties.map((bounty, index) => (
+            <BountySquareCard bounty={bounty} compact key={bounty.id} onDetail={onDetail} rank={index + 5} />
           ))}
         </div>
       </section>
