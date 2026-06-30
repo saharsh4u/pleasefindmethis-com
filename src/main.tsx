@@ -21,6 +21,7 @@ import {
   ImagePlus,
   LayoutDashboard,
   LockKeyhole,
+  LogOut,
   MapPin,
   Menu,
   MessageSquare,
@@ -137,6 +138,8 @@ type PostDraft = {
   durationDays: RequestDuration;
 };
 
+type FindSourceType = "source-link" | "private-source" | "finder-has-it";
+
 type EscrowBreakdown = {
   reward: number;
   platformFee: number;
@@ -164,6 +167,24 @@ const initialPostDraft: PostDraft = {
   durationDays: 30,
 };
 
+const findSourceOptions: Array<{ value: FindSourceType; label: string; copy: string }> = [
+  {
+    value: "source-link",
+    label: "I found a link or listing",
+    copy: "Use this when the poster can review a public marketplace, store, auction, or product page.",
+  },
+  {
+    value: "private-source",
+    label: "A friend, shop, or local source has it",
+    copy: "Use this when there is no public link, but you can connect the poster with the source.",
+  },
+  {
+    value: "finder-has-it",
+    label: "I have it",
+    copy: "Use this when you personally have access to the item and want the poster to contact you.",
+  },
+];
+
 const protectedPages = new Set<Page>([
   "post-describe",
   "post-reward",
@@ -183,7 +204,7 @@ const pageLabels: Record<Page, string> = {
   browse: "Browse feed",
   "browse-all": "Browse all",
   "bounty-detail": "Request detail",
-  "submit-find": "Submit a find",
+  "submit-find": "Submit a source",
   "poster-dashboard": "Poster dashboard",
   "finder-dashboard": "Finder dashboard",
   dispute: "Dispute",
@@ -322,7 +343,7 @@ const bountyListings: BountyListing[] = [
     description:
       "Looking for the original Fujifilm X100F silver lens cap in clean condition. Aftermarket caps are not useful for this request.",
     mustHaves: ["Original Fujifilm part", "Silver finish", "No deep scratches", "Ships with tracking"],
-    timeline: ["Bounty funded", "Three finders watching", "Latest source submitted 2 hours ago"],
+    timeline: ["Reward funded", "Three finders watching", "Latest source submitted 2 hours ago"],
   },
   {
     id: "seiko-6139-panda",
@@ -341,8 +362,8 @@ const bountyListings: BountyListing[] = [
       "https://images.unsplash.com/photo-1523170335258-f5ed11844a49?auto=format&fit=crop&w=720&q=80",
     description:
       "Searching for a Seiko 6139-6002 with a clean panda dial. Service history is helpful, but originality matters most.",
-    mustHaves: ["Panda dial", "Working chronograph", "Clear caseback photos", "Seller accepts escrow process"],
-    timeline: ["Bounty funded", "Two shortlisted leads", "Authenticity review in progress"],
+    mustHaves: ["Panda dial", "Working chronograph", "Clear caseback photos", "Seller or source is reachable"],
+    timeline: ["Reward funded", "Two shortlisted leads", "Authenticity review in progress"],
   },
   {
     id: "marantz-pm94-knobs",
@@ -362,7 +383,7 @@ const bountyListings: BountyListing[] = [
     description:
       "Need a set of original Marantz PM-94 knobs for a restoration project. Close visual match is not enough.",
     mustHaves: ["Original PM-94 parts", "Full knob set preferred", "No cracked stems", "Clear macro photos"],
-    timeline: ["Bounty funded", "Parts recyclers contacted", "Waiting on photos"],
+    timeline: ["Reward funded", "Parts recyclers contacted", "Waiting on photos"],
   },
   {
     id: "ps3-cecha01",
@@ -382,7 +403,7 @@ const bountyListings: BountyListing[] = [
     description:
       "Looking for a clean CECHA01 unit that powers on, reads discs, and has not been heavily modified.",
     mustHaves: ["CECHA01 serial proof", "Reads PS2 discs", "No yellow light history", "Video proof requested"],
-    timeline: ["Bounty funded", "Finder matched a local unit", "Delivery pending"],
+    timeline: ["Reward funded", "Finder matched a local unit", "Handoff pending"],
   },
   {
     id: "nikon-ais-35",
@@ -392,7 +413,7 @@ const bountyListings: BountyListing[] = [
     rewardValue: 160,
     closes: "15 days",
     category: "Camera gear",
-    status: "Delivered",
+    status: "Accepted",
     location: "Australia",
     poster: "June R.",
     posted: "10 days ago",
@@ -402,7 +423,7 @@ const bountyListings: BountyListing[] = [
     description:
       "Wanted: Nikon 35mm f/1.4 AIS lens with clean optics and smooth focus. Cosmetic wear is acceptable.",
     mustHaves: ["Clean glass", "Smooth focus ring", "No fungus", "Sample photos"],
-    timeline: ["Bounty funded", "Finder purchased item", "Payment released"],
+    timeline: ["Reward funded", "Finder shared direct source", "Source accepted"],
   },
   {
     id: "walkman-wmd6c",
@@ -442,7 +463,7 @@ const bountyListings: BountyListing[] = [
     description:
       "Searching for a clean Leica M6 TTL 0.72 black body with working meter and clear finder.",
     mustHaves: ["0.72 finder", "Working meter", "No shutter issue", "Serial photo required"],
-    timeline: ["Bounty funded", "Finder shortlisted two bodies", "Meter video requested"],
+    timeline: ["Reward funded", "Finder shortlisted two bodies", "Meter video requested"],
   },
   {
     id: "omega-speedmaster-125",
@@ -462,7 +483,7 @@ const bountyListings: BountyListing[] = [
     description:
       "Looking for an Omega Speedmaster 125 with original bracelet and clear movement documentation.",
     mustHaves: ["Original bracelet", "Movement photos", "Service details", "No polished case preferred"],
-    timeline: ["Bounty funded", "Seller found in London", "Authenticity check underway"],
+    timeline: ["Reward funded", "Local source found in London", "Authenticity check underway"],
   },
   {
     id: "roland-juno-106",
@@ -482,7 +503,7 @@ const bountyListings: BountyListing[] = [
     description:
       "Need a tested Juno-106 voice board set for a studio restoration.",
     mustHaves: ["Tested chips", "No corrosion", "Clear board photos", "Ships insured"],
-    timeline: ["Bounty funded", "Synth forums contacted", "Awaiting test clips"],
+    timeline: ["Reward funded", "Synth forums contacted", "Awaiting test clips"],
   },
   {
     id: "cartier-tank-must",
@@ -501,8 +522,8 @@ const bountyListings: BountyListing[] = [
       "https://images.unsplash.com/photo-1508057198894-247b23fe5ade?auto=format&fit=crop&w=720&q=80",
     description:
       "Looking for a Tank Must large black dial with box or papers preferred.",
-    mustHaves: ["Large case", "Black dial", "Serial proof", "Seller accepts escrow"],
-    timeline: ["Bounty funded", "Three dealers contacted", "Waiting on papers"],
+    mustHaves: ["Large case", "Black dial", "Serial proof", "Seller or source is reachable"],
+    timeline: ["Reward funded", "Three dealers contacted", "Waiting on papers"],
   },
   {
     id: "contax-t2-silver",
@@ -522,7 +543,7 @@ const bountyListings: BountyListing[] = [
     description:
       "Need a working Contax T2 silver body with clean lens and reliable flash.",
     mustHaves: ["Clean Zeiss lens", "Flash works", "LCD visible", "Test roll preferred"],
-    timeline: ["Bounty funded", "Two leads rejected", "New photos requested"],
+    timeline: ["Reward funded", "Two leads rejected", "New photos requested"],
   },
   {
     id: "gameboy-micro-famicom",
@@ -542,7 +563,7 @@ const bountyListings: BountyListing[] = [
     description:
       "Wanted: clean Game Boy Micro Famicom edition with bright screen and good buttons.",
     mustHaves: ["Famicom faceplate", "Bright screen", "No dead pixels", "Original charger preferred"],
-    timeline: ["Bounty funded", "Japan sellers contacted", "First lead under review"],
+    timeline: ["Reward funded", "Japan sellers contacted", "First lead under review"],
   },
   {
     id: "nakamichi-dragon-door",
@@ -582,7 +603,7 @@ const bountyListings: BountyListing[] = [
     description:
       "Searching for an SX-70 brown leather model with working rollers and clean mirror.",
     mustHaves: ["Brown leather", "Clean mirror", "Rollers work", "Sample exposure"],
-    timeline: ["Bounty funded", "Two leads received", "Waiting on sample photo"],
+    timeline: ["Reward funded", "Two leads received", "Waiting on sample photo"],
   },
   {
     id: "ipod-classic-7th",
@@ -602,7 +623,7 @@ const bountyListings: BountyListing[] = [
     description:
       "Looking for a clean 7th gen iPod Classic 160GB silver with healthy battery.",
     mustHaves: ["160GB model", "Silver face", "Battery holds charge", "No swollen case"],
-    timeline: ["Bounty funded", "Five submissions", "Battery photos requested"],
+    timeline: ["Reward funded", "Five submissions", "Battery photos requested"],
   },
   {
     id: "canon-f1-new",
@@ -622,7 +643,7 @@ const bountyListings: BountyListing[] = [
     description:
       "Need a Canon New F-1 with AE finder, working meter, and clean prism.",
     mustHaves: ["AE finder", "Meter works", "Clean prism", "No shutter capping"],
-    timeline: ["Bounty funded", "Collector groups contacted", "Awaiting meter video"],
+    timeline: ["Reward funded", "Collector groups contacted", "Awaiting meter video"],
   },
   {
     id: "minidisc-mz-rh1",
@@ -642,7 +663,7 @@ const bountyListings: BountyListing[] = [
     description:
       "Looking for a Sony MZ-RH1 Hi-MD recorder with working display and USB connection.",
     mustHaves: ["Display works", "USB recognized", "Battery door clean", "Includes dock if possible"],
-    timeline: ["Bounty funded", "First lead received", "USB proof requested"],
+    timeline: ["Reward funded", "First lead received", "USB proof requested"],
   },
   {
     id: "dreamcast-seaman-mic",
@@ -662,7 +683,7 @@ const bountyListings: BountyListing[] = [
     description:
       "Need the Dreamcast Seaman game with microphone bundle and complete inserts.",
     mustHaves: ["Mic included", "Disc tested", "Manual present", "Case art clean"],
-    timeline: ["Bounty funded", "Two local stores checked", "One complete copy under review"],
+    timeline: ["Reward funded", "Two local stores checked", "One complete copy under review"],
   },
   {
     id: "technics-sl1200-dustcover",
@@ -682,7 +703,7 @@ const bountyListings: BountyListing[] = [
     description:
       "Searching for an original SL-1200 dust cover without hinge cracks.",
     mustHaves: ["Original cover", "No hinge cracks", "Clear acrylic", "Ships protected"],
-    timeline: ["Bounty funded", "DJ repair shops contacted", "Waiting on photos"],
+    timeline: ["Reward funded", "DJ repair shops contacted", "Waiting on photos"],
   },
   {
     id: "pentax-67-wood-grip",
@@ -702,7 +723,7 @@ const bountyListings: BountyListing[] = [
     description:
       "Need a Pentax 67 wood grip in clean condition for a field kit.",
     mustHaves: ["Original wood grip", "Mount screw intact", "No split wood", "Clear side photos"],
-    timeline: ["Bounty funded", "Three leads received", "Best lead missing screw"],
+    timeline: ["Reward funded", "Three leads received", "Best lead missing screw"],
   },
   {
     id: "n64-funtastic-ice-blue",
@@ -722,7 +743,7 @@ const bountyListings: BountyListing[] = [
     description:
       "Wanted: ice blue Funtastic Nintendo 64 with matching controller.",
     mustHaves: ["Ice blue shell", "Matching controller", "No yellowed plastic", "Video output proof"],
-    timeline: ["Bounty funded", "Four sellers found", "Controller match pending"],
+    timeline: ["Reward funded", "Four sellers found", "Controller match pending"],
   },
   {
     id: "bose-aviation-a20",
@@ -742,7 +763,7 @@ const bountyListings: BountyListing[] = [
     description:
       "Looking for a Bose A20 Bluetooth aviation headset in clean working condition.",
     mustHaves: ["Bluetooth model", "Clean ear cups", "ANR works", "Case preferred"],
-    timeline: ["Bounty funded", "Pilot group posted", "Two leads being checked"],
+    timeline: ["Reward funded", "Pilot group posted", "Two leads being checked"],
   },
   {
     id: "hasselblad-a12-back",
@@ -762,7 +783,7 @@ const bountyListings: BountyListing[] = [
     description:
       "Need a chrome Hasselblad A12 film back with matching insert and fresh seals.",
     mustHaves: ["Matching insert", "Chrome finish", "Light seals clean", "Frame spacing proof"],
-    timeline: ["Bounty funded", "Five backs located", "Best one awaiting test roll"],
+    timeline: ["Reward funded", "Five backs located", "Best one awaiting test roll"],
   },
   {
     id: "akg-k1000",
@@ -782,7 +803,7 @@ const bountyListings: BountyListing[] = [
     description:
       "Searching for AKG K1000 ear speakers with balanced drivers and original cable.",
     mustHaves: ["Balanced channels", "Original cable", "No driver buzz", "Pad condition photos"],
-    timeline: ["Bounty funded", "Audiophile forum posted", "One lead needs channel test"],
+    timeline: ["Reward funded", "Audiophile forum posted", "One lead needs channel test"],
   },
   {
     id: "neo-geo-pocket-color",
@@ -822,7 +843,7 @@ const bountyListings: BountyListing[] = [
     description:
       "Need an Aiwa HS-PX1000 cassette player with clean playback and intact controls.",
     mustHaves: ["Playback works", "Controls intact", "No corrosion", "Demo audio clip"],
-    timeline: ["Bounty funded", "One collector contacted", "Awaiting demo clip"],
+    timeline: ["Reward funded", "One collector contacted", "Awaiting demo clip"],
   },
   {
     id: "voigtlander-40mm-nokton",
@@ -842,7 +863,7 @@ const bountyListings: BountyListing[] = [
     description:
       "Searching for a Voigtlander 40mm f/1.2 VM lens with smooth focus and clean glass.",
     mustHaves: ["VM mount", "Clean glass", "Smooth focus", "Caps included"],
-    timeline: ["Bounty funded", "Two listings reviewed", "Best lead awaiting glass photos"],
+    timeline: ["Reward funded", "Two listings reviewed", "Best lead awaiting glass photos"],
   },
 ];
 
@@ -883,7 +904,7 @@ const feedItems: FeedItem[] = [
     rating: "4.7",
     location: "Berlin",
     status: "Found",
-    note: "On the way",
+    note: "Finder has it",
     updated: "7 hours ago",
     image:
       "https://images.unsplash.com/photo-1605901309584-818e25960a8f?auto=format&fit=crop&w=160&q=80",
@@ -894,8 +915,8 @@ const feedItems: FeedItem[] = [
     finder: "Noah R.",
     rating: "4.9",
     location: "Singapore",
-    status: "Delivered",
-    note: "Payment released",
+    status: "Accepted",
+    note: "Source accepted",
     updated: "1 day ago",
     image:
       "https://images.unsplash.com/photo-1502920917128-1aa500764cbd?auto=format&fit=crop&w=160&q=80",
@@ -933,18 +954,18 @@ const problemItems = [
 const workSteps = [
   {
     icon: Search,
-    title: "1. You post",
-    copy: "Describe what you are looking for, add the reward amount, and set the request window.",
+    title: "1. Poster requests it",
+    copy: "Describe what you need, why it is hard to find, the must-have details, and the reward amount.",
   },
   {
     icon: UserRoundCheck,
-    title: "2. Finders hunt it down",
-    copy: "Expert finders search networks, markets, and sources to locate exactly what you need.",
+    title: "2. Finder submits a source",
+    copy: "Finders can share a link, a friend or shop contact, or say they personally have the item.",
   },
   {
-    icon: LockKeyhole,
-    title: "3. You pay only when it is found",
-    copy: "You inspect the valid find. If you are happy, release the payment.",
+    icon: MessageSquare,
+    title: "3. You discuss next steps",
+    copy: "The poster reviews the source and contacts the finder by email to work out delivery, pickup, or purchase details.",
   },
 ];
 
@@ -1025,18 +1046,18 @@ const safetySteps = [
   },
   {
     icon: Search,
-    title: "Finder shares the item",
-    copy: "They share details and proof so you can review with confidence.",
+    title: "Finder shares the source",
+    copy: "They add the link if one exists, or explain who has it and leave their contact email.",
   },
   {
-    icon: PackageCheck,
-    title: "We deliver to you",
-    copy: "You receive the item and inspect it in real life.",
+    icon: MessageSquare,
+    title: "You review and connect",
+    copy: "You decide whether the source matches, then contact the finder to arrange the next step.",
   },
   {
     icon: CheckCircle2,
     title: "You release payment",
-    copy: "If you are happy, payment is released to the finder.",
+    copy: "If the source is valid and the handoff works, payment is released to the finder.",
   },
   {
     icon: Banknote,
@@ -1048,28 +1069,29 @@ const safetySteps = [
 const comparisonRows = [
   ["Finds hard-to-source items", "Yes", "Limited", "Rare", "Not always"],
   ["Community of expert finders", "Yes", "No", "No", "No"],
+  ["Source link or contact handoff", "Yes", "Maybe", "Maybe", "No"],
   ["Money held in escrow", "Yes", "No", "No", "No"],
   ["30-day protection or refund", "Yes", "No", "No", "No"],
   ["Saves your time", "Yes", "Maybe", "No", "No"],
 ];
 
 const topFinders = [
-  ["1", "Maya L.", "4.9", "18 successful finds"],
-  ["2", "Jonas K.", "4.8", "14 successful finds"],
-  ["3", "Lina M.", "4.9", "12 successful finds"],
+  ["1", "Maya L.", "4.9", "18 accepted sources"],
+  ["2", "Jonas K.", "4.8", "14 accepted sources"],
+  ["3", "Lina M.", "4.9", "12 accepted sources"],
 ];
 
 const finderReviews = [
-  ["Ari P.", "Maya found the exact cap in two days and verified every detail before I paid."],
-  ["Theo N.", "The proof flow made it easy to avoid a risky seller and choose the right part."],
-  ["June R.", "Delivery was tracked, inspected, and paid out cleanly."],
+  ["Ari P.", "Maya found the exact cap in two days and included the seller link plus what to ask before buying."],
+  ["Theo N.", "The source review made it easy to avoid a risky listing and choose the right part."],
+  ["June R.", "The finder already had the lens and left an email so we could agree on shipping directly."],
 ];
 
 const faqItems = [
   {
     question: "When do I pay?",
     answer:
-      "You fund the request before it goes live. The reward stays held until a valid find is delivered and accepted.",
+      "You fund the request before it goes live. The reward stays held until you accept a valid source or complete the handoff with the finder.",
   },
   {
     question: "What happens if nobody finds it?",
@@ -1078,17 +1100,17 @@ const faqItems = [
   {
     question: "Can I reject a find?",
     answer:
-      "Yes. You can reject submissions that do not match your description or proof requirements. Disputes are reviewed with evidence from both sides.",
+      "Yes. You can reject submissions that do not match your description, do not include enough source detail, or do not provide a clear contact path.",
   },
   {
     question: "How do finders get paid?",
     answer:
-      "Finders earn the posted reward after the poster confirms delivery. Finder dashboard reputation improves with successful, well-documented finds.",
+      "Finders earn the posted reward after the poster accepts the source or confirms that the direct handoff worked. Reputation improves with clear links, useful contact details, and successful outcomes.",
   },
   {
     question: "Is the browse feed public?",
     answer:
-      "Yes. Anyone can browse public requests and detail pages. Posting, submitting finds, dashboards, payment, and disputes require sign up or log in.",
+      "Yes. Anyone can browse public requests and detail pages. Posting, submitting sources, dashboards, payment, and disputes require sign up or log in.",
   },
 ];
 
@@ -1098,6 +1120,10 @@ function parseRoute(): Page {
 }
 
 function routeHref(page: Page) {
+  if (page === "landing") {
+    return "#/";
+  }
+
   return `#/${pageRoutes[page]}`;
 }
 
@@ -1195,6 +1221,36 @@ function App() {
 
   const completeAuth = () => {
     markSignedIn("email-demo");
+  };
+
+  const logOut = async () => {
+    const shouldReturnHome = protectedPages.has(route) || route === "auth";
+
+    setMenuOpen(false);
+    setAuthMessage("");
+
+    try {
+      if (supabase) {
+        await supabase.auth.signOut();
+      }
+    } catch {
+      // Local logout still gives the user an immediate escape from the account UI.
+    }
+
+    window.sessionStorage.removeItem(signedInStorageKey);
+    window.sessionStorage.removeItem(authProviderStorageKey);
+    window.sessionStorage.removeItem("pleasefindmethis-auth-email");
+    window.sessionStorage.removeItem(pendingRouteStorageKey);
+    setPendingRoute("post-describe");
+    setAuthMode("login");
+
+    if (shouldReturnHome) {
+      window.history.replaceState(null, "", `${window.location.pathname}${window.location.search}${routeHref("landing")}`);
+      setRoute("landing");
+      window.scrollTo({ top: 0, behavior: "smooth" });
+    }
+
+    setSignedIn(false);
   };
 
   const signInWithGoogle = async () => {
@@ -1302,6 +1358,7 @@ function App() {
     requireAuth,
     signedIn,
     menuOpen,
+    onLogOut: logOut,
     setMenuOpen,
   };
 
@@ -1318,11 +1375,14 @@ function App() {
             setAuthMode("login");
             navigate("auth");
           }}
+          onAccount={() => navigate("poster-dashboard")}
+          onLogOut={logOut}
           onPost={() => requireAuth("post-describe")}
           onSection={scrollToLandingSection}
           selectedFeedBounty={selectedFeedBounty}
           setMenuOpen={setMenuOpen}
           setSelectedFeedBounty={setSelectedFeedBounty}
+          signedIn={signedIn}
           setVideoPlaying={setVideoPlaying}
           videoPlaying={videoPlaying}
         />
@@ -1381,6 +1441,7 @@ function PageChrome({
   children,
   menuOpen,
   navigate,
+  onLogOut,
   requireAuth,
   setMenuOpen,
   signedIn,
@@ -1388,6 +1449,7 @@ function PageChrome({
   children: React.ReactNode;
   menuOpen: boolean;
   navigate: (page: Page) => void;
+  onLogOut: () => void;
   requireAuth: (page: Page, mode?: AuthMode) => void;
   setMenuOpen: React.Dispatch<React.SetStateAction<boolean>>;
   signedIn: boolean;
@@ -1416,9 +1478,21 @@ function PageChrome({
           ))}
         </nav>
         <div className="canvas-actions">
-          <button className="text-button" type="button" onClick={() => requireAuth("poster-dashboard", "login")}>
-            {signedIn ? "Account" : "Log in"}
-          </button>
+          {signedIn ? (
+            <>
+              <button className="text-button" type="button" onClick={() => requireAuth("poster-dashboard", "login")}>
+                Account
+              </button>
+              <button className="text-button logout-button" type="button" onClick={onLogOut}>
+                <LogOut size={15} aria-hidden="true" />
+                Log out
+              </button>
+            </>
+          ) : (
+            <button className="text-button" type="button" onClick={() => requireAuth("poster-dashboard", "login")}>
+              Log in
+            </button>
+          )}
           <button
             className="icon-button mobile-menu-button"
             type="button"
@@ -1436,6 +1510,20 @@ function PageChrome({
                 {label}
               </button>
             ))}
+            {signedIn ? (
+              <>
+                <button type="button" onClick={() => requireAuth("poster-dashboard", "login")}>
+                  Account
+                </button>
+                <button className="logout-menu-button" type="button" onClick={onLogOut}>
+                  Log out
+                </button>
+              </>
+            ) : (
+              <button type="button" onClick={() => requireAuth("poster-dashboard", "login")}>
+                Log in
+              </button>
+            )}
           </nav>
         ) : null}
       </header>
@@ -1472,7 +1560,7 @@ function BoardRequestCard({
   onDetail: (bountyId: string) => void;
   variant?: "recent" | "reward";
 }) {
-  const activeStatus = ["Finder in touch", "Price agreed", "Found", "Delivered"].includes(bounty.status);
+  const activeStatus = ["Finder in touch", "Price agreed", "Found", "Delivered", "Accepted"].includes(bounty.status);
 
   return (
     <article className={`board-request-card ${variant === "reward" ? "board-request-card-reward" : ""}`}>
@@ -1504,28 +1592,34 @@ function BoardRequestCard({
 
 function LandingPage({
   menuOpen,
+  onAccount,
   onBrowse,
   onDetail,
   onFinders,
   onLogin,
+  onLogOut,
   onPost,
   onSection,
   selectedFeedBounty,
   setMenuOpen,
   setSelectedFeedBounty,
+  signedIn,
   setVideoPlaying,
   videoPlaying,
 }: {
   menuOpen: boolean;
+  onAccount: () => void;
   onBrowse: () => void;
   onDetail: (bountyId: string) => void;
   onFinders: () => void;
   onLogin: () => void;
+  onLogOut: () => void;
   onPost: () => void;
   onSection: (sectionId: string) => void;
   selectedFeedBounty: string;
   setMenuOpen: React.Dispatch<React.SetStateAction<boolean>>;
   setSelectedFeedBounty: React.Dispatch<React.SetStateAction<string>>;
+  signedIn: boolean;
   setVideoPlaying: React.Dispatch<React.SetStateAction<boolean>>;
   videoPlaying: boolean;
 }) {
@@ -1572,9 +1666,21 @@ function LandingPage({
             </button>
           </nav>
           <div className="canvas-actions">
-            <button className="text-button" type="button" onClick={onLogin}>
-              Log in
-            </button>
+            {signedIn ? (
+              <>
+                <button className="text-button" type="button" onClick={onAccount}>
+                  Account
+                </button>
+                <button className="text-button logout-button" type="button" onClick={onLogOut}>
+                  <LogOut size={15} aria-hidden="true" />
+                  Log out
+                </button>
+              </>
+            ) : (
+              <button className="text-button" type="button" onClick={onLogin}>
+                Log in
+              </button>
+            )}
             <button
               className="icon-button mobile-menu-button"
               type="button"
@@ -1599,9 +1705,20 @@ function LandingPage({
               <button type="button" onClick={onFinders}>
                 For finders
               </button>
-              <button type="button" onClick={onLogin}>
-                Log in
-              </button>
+              {signedIn ? (
+                <>
+                  <button type="button" onClick={onAccount}>
+                    Account
+                  </button>
+                  <button className="logout-menu-button" type="button" onClick={onLogOut}>
+                    Log out
+                  </button>
+                </>
+              ) : (
+                <button type="button" onClick={onLogin}>
+                  Log in
+                </button>
+              )}
             </nav>
           ) : null}
         </div>
@@ -1635,9 +1752,9 @@ function LandingPage({
           <p className="micro-line">
             <span>Post what you need</span>
             <ArrowRight size={16} />
-            <span>finders track it down</span>
+            <span>finders share a source</span>
             <ArrowRight size={16} />
-            <span>you pay only when it&apos;s found.</span>
+            <span>you connect and get it.</span>
           </p>
           <form className="hero-search-form" onSubmit={submitHeroSearch}>
             <Search size={20} aria-hidden="true" />
@@ -1682,7 +1799,7 @@ function LandingPage({
 
         <div className="hero-lower">
           <p className="hero-subline">
-            You&apos;ve searched every site, called every shop, scrolled for hours, and it&apos;s still nowhere. Let someone who knows where to look find it for you.
+            You&apos;ve searched every site, called every shop, scrolled for hours, and it&apos;s still nowhere. Let someone who knows the link, the shop, the friend, or the hidden source point you to it.
           </p>
           <button className="primary-button hero-cta" type="button" onClick={onPost}>
             Post what you&apos;re looking for
@@ -1692,7 +1809,7 @@ function LandingPage({
           </button>
           <p className="trust-line">
             <LockKeyhole size={18} />
-            Your reward is held safely. Not found in 30 days? You get your full reward back.
+            Your reward is held safely. No useful source in 30 days? You get your full reward back.
           </p>
         </div>
 
@@ -1753,8 +1870,8 @@ function LandingPage({
       <section className="feed-section" id="feed" aria-labelledby="feed-title">
         <div className="section-head split-head">
           <div>
-            <h2 id="feed-title">Live feed: real requests, real progress</h2>
-            <p>Example requests seeded before launch, with status visible as finders work.</p>
+            <h2 id="feed-title">Live feed: real requests, real sources</h2>
+            <p>Example requests seeded before launch, with status visible as finders submit links, contacts, and handoff paths.</p>
           </div>
           <button className="section-link section-button" type="button" onClick={onBrowse}>
             View all requests <ArrowRight size={17} />
@@ -1762,7 +1879,7 @@ function LandingPage({
         </div>
         <div className="feed-table" role="table" aria-label="Live request feed">
           <div className="feed-row feed-header" role="row">
-            <span>Bounty</span>
+            <span>Request</span>
             <span>Reward</span>
             <span>Finder</span>
             <span>Location</span>
@@ -1857,7 +1974,7 @@ function LandingPage({
               <CheckCircle2 size={18} /> Use your network and sourcing skills
             </li>
             <li>
-              <CheckCircle2 size={18} /> Earn securely when the item is delivered
+              <CheckCircle2 size={18} /> Earn securely when your source is accepted
             </li>
           </ul>
           <button className="finder-link finder-button large-link" type="button" onClick={onFinders}>
@@ -1890,7 +2007,7 @@ function LandingPage({
             <ShieldCheck size={28} />
             <span>
               <strong>Your payouts are secure</strong>
-              We release payment fast once delivery is confirmed.
+              We release payment fast once a valid source or handoff is accepted.
             </span>
           </div>
           <div>
@@ -1974,7 +2091,7 @@ function AuthPage({
           <p className="route-kicker">Account required for this action</p>
           <h1 id="auth-title">{mode === "signup" ? "Create your account to continue." : "Log in to continue."}</h1>
           <p>
-            Public browsing is open. Posting a request, submitting a find, dashboards, payments, and disputes need a verified account so escrow and reputation stay trustworthy.
+            Public browsing is open. Posting a request, submitting a source, dashboards, payments, and disputes need a verified account so rewards and reputation stay trustworthy.
           </p>
         </div>
         <div className="auth-panel">
@@ -2017,9 +2134,9 @@ function AuthPage({
             <label>
               Account type
               <select defaultValue="both">
-                <option value="both">Post and find requests</option>
+                <option value="both">Post requests and submit sources</option>
                 <option value="poster">Post requests only</option>
-                <option value="finder">Find requests only</option>
+                <option value="finder">Submit sources only</option>
               </select>
             </label>
           ) : null}
@@ -2122,7 +2239,7 @@ function PostDescribePage({
               <CheckCircle2 size={18} /> Exact model and condition
             </li>
             <li>
-              <CheckCircle2 size={18} /> What proof you need
+              <CheckCircle2 size={18} /> Source details you need
             </li>
             <li>
               <CheckCircle2 size={18} /> What should be rejected
@@ -2163,7 +2280,7 @@ function PostRewardPage({
             <ArrowLeft size={17} /> Describe
           </button>
           <h1 id="reward-title">Set a reward that gets attention.</h1>
-          <p>The reward is what the finder earns after your item is delivered and accepted.</p>
+          <p>The reward is what the finder earns after you accept their source or complete the handoff.</p>
           <label>
             Reward amount
             <input type="number" min="25" value={draft.reward} onChange={(event) => setReward(event.target.value)} />
@@ -2214,7 +2331,7 @@ function PostRewardPage({
             </div>
           </dl>
           <p>
-            <LockKeyhole size={18} /> The buyer pays into your Dodo account. You keep the service fee and handle finder payout after delivery.
+            <LockKeyhole size={18} /> The buyer pays into your Dodo account. You keep the service fee and handle finder payout after the source or handoff is accepted.
           </p>
         </aside>
       </section>
@@ -2276,7 +2393,7 @@ function PostPayPage({ draft, onBack }: { draft: PostDraft; onBack: () => void; 
           <button className="back-button" type="button" onClick={onBack}>
             <ArrowLeft size={17} /> Reward
           </button>
-          <h1 id="pay-title">Fund escrow with Dodo Payments.</h1>
+          <h1 id="pay-title">Fund the reward with Dodo Payments.</h1>
           <p>
             Your request goes live after the hosted checkout is paid. The full payment lands in your Dodo account, including your service fee.
           </p>
@@ -2337,7 +2454,7 @@ function PostPayPage({ draft, onBack }: { draft: PostDraft; onBack: () => void; 
               <Banknote size={18} /> Service fee stays with the marketplace
             </li>
             <li>
-              <TimerReset size={18} /> Finder payout is handled after delivery
+              <TimerReset size={18} /> Finder payout is handled after the source or handoff is accepted
             </li>
           </ul>
         </aside>
@@ -2359,7 +2476,7 @@ function BrowsePage({
     <main className="route-page bounty-gallery-page" aria-labelledby="browse-title">
       <section className="gallery-hero">
         <h1 id="browse-title">Top five requests</h1>
-        <p>The highest rewards on the board right now, shown first so expert finders can jump straight into the most valuable hunts.</p>
+        <p>The highest rewards on the board right now, shown first so expert finders can jump straight into the most valuable sources.</p>
         <div className="gallery-hero-actions">
           <button className="primary-button" type="button" onClick={onPost}>
             Post a request <ArrowRight size={18} />
@@ -2380,7 +2497,7 @@ function BrowsePage({
         <div className="gallery-section-head">
           <div>
             <h2 id="more-bounties-title">More requests closing soon</h2>
-            <p>Fifteen active hunts with real rewards, live submissions, and a 30-day protection window.</p>
+            <p>Fifteen active requests with real rewards, live source submissions, and a 30-day protection window.</p>
           </div>
           <button className="section-link section-button" type="button" onClick={onBrowseAll}>
             Browse all <ArrowRight size={17} />
@@ -2434,17 +2551,17 @@ function BrowseAllPage({ onDetail, onPost }: { onDetail: (bountyId: string) => v
     <main className="route-page bounty-gallery-page browse-all-page" aria-labelledby="browse-all-title">
       <section className="gallery-hero compact-gallery-hero">
         <div>
-          <h1 id="browse-all-title">Browse all bounties</h1>
-          <p>Scroll the full bounty board. More cards load as you move down until you reach the end of the current bounty list.</p>
+          <h1 id="browse-all-title">Browse all requests</h1>
+          <p>Scroll the full request board. More cards load as you move down until you reach the end of the current request list.</p>
         </div>
         <button className="primary-button" type="button" onClick={onPost}>
-          Post a bounty <ArrowRight size={18} />
+          Post a request <ArrowRight size={18} />
         </button>
       </section>
       <section className="browse-toolbar" aria-label="Browse filters">
         <div className="search-field">
           <Search size={18} />
-          <input placeholder="Search bounties" value={query} onChange={(event) => setQuery(event.target.value)} />
+          <input placeholder="Search requests" value={query} onChange={(event) => setQuery(event.target.value)} />
         </div>
         <div className="filter-pills">
           {categories.map((category) => (
@@ -2554,15 +2671,15 @@ function BountyDetailPage({
         </article>
         <aside className="side-panel detail-side">
           <strong className="detail-reward">{bounty.reward}</strong>
-          <span>Finder reward</span>
+          <span>Reward for accepted source</span>
           <button className="primary-button wide-button" type="button" onClick={onSubmit}>
-            Submit a find <Send size={18} />
+            Submit a source <Send size={18} />
           </button>
           <button className="section-link section-button center-link" type="button" onClick={onPosterProfile}>
             View poster trust page <ArrowRight size={17} />
           </button>
           <div className="timeline-panel">
-            <h2>Request timeline</h2>
+            <h2>Source timeline</h2>
             {bounty.timeline.map((event) => (
               <div className="timeline-item" key={event}>
                 <span />
@@ -2586,55 +2703,152 @@ function SubmitFindPage({
   onDashboard: () => void;
 }) {
   const [submitted, setSubmitted] = useState(false);
+  const [sourceType, setSourceType] = useState<FindSourceType>("source-link");
+  const [sourceLink, setSourceLink] = useState("");
+  const [contactEmail, setContactEmail] = useState(() => window.sessionStorage.getItem("pleasefindmethis-auth-email") ?? "");
+  const [itemTerms, setItemTerms] = useState("");
+  const [notes, setNotes] = useState("");
+  const [submitError, setSubmitError] = useState("");
+  const selectedSource = findSourceOptions.find((option) => option.value === sourceType) ?? findSourceOptions[0];
+  const linkRequired = sourceType === "source-link";
+
+  const handleSubmit = (event: React.FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+
+    const normalizedEmail = contactEmail.trim();
+    if (linkRequired && !sourceLink.trim()) {
+      setSubmitError("Add the source link, or choose a private/direct source type if there is no public link.");
+      setSubmitted(false);
+      return;
+    }
+
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(normalizedEmail)) {
+      setSubmitError("Add a valid contact email so the poster can reach you for next steps.");
+      setSubmitted(false);
+      return;
+    }
+
+    setSubmitError("");
+    setContactEmail(normalizedEmail);
+    setSubmitted(true);
+  };
 
   return (
     <main className="route-page" aria-labelledby="submit-title">
       <section className="two-column-page">
-        <div className="form-panel">
+        <form className="form-panel" onSubmit={handleSubmit}>
           <button className="back-button" type="button" onClick={onBack}>
             <ArrowLeft size={17} /> Request detail
           </button>
-          <h1 id="submit-title">Submit a find for {bounty.name}.</h1>
-          <p>Give the poster enough proof to review the item quickly and release payment after delivery.</p>
+          <h1 id="submit-title">Submit a source for {bounty.name}.</h1>
+          <p>Tell the poster where it is, who has it, or whether you have it yourself. A link is helpful, but your email is required for next steps.</p>
           <label>
-            Source or seller link
-            <input placeholder="https://..." />
+            How did you find it?
+            <select
+              value={sourceType}
+              onChange={(event) => {
+                setSourceType(event.target.value as FindSourceType);
+                setSubmitError("");
+                setSubmitted(false);
+              }}
+            >
+              {findSourceOptions.map((option) => (
+                <option value={option.value} key={option.value}>
+                  {option.label}
+                </option>
+              ))}
+            </select>
+          </label>
+          <p className="field-hint">{selectedSource.copy}</p>
+          <label>
+            {linkRequired ? "Source link" : "Source link (optional)"}
+            <input
+              value={sourceLink}
+              placeholder={linkRequired ? "https://store.example/item" : "Leave blank if there is no public link"}
+              onChange={(event) => {
+                setSourceLink(event.target.value);
+                setSubmitted(false);
+              }}
+            />
           </label>
           <label>
-            Item price
-            <input placeholder="Seller asking price" />
+            Contact email
+            <input
+              type="email"
+              value={contactEmail}
+              placeholder="you@example.com"
+              onChange={(event) => {
+                setContactEmail(event.target.value);
+                setSubmitted(false);
+              }}
+            />
           </label>
           <label>
-            Proof notes
-            <textarea placeholder="Condition, serial proof, authenticity checks, shipping route, seller reliability..." />
+            Price or terms
+            <input
+              value={itemTerms}
+              placeholder="Price, terms, or unknown"
+              onChange={(event) => {
+                setItemTerms(event.target.value);
+                setSubmitted(false);
+              }}
+            />
+          </label>
+          <label>
+            Message to poster
+            <textarea
+              value={notes}
+              placeholder="Where it is, who has it, condition, availability, and how the poster can discuss delivery, pickup, shipping, or purchase details..."
+              onChange={(event) => {
+                setNotes(event.target.value);
+                setSubmitted(false);
+              }}
+            />
           </label>
           <div className="upload-box">
             <Upload size={24} />
             <span>
-              <strong>Upload proof</strong>
-              Add screenshots, photos, or video evidence.
+              <strong>Add context</strong>
+              Screenshots, photos, messages, or proof are optional but help the poster review faster.
             </span>
           </div>
-          <button className="primary-button" type="button" onClick={() => setSubmitted(true)}>
-            Submit find for review
+          {submitError ? (
+            <p className="dialog-error" role="alert">
+              {submitError}
+            </p>
+          ) : null}
+          <button className="primary-button" type="submit">
+            Submit source for review
           </button>
           {submitted ? (
-            <button className="section-link section-button" type="button" onClick={onDashboard}>
-              Go to finder dashboard <ArrowRight size={17} />
-            </button>
+            <>
+              <div className="summary-card submission-success" role="status">
+                <CheckCircle2 size={24} />
+                <strong>Source submitted for poster review</strong>
+                <span>{sourceLink.trim() ? `Link shared: ${sourceLink.trim()}` : "No public link shared. The poster will use your email to discuss the source or handoff."}</span>
+                <span>Contact: {contactEmail}</span>
+                {itemTerms.trim() ? <span>Terms: {itemTerms.trim()}</span> : null}
+              </div>
+              <button className="section-link section-button" type="button" onClick={onDashboard}>
+                Go to finder dashboard <ArrowRight size={17} />
+              </button>
+            </>
           ) : null}
-        </div>
+        </form>
         <aside className="side-panel">
-          <h2>Review checklist</h2>
+          <h2>Source review checklist</h2>
           <ul className="check-list">
             <li>
               <CheckCircle2 size={18} /> Matches the poster's must-haves
             </li>
             <li>
-              <CheckCircle2 size={18} /> Seller can provide proof
+              <CheckCircle2 size={18} /> Link is included when one exists
             </li>
             <li>
-              <CheckCircle2 size={18} /> Delivery path is clear
+              <CheckCircle2 size={18} /> Contact email is ready for next steps
+            </li>
+            <li>
+              <CheckCircle2 size={18} /> Delivery or handoff path is clear
             </li>
           </ul>
           <div className="mini-bounty-card">
@@ -2664,7 +2878,7 @@ function PosterDashboardPage({
       <section className="dashboard-head">
         <div>
           <p className="route-kicker">Poster dashboard</p>
-          <h1 id="poster-dashboard-title">Review finds and release payment.</h1>
+          <h1 id="poster-dashboard-title">Review sources and contact finders.</h1>
         </div>
         <button className="section-link section-button" type="button" onClick={onProfile}>
           Public trust page <ArrowRight size={17} />
@@ -2672,14 +2886,14 @@ function PosterDashboardPage({
       </section>
       <section className="metric-grid">
         <Metric icon={LockKeyhole} label="Escrow funded" value="US$1,280" />
-        <Metric icon={MessageSquare} label="Finds awaiting review" value="4" />
-        <Metric icon={PackageCheck} label="Deliveries pending" value="2" />
-        <Metric icon={CheckCircle2} label="Released this month" value="US$930" />
+        <Metric icon={MessageSquare} label="Sources awaiting review" value="4" />
+        <Metric icon={PackageCheck} label="Handoffs in discussion" value="2" />
+        <Metric icon={CheckCircle2} label="Accepted this month" value="US$930" />
       </section>
       <section className="dashboard-grid">
         <div className="dashboard-panel">
           <div className="panel-header">
-            <h2>Finds to review</h2>
+            <h2>Sources to review</h2>
             <Filter size={18} />
           </div>
           {bountyListings.slice(0, 4).map((bounty) => (
@@ -2699,10 +2913,10 @@ function PosterDashboardPage({
             <BadgeCheck size={20} />
           </div>
           <h3>Fujifilm X100F original cap</h3>
-          <p>Finder shared seller photos, packaging proof, and tracked shipping estimate. Item matches all must-have details.</p>
+          <p>Finder shared a seller link, a contact email, packaging notes, and the handoff questions to ask next. Item matches all must-have details.</p>
           <div className="action-row">
             <button className="primary-button" type="button">
-              Accept and release on delivery
+              Accept source and contact finder
             </button>
             <button className="danger-button" type="button" onClick={onDispute}>
               Open dispute
@@ -2728,7 +2942,7 @@ function FinderDashboardPage({
       <section className="dashboard-head">
         <div>
           <p className="route-kicker">Finder dashboard</p>
-          <h1 id="finder-dashboard-title">Track earnings and build reputation.</h1>
+          <h1 id="finder-dashboard-title">Submit sources and build reputation.</h1>
         </div>
         <div className="head-actions">
           <button className="section-link section-button" type="button" onClick={onProfile}>
@@ -2740,10 +2954,10 @@ function FinderDashboardPage({
         </div>
       </section>
       <section className="metric-grid">
-        <Metric icon={Banknote} label="Available payout" value="US$640" />
+        <Metric icon={Banknote} label="Available reward" value="US$640" />
         <Metric icon={Star} label="Reputation" value="4.9" />
-        <Metric icon={Trophy} label="Successful finds" value="18" />
-        <Metric icon={Clock3} label="Pending reviews" value="3" />
+        <Metric icon={Trophy} label="Accepted sources" value="18" />
+        <Metric icon={Clock3} label="Pending source reviews" value="3" />
       </section>
       <section className="dashboard-grid">
         <div className="dashboard-panel">
@@ -2770,7 +2984,7 @@ function FinderDashboardPage({
           <div className="score-ring">4.9</div>
           <ul className="check-list">
             <li>
-              <CheckCircle2 size={18} /> 94% proof accepted first review
+              <CheckCircle2 size={18} /> 94% sources accepted first review
             </li>
             <li>
               <CheckCircle2 size={18} /> Average response under 3 hours
@@ -2794,25 +3008,25 @@ function DisputePage({ onBack }: { onBack: () => void }) {
             <ArrowLeft size={17} /> Poster dashboard
           </button>
           <h1 id="dispute-title">Open a dispute.</h1>
-          <p>Use this page when a find, delivery, or proof package does not match the funded request.</p>
+          <p>Use this page when a source, contact, handoff, or proof package does not match the funded request.</p>
           <label>
             Dispute reason
             <select defaultValue="mismatch">
               <option value="mismatch">Item does not match request</option>
               <option value="condition">Condition issue</option>
-              <option value="shipping">Shipping or delivery issue</option>
+              <option value="shipping">Shipping or handoff issue</option>
               <option value="payment">Payment release issue</option>
             </select>
           </label>
           <label>
             Evidence summary
-            <textarea placeholder="Explain what went wrong and include specific proof references." />
+            <textarea placeholder="Explain what went wrong and include source links, messages, or proof references." />
           </label>
           <div className="upload-box">
             <FileText size={24} />
             <span>
               <strong>Attach evidence</strong>
-              Receipts, photos, messages, and delivery proof.
+              Source links, receipts, photos, messages, and handoff proof.
             </span>
           </div>
           <button className="danger-button strong-danger" type="button">
@@ -2821,7 +3035,7 @@ function DisputePage({ onBack }: { onBack: () => void }) {
         </div>
         <aside className="side-panel dispute-side">
           <h2>Case timeline</h2>
-          {["Reward funded", "Find submitted", "Poster requested review", "Evidence due in 48 hours"].map((event) => (
+          {["Reward funded", "Source submitted", "Poster requested review", "Evidence due in 48 hours"].map((event) => (
             <div className="timeline-item" key={event}>
               <span />
               <p>{event}</p>
@@ -2861,7 +3075,7 @@ function TrustProfilePage({ onBrowse, onFinder }: { onBrowse: () => void; onFind
       </section>
       <section className="metric-grid">
         <Metric icon={Star} label="Rating" value="4.9" />
-        <Metric icon={Trophy} label="Successful finds" value="18" />
+        <Metric icon={Trophy} label="Accepted sources" value="18" />
         <Metric icon={ShieldCheck} label="Verification" value="ID + payout" />
         <Metric icon={Scale} label="Disputes lost" value="0" />
       </section>
@@ -2879,7 +3093,7 @@ function TrustProfilePage({ onBrowse, onFinder }: { onBrowse: () => void; onFind
               <CheckCircle2 size={18} /> 92% accepted on first submission
             </li>
             <li>
-              <CheckCircle2 size={18} /> Average delivery proof within 1 day
+              <CheckCircle2 size={18} /> Average source details within 1 day
             </li>
           </ul>
         </div>
@@ -2908,7 +3122,7 @@ function FaqPage({ onBrowse, onPost }: { onBrowse: () => void; onPost: () => voi
       <section className="route-hero">
         <div>
           <h1 id="faq-title">FAQ</h1>
-          <p>Clear answers for posters, finders, escrow, refunds, disputes, and public browsing.</p>
+          <p>Clear answers for posters, finders, rewards, refunds, disputes, and public browsing.</p>
         </div>
         <div className="head-actions">
           <button className="primary-button" type="button" onClick={onPost}>

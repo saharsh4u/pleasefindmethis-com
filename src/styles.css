@@ -1525,6 +1525,14 @@ main {
   padding: 0.85rem;
 }
 
+.field-hint {
+  margin-top: -0.35rem !important;
+  color: var(--muted) !important;
+  font-size: 0.82rem !important;
+  font-weight: 650 !important;
+  line-height: 1.42 !important;
+}
+
 .auth-panel input:focus,
 .auth-panel select:focus,
 .form-panel input:focus,
@@ -1816,6 +1824,10 @@ main {
   color: var(--muted);
   font-size: 0.84rem;
   font-weight: 650;
+}
+
+.submission-success {
+  border-color: rgba(10, 109, 59, 0.36);
 }
 
 .checkout-note {
@@ -4993,13 +5005,14 @@ main {
     padding-bottom: calc(4.6rem + env(safe-area-inset-bottom));
   }
 
-  .landing-page .canvas-nav {
-    display: none;
-  }
-
   .landing-page .hero-section {
     padding-top: calc(4.85rem + env(safe-area-inset-top));
     padding-bottom: 1.35rem;
+  }
+
+  .landing-page .canvas-nav {
+    display: grid;
+    margin-bottom: 0.9rem;
   }
 
   .mobile-find-ticker {
@@ -5419,6 +5432,32 @@ main {
   font-size: 0.8rem;
   font-weight: 800;
   line-height: 1.4;
+}
+
+.logout-button {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+}
+
+.logout-button,
+.app-page .logout-button,
+.mobile-nav .logout-menu-button,
+.app-page .mobile-nav .logout-menu-button {
+  color: var(--danger);
+}
+
+.logout-button:hover,
+.app-page .logout-button:hover,
+.mobile-nav .logout-menu-button:hover,
+.app-page .mobile-nav .logout-menu-button:hover {
+  color: #9b2f25;
+}
+
+.logout-button svg {
+  width: 0.95rem;
+  height: 0.95rem;
+  stroke-width: 2.55;
 }
 
 @media (max-width: 560px) {
