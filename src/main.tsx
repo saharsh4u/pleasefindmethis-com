@@ -129,11 +129,17 @@ type FeedItem = {
 
 type RequestCategory = "audio" | "camera" | "watch" | "gaming" | "parts";
 type RequestDuration = 14 | 30 | 60;
+type ReferenceImageDraft = {
+  file: File;
+  name: string;
+  url: string;
+};
 
 type PostDraft = {
   itemName: string;
   category: RequestCategory;
   details: string;
+  referenceImages: ReferenceImageDraft[];
   reward: number;
   durationDays: RequestDuration;
 };
@@ -144,7 +150,21 @@ type EscrowBreakdown = {
   reward: number;
   platformFee: number;
   protection: number;
+  platformShare: number;
   total: number;
+};
+
+type CheckoutReturnStatus = "success" | "cancelled" | null;
+
+type CheckoutSnapshot = {
+  itemName: string;
+  provider: string;
+  reward: number;
+  platformFee: number;
+  protection: number;
+  platformShare: number;
+  total: number;
+  email: string;
 };
 
 const siteName = "pleasefindmethis.com";
@@ -163,6 +183,7 @@ const initialPostDraft: PostDraft = {
   itemName: "Sony Walkman WM-D6C",
   category: "audio",
   details: "",
+  referenceImages: [],
   reward: 180,
   durationDays: 30,
 };
@@ -251,6 +272,9 @@ const pageRoutes: Record<Page, string> = {
 const signedInStorageKey = "pleasefindmethis-signed-in";
 const pendingRouteStorageKey = "pleasefindmethis-pending-route";
 const authProviderStorageKey = "pleasefindmethis-auth-provider";
+const authEmailStorageKey = "pleasefindmethis-auth-email";
+const checkoutSnapshotStorageKey = "pleasefindmethis-last-checkout";
+const requestReferenceImagesBucket = "request-reference-images";
 const googleClientId = import.meta.env.VITE_GOOGLE_CLIENT_ID;
 
 function readStoredPendingRoute(): Page {
@@ -1119,6 +1143,12 @@ function parseRoute(): Page {
   return routeMap[raw] ?? "landing";
 }
 
+function parseCheckoutReturnStatus(): CheckoutReturnStatus {
+  const query = window.location.hash.split("?")[1] ?? "";
+  const status = new URLSearchParams(query).get("checkout");
+  return status === "success" || status === "cancelled" ? status : null;
+}
+
 function routeHref(page: Page) {
   if (page === "landing") {
     return "#/";
@@ -1135,17 +1165,58 @@ function getEscrowBreakdown(reward: number): EscrowBreakdown {
   const normalizedReward = Math.max(25, Math.round(Number.isFinite(reward) ? reward : initialPostDraft.reward));
   const platformFee = Math.max(12, Math.round(normalizedReward * 0.08));
   const protection = Math.round(normalizedReward * 0.03);
+  const platformShare = platformFee + protection;
 
   return {
     reward: normalizedReward,
     platformFee,
     protection,
+    platformShare,
     total: normalizedReward + platformFee + protection,
   };
 }
 
+function readStoredCheckoutSnapshot(): CheckoutSnapshot | null {
+  const raw = window.sessionStorage.getItem(checkoutSnapshotStorageKey);
+
+  if (!raw) {
+    return null;
+  }
+
+  try {
+    const parsed = JSON.parse(raw) as Partial<CheckoutSnapshot>;
+
+    if (
+      typeof parsed.itemName === "string" &&
+      (typeof parsed.provider === "string" || parsed.provider === undefined) &&
+      typeof parsed.reward === "number" &&
+      typeof parsed.platformFee === "number" &&
+      typeof parsed.protection === "number" &&
+      typeof parsed.platformShare === "number" &&
+      typeof parsed.total === "number" &&
+      typeof parsed.email === "string"
+    ) {
+      return {
+        itemName: parsed.itemName,
+        provider: parsed.provider ?? "hosted checkout",
+        reward: parsed.reward,
+        platformFee: parsed.platformFee,
+        protection: parsed.protection,
+        platformShare: parsed.platformShare,
+        total: parsed.total,
+        email: parsed.email,
+      };
+    }
+  } catch {
+    // Ignore corrupted session data and fall back to a clean state.
+  }
+
+  return null;
+}
+
 function App() {
   const [route, setRoute] = useState<Page>(() => parseRoute());
+  const [checkoutReturnStatus, setCheckoutReturnStatus] = useState<CheckoutReturnStatus>(() => parseCheckoutReturnStatus());
   const [menuOpen, setMenuOpen] = useState(false);
   const [signedIn, setSignedIn] = useState(() => window.sessionStorage.getItem(signedInStorageKey) === "true");
   const [pendingRoute, setPendingRoute] = useState<Page>(() => readStoredPendingRoute());
@@ -1160,6 +1231,7 @@ function App() {
   useEffect(() => {
     const syncRoute = () => {
       setRoute(parseRoute());
+      setCheckoutReturnStatus(parseCheckoutReturnStatus());
       window.scrollTo({ top: 0, behavior: "smooth" });
     };
 
@@ -1239,7 +1311,7 @@ function App() {
 
     window.sessionStorage.removeItem(signedInStorageKey);
     window.sessionStorage.removeItem(authProviderStorageKey);
-    window.sessionStorage.removeItem("pleasefindmethis-auth-email");
+    window.sessionStorage.removeItem(authEmailStorageKey);
     window.sessionStorage.removeItem(pendingRouteStorageKey);
     setPendingRoute("post-describe");
     setAuthMode("login");
@@ -1277,7 +1349,7 @@ function App() {
       if (googleClientId) {
         const profile = await signInWithGoogleClientId();
         if (profile.email) {
-          window.sessionStorage.setItem("pleasefindmethis-auth-email", profile.email);
+          window.sessionStorage.setItem(authEmailStorageKey, profile.email);
         }
         markSignedIn("google");
         return;
@@ -1406,7 +1478,7 @@ function App() {
           {visibleRoute === "post-reward" ? (
             <PostRewardPage draft={postDraft} onBack={() => navigate("post-describe")} onDraftChange={updatePostDraft} onNext={() => navigate("post-pay")} />
           ) : null}
-          {visibleRoute === "post-pay" ? <PostPayPage draft={postDraft} onBack={() => navigate("post-reward")} onDashboard={() => navigate("poster-dashboard")} /> : null}
+          {visibleRoute === "post-pay" ? <PostPayPage checkoutReturnStatus={checkoutReturnStatus} draft={postDraft} onBack={() => navigate("post-reward")} /> : null}
           {visibleRoute === "browse" ? (
             <BrowsePage onBrowseAll={() => navigate("browse-all")} onDetail={goToDetail} onPost={() => requireAuth("post-describe")} />
           ) : null}
@@ -1423,7 +1495,7 @@ function App() {
             <SubmitFindPage bounty={activeBounty} onBack={() => navigate("bounty-detail")} onDashboard={() => navigate("finder-dashboard")} />
           ) : null}
           {visibleRoute === "poster-dashboard" ? (
-            <PosterDashboardPage onBounty={() => navigate("bounty-detail")} onDispute={() => navigate("dispute")} onProfile={() => navigate("profile")} />
+            <PosterDashboardPage checkoutReturnStatus={checkoutReturnStatus} onBounty={() => navigate("bounty-detail")} onDispute={() => navigate("dispute")} onProfile={() => navigate("profile")} />
           ) : null}
           {visibleRoute === "finder-dashboard" ? (
             <FinderDashboardPage onBrowse={() => navigate("browse")} onSubmit={() => navigate("submit-find")} onProfile={() => navigate("profile")} />
@@ -2182,6 +2254,29 @@ function PostDescribePage({
   onDraftChange: (updates: Partial<PostDraft>) => void;
   onNext: () => void;
 }) {
+  useEffect(() => {
+    return () => {
+      draft.referenceImages.forEach((image) => URL.revokeObjectURL(image.url));
+    };
+  }, [draft.referenceImages]);
+
+  const handleReferenceImagesChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const files = Array.from(event.target.files ?? []);
+    if (!files.length) {
+      return;
+    }
+
+    draft.referenceImages.forEach((image) => URL.revokeObjectURL(image.url));
+    onDraftChange({
+      referenceImages: files.map((file) => ({
+        file,
+        name: file.name,
+        url: URL.createObjectURL(file),
+      })),
+    });
+    event.target.value = "";
+  };
+
   return (
     <main className="route-page" aria-labelledby="describe-title">
       <PostProgress current={1} />
@@ -2214,13 +2309,33 @@ function PostDescribePage({
               onChange={(event) => onDraftChange({ details: event.target.value })}
             />
           </label>
-          <div className="upload-box">
+          <input
+            id="reference-images"
+            className="sr-only-file-input"
+            type="file"
+            accept="image/*"
+            multiple
+            onChange={handleReferenceImagesChange}
+          />
+          <label className="upload-box upload-button" htmlFor="reference-images">
             <ImagePlus size={24} />
             <span>
               <strong>Add reference images</strong>
-              Photos help finders match the exact item.
+              {draft.referenceImages.length
+                ? `${draft.referenceImages.length} photo${draft.referenceImages.length === 1 ? "" : "s"} selected. Add or replace images.`
+                : "Photos help finders match the exact item."}
             </span>
-          </div>
+          </label>
+          {draft.referenceImages.length ? (
+            <div className="upload-preview-grid" aria-label="Selected reference images">
+              {draft.referenceImages.map((image) => (
+                <figure className="upload-preview-card" key={image.url}>
+                  <img src={image.url} alt={image.name} />
+                  <figcaption>{image.name}</figcaption>
+                </figure>
+              ))}
+            </div>
+          ) : null}
           <button className="primary-button" type="button" onClick={onNext}>
             Continue to reward <ArrowRight size={18} />
           </button>
@@ -2331,7 +2446,7 @@ function PostRewardPage({
             </div>
           </dl>
           <p>
-            <LockKeyhole size={18} /> The buyer pays into your Dodo account. You keep the service fee and handle finder payout after the source or handoff is accepted.
+            <LockKeyhole size={18} /> The buyer pays through hosted checkout. You keep the service fee and handle finder payout after the source or handoff is accepted.
           </p>
         </aside>
       </section>
@@ -2339,8 +2454,16 @@ function PostRewardPage({
   );
 }
 
-function PostPayPage({ draft, onBack }: { draft: PostDraft; onBack: () => void; onDashboard: () => void }) {
-  const [customerEmail, setCustomerEmail] = useState("");
+function PostPayPage({
+  checkoutReturnStatus,
+  draft,
+  onBack,
+}: {
+  checkoutReturnStatus: CheckoutReturnStatus;
+  draft: PostDraft;
+  onBack: () => void;
+}) {
+  const [customerEmail, setCustomerEmail] = useState(() => window.sessionStorage.getItem(authEmailStorageKey) ?? "");
   const [customerName, setCustomerName] = useState("");
   const [checkoutStatus, setCheckoutStatus] = useState<"idle" | "loading" | "error">("idle");
   const [checkoutMessage, setCheckoutMessage] = useState("");
@@ -2348,21 +2471,120 @@ function PostPayPage({ draft, onBack }: { draft: PostDraft; onBack: () => void; 
   const itemName = draft.itemName.trim() || "your request";
 
   const startCheckout = async () => {
+    if (!supabase) {
+      setCheckoutStatus("error");
+      setCheckoutMessage("Supabase is not configured, so the request and photos cannot be saved yet.");
+      return;
+    }
+
     setCheckoutStatus("loading");
     setCheckoutMessage("");
 
+    const uploadedPaths: string[] = [];
+    let createdRequestId: string | null = null;
+
     try {
-      const response = await fetch("/api/dodo/checkout", {
+      const normalizedEmail = customerEmail.trim();
+      const normalizedName = customerName.trim();
+      const {
+        data: { user },
+        error: userError,
+      } = await supabase.auth.getUser();
+
+      if (userError) {
+        throw userError;
+      }
+
+      if (!user) {
+        throw new Error("Sign in again before funding this request.");
+      }
+
+      const requestId = crypto.randomUUID();
+      const uploadedImages = [];
+
+      window.sessionStorage.setItem(authEmailStorageKey, normalizedEmail);
+      window.sessionStorage.setItem(
+        checkoutSnapshotStorageKey,
+        JSON.stringify({
+          itemName,
+          provider: "hosted checkout",
+          reward: breakdown.reward,
+          platformFee: breakdown.platformFee,
+          protection: breakdown.protection,
+          platformShare: breakdown.platformShare,
+          total: breakdown.total,
+          email: normalizedEmail,
+        } satisfies CheckoutSnapshot),
+      );
+
+      for (const [index, image] of draft.referenceImages.entries()) {
+        const fileExtension = image.file.name.includes(".") ? image.file.name.split(".").pop()?.toLowerCase() ?? "jpg" : "jpg";
+        const filePath = `${user.id}/${requestId}/${index + 1}-${crypto.randomUUID()}.${fileExtension}`;
+        const { error: uploadError } = await supabase.storage
+          .from(requestReferenceImagesBucket)
+          .upload(filePath, image.file, {
+            cacheControl: "3600",
+            contentType: image.file.type || undefined,
+            upsert: false,
+          });
+
+        if (uploadError) {
+          throw uploadError;
+        }
+
+        uploadedPaths.push(filePath);
+        const {
+          data: { publicUrl },
+        } = supabase.storage.from(requestReferenceImagesBucket).getPublicUrl(filePath);
+
+        uploadedImages.push({
+          name: image.name,
+          path: filePath,
+          type: image.file.type || null,
+          url: publicUrl,
+        });
+      }
+
+      const { error: insertError } = await supabase.from("requests").insert({
+        id: requestId,
+        user_id: user.id,
+        item_name: itemName,
+        category: getCategoryLabel(draft.category),
+        details: draft.details,
+        currency: "USD",
+        reward: breakdown.reward,
+        service_fee: breakdown.platformFee,
+        protection_reserve: breakdown.protection,
+        total_due: breakdown.total,
+        finder_payout: breakdown.reward,
+        duration_days: draft.durationDays,
+        status: "checkout_pending",
+        payment_status: "unpaid",
+        payout_status: "not_ready",
+        platform_fee_status: "unearned",
+        customer_email: normalizedEmail,
+        customer_name: normalizedName,
+        reference_images: uploadedImages,
+      });
+
+      if (insertError) {
+        throw insertError;
+      }
+
+      createdRequestId = requestId;
+
+      const response = await fetch("/api/payments/checkout", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
           customer: {
-            email: customerEmail,
-            name: customerName,
+            email: normalizedEmail,
+            name: normalizedName,
           },
           draft: {
+            requestId,
             itemName,
             category: getCategoryLabel(draft.category),
             details: draft.details,
@@ -2375,13 +2597,17 @@ function PostPayPage({ draft, onBack }: { draft: PostDraft; onBack: () => void; 
       const payload = await response.json().catch(() => null);
 
       if (!response.ok || !payload?.checkoutUrl) {
-        throw new Error(payload?.error || "Could not start Dodo checkout.");
+        throw new Error(payload?.error || "Could not start hosted checkout.");
       }
 
       window.location.assign(payload.checkoutUrl);
     } catch (error) {
+      if (!createdRequestId && uploadedPaths.length) {
+        await supabase.storage.from(requestReferenceImagesBucket).remove(uploadedPaths);
+      }
+
       setCheckoutStatus("error");
-      setCheckoutMessage(error instanceof Error ? error.message : "Could not start Dodo checkout.");
+      setCheckoutMessage(error instanceof Error ? error.message : "Could not start hosted checkout.");
     }
   };
 
@@ -2393,10 +2619,20 @@ function PostPayPage({ draft, onBack }: { draft: PostDraft; onBack: () => void; 
           <button className="back-button" type="button" onClick={onBack}>
             <ArrowLeft size={17} /> Reward
           </button>
-          <h1 id="pay-title">Fund the reward with Dodo Payments.</h1>
+          <h1 id="pay-title">Fund the reward with secure checkout.</h1>
           <p>
-            Your request goes live after the hosted checkout is paid. The full payment lands in your Dodo account, including your service fee.
+            The poster pays once through hosted checkout. The payment is recorded as a marketplace split: finder payout is held for release after an accepted source, and the platform keeps the service fee plus protection reserve.
           </p>
+          {checkoutReturnStatus === "cancelled" ? (
+            <p className="dialog-error" role="status">
+              Checkout was cancelled. Your request is still in draft, so you can adjust the reward or try again.
+            </p>
+          ) : null}
+          {checkoutReturnStatus === "success" ? (
+            <p className="dialog-success" role="status">
+              Checkout reported a successful return. Review the dashboard to confirm the funded request and incoming sources.
+            </p>
+          ) : null}
           <label>
             Receipt email
             <input type="email" value={customerEmail} placeholder="you@example.com" onChange={(event) => setCustomerEmail(event.target.value)} />
@@ -2408,12 +2644,12 @@ function PostPayPage({ draft, onBack }: { draft: PostDraft; onBack: () => void; 
           <div className="checkout-note">
             <ExternalLink size={19} />
             <span>
-              <strong>Dodo hosted checkout</strong>
-              Card details are collected by Dodo, not by this app. Use the API key and product from your own Dodo dashboard so payments settle to you.
+              <strong>Hosted checkout</strong>
+              Card and wallet details are collected by the payment processor, not by this app. The charge settles to the platform account; this app tracks the finder payable and platform share for release, refund, or dispute handling.
             </span>
           </div>
           <button className="primary-button" type="button" disabled={checkoutStatus === "loading"} onClick={startCheckout}>
-            <CreditCard size={18} /> {checkoutStatus === "loading" ? "Opening Dodo checkout..." : `Pay US$${breakdown.total} with Dodo`}
+            <CreditCard size={18} /> {checkoutStatus === "loading" ? "Opening checkout..." : `Pay US$${breakdown.total} securely`}
           </button>
           {checkoutMessage ? (
             <p className="dialog-error" role="status">
@@ -2426,35 +2662,39 @@ function PostPayPage({ draft, onBack }: { draft: PostDraft; onBack: () => void; 
           <div className="summary-card">
             <DollarSign size={28} />
             <strong>US${breakdown.total} due today</strong>
-            <span>Charged through your Dodo merchant account for {itemName}.</span>
+            <span>Poster payment for {itemName}, split into finder payable and platform share.</span>
           </div>
           <dl>
             <div>
-              <dt>Finder reward</dt>
+              <dt>Finder payout</dt>
               <dd>US${breakdown.reward}</dd>
             </div>
             <div>
-              <dt>Your service fee</dt>
+              <dt>Platform service fee</dt>
               <dd>US${breakdown.platformFee}</dd>
             </div>
             <div>
               <dt>Protection reserve</dt>
               <dd>US${breakdown.protection}</dd>
             </div>
+            <div>
+              <dt>Platform share</dt>
+              <dd>US${breakdown.platformShare}</dd>
+            </div>
             <div className="total-row">
-              <dt>Total charged</dt>
+              <dt>Poster pays today</dt>
               <dd>US${breakdown.total}</dd>
             </div>
           </dl>
           <ul className="check-list">
             <li>
-              <ShieldCheck size={18} /> You receive the full Dodo payment
+              <ShieldCheck size={18} /> The processor collects the full poster payment
             </li>
             <li>
-              <Banknote size={18} /> Service fee stays with the marketplace
+              <Banknote size={18} /> Platform share is US${breakdown.platformShare}
             </li>
             <li>
-              <TimerReset size={18} /> Finder payout is handled after the source or handoff is accepted
+              <TimerReset size={18} /> Finder payout becomes payable after acceptance
             </li>
           </ul>
         </aside>
@@ -2865,14 +3105,18 @@ function SubmitFindPage({
 }
 
 function PosterDashboardPage({
+  checkoutReturnStatus,
   onBounty,
   onDispute,
   onProfile,
 }: {
+  checkoutReturnStatus: CheckoutReturnStatus;
   onBounty: () => void;
   onDispute: () => void;
   onProfile: () => void;
 }) {
+  const checkoutSnapshot = readStoredCheckoutSnapshot();
+
   return (
     <main className="route-page dashboard-page" aria-labelledby="poster-dashboard-title">
       <section className="dashboard-head">
@@ -2884,6 +3128,14 @@ function PosterDashboardPage({
           Public trust page <ArrowRight size={17} />
         </button>
       </section>
+      {checkoutReturnStatus === "success" && checkoutSnapshot ? (
+        <div className="summary-card submission-success" role="status">
+          <CheckCircle2 size={24} />
+          <strong>{checkoutSnapshot.itemName} was sent to checkout for funding</strong>
+          <span>Poster paid US${checkoutSnapshot.total}: US${checkoutSnapshot.reward} finder payout and US${checkoutSnapshot.platformShare} platform share.</span>
+          <span>Receipt email: {checkoutSnapshot.email}</span>
+        </div>
+      ) : null}
       <section className="metric-grid">
         <Metric icon={LockKeyhole} label="Escrow funded" value="US$1,280" />
         <Metric icon={MessageSquare} label="Sources awaiting review" value="4" />
