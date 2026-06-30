@@ -101,14 +101,47 @@ function listen() {
 
 async function createDevViteServer() {
   const { createServer } = await import("vite");
+  const hmrPort = await findOpenPort(Number(process.env.HMR_PORT ?? 24678));
 
   return createServer({
     root,
     appType: "spa",
     server: {
       host,
+      hmr: {
+        port: hmrPort,
+      },
       middlewareMode: true,
     },
+  });
+}
+
+function findOpenPort(startPort) {
+  const normalizedStartPort = Number.isFinite(startPort) && startPort > 0 ? Math.round(startPort) : 24678;
+
+  return new Promise((resolve, reject) => {
+    const tryPort = (candidatePort) => {
+      const probe = http.createServer();
+
+      probe.once("error", (error) => {
+        probe.close();
+
+        if (error.code === "EADDRINUSE") {
+          tryPort(candidatePort + 1);
+          return;
+        }
+
+        reject(error);
+      });
+
+      probe.once("listening", () => {
+        probe.close(() => resolve(candidatePort));
+      });
+
+      probe.listen(candidatePort);
+    };
+
+    tryPort(normalizedStartPort);
   });
 }
 

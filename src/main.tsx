@@ -1289,6 +1289,7 @@ function App() {
     const syncRoute = () => {
       setRoute(parseRoute());
       setCheckoutReturnStatus(parseCheckoutReturnStatus());
+      setMenuOpen(false);
       window.scrollTo({ top: 0, behavior: "smooth" });
     };
 
@@ -2896,7 +2897,7 @@ function BrowseAllPage({ onDetail, onPost }: { onDetail: (bountyId: string) => v
       <section className="gallery-hero compact-gallery-hero">
         <div>
           <h1 id="browse-all-title">Browse all requests</h1>
-          <p>Scroll the full request board. More cards load as you move down until you reach the end of the current request list.</p>
+          <p>Rare finds. Real rewards. New requests every day.</p>
         </div>
         <button className="primary-button" type="button" onClick={onPost}>
           Post a request <ArrowRight size={18} />

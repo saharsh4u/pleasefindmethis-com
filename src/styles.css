@@ -165,7 +165,7 @@ main {
   font-size: clamp(0.75rem, 0.78vw, 0.83rem);
   font-weight: 760;
   line-height: 1.28;
-  letter-spacing: -0.01em;
+  letter-spacing: 0;
   backdrop-filter: blur(8px);
 }
 
@@ -341,7 +341,7 @@ main {
     "SFMono-Regular", "Roboto Mono", "Cascadia Mono", "Liberation Mono", ui-monospace, Menlo, Consolas, monospace;
   font-size: clamp(0.76rem, 1vw, 0.94rem);
   font-weight: 850;
-  letter-spacing: -0.04em;
+  letter-spacing: 0;
   line-height: 1;
 }
 
@@ -3523,7 +3523,7 @@ main {
 .app-page .detail-copy h1,
 .app-page .active-review h3 {
   color: var(--board-text);
-  letter-spacing: -0.02em;
+  letter-spacing: 0;
 }
 
 .app-page .route-kicker {
@@ -5733,7 +5733,7 @@ main {
   }
 
   .auth-divider {
-    font-size: 0.62rem;
+    font-size: 0.72rem;
   }
 }
 
@@ -6046,5 +6046,1581 @@ main {
   .confirmation-actions .section-link {
     width: 100%;
     justify-content: center;
+  }
+}
+
+/* Complete UI polish pass: shared rhythm, readable type, and responsive stability. */
+:root {
+  --page-gutter: clamp(1.1rem, 4vw, 2.6rem);
+  --section-y: clamp(3rem, 7vw, 5.2rem);
+  --panel-gap: clamp(1rem, 2.4vw, 1.5rem);
+  --radius-card: 8px;
+  --radius-control: 999px;
+  --focus-ring: 0 0 0 3px rgba(8, 115, 67, 0.18);
+}
+
+html {
+  overflow-x: hidden;
+  text-size-adjust: 100%;
+}
+
+body {
+  overflow-x: hidden;
+  font-weight: 400;
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+}
+
+#root {
+  min-height: 100vh;
+}
+
+button,
+input,
+select,
+textarea {
+  min-width: 0;
+  font: inherit;
+  letter-spacing: 0;
+}
+
+button,
+a,
+input,
+select,
+textarea {
+  transition:
+    border-color 160ms ease,
+    background-color 160ms ease,
+    box-shadow 160ms ease,
+    color 160ms ease,
+    transform 160ms ease;
+}
+
+button:focus-visible,
+a:focus-visible,
+input:focus-visible,
+select:focus-visible,
+textarea:focus-visible {
+  outline: 0;
+  box-shadow: var(--focus-ring);
+}
+
+p,
+li,
+dd,
+dt,
+small,
+span,
+em,
+strong,
+button,
+input,
+select,
+textarea {
+  line-height: 1.45;
+}
+
+.brand {
+  gap: 0.45rem;
+  font-size: 0.88rem;
+  font-weight: 820;
+}
+
+.brand-mark {
+  width: 1.45rem;
+  height: 1.45rem;
+}
+
+.desktop-nav,
+.desktop-nav button,
+.text-button {
+  font-size: 0.8rem;
+  font-weight: 760;
+  line-height: 1.2;
+}
+
+.canvas-actions {
+  min-width: 0;
+}
+
+.primary-button,
+.primary-nav-button,
+.danger-button,
+.icon-label-button,
+.google-auth-button,
+.retry-button {
+  min-height: 2.75rem;
+  line-height: 1.15;
+}
+
+.primary-button,
+.danger-button,
+.icon-label-button {
+  gap: 0.45rem;
+  padding: 0.72rem 1.12rem;
+  font-size: 0.84rem;
+  font-weight: 820;
+}
+
+.primary-button,
+.danger-button,
+.google-auth-button,
+.session-pill,
+.search-field,
+.hero-search-form,
+.filter-pills button,
+.segmented-control,
+.segmented-control button,
+.retry-button {
+  border-radius: var(--radius-control);
+}
+
+.side-find-card,
+.bounty-card,
+.upload-preview-card,
+.mini-bounty-card,
+.auth-panel,
+.form-panel,
+.side-panel,
+.dashboard-panel,
+.metric-card,
+.detail-main,
+.listing-row,
+.faq-item,
+.summary-card,
+.checkout-note,
+.feed-table,
+.comparison-table,
+.bounty-square-card,
+.post-success-confirmation,
+.video-frame,
+.mobile-find-ticker-card {
+  border-radius: var(--radius-card);
+}
+
+.hero-section {
+  margin-bottom: var(--section-y);
+  padding:
+    clamp(1.15rem, 2.4vw, 1.65rem)
+    max(var(--page-gutter), calc((100vw - 1120px) / 2))
+    clamp(2.1rem, 4vw, 3.2rem);
+}
+
+.canvas-nav {
+  max-width: 1120px;
+}
+
+.hero-copy {
+  max-width: 48rem;
+  margin-top: clamp(1.5rem, 4vw, 3rem);
+}
+
+.hero-site-tag {
+  color: rgba(15, 18, 17, 0.62);
+  font-size: 0.86rem;
+  font-weight: 780;
+}
+
+.hero-copy h1 {
+  max-width: 15ch;
+  font-size: 4.8rem;
+  font-weight: 860;
+  line-height: 1;
+}
+
+.micro-line {
+  gap: 0.55rem;
+  margin-top: 1.2rem;
+  font-size: 1rem;
+  font-weight: 650;
+  line-height: 1.35;
+}
+
+.hero-search-form {
+  width: min(100%, 34rem);
+  min-height: 3.15rem;
+  margin-top: 1.25rem;
+  padding: 0.32rem 0.4rem 0.32rem 1rem;
+  border-color: rgba(17, 21, 19, 0.14);
+}
+
+.hero-search-form input {
+  font-size: 0.94rem;
+  font-weight: 700;
+  line-height: 1.2;
+}
+
+.hero-search-form button {
+  min-height: 2.38rem;
+  padding: 0 1rem;
+  font-size: 0.82rem;
+}
+
+.mobile-hero-actions {
+  gap: 0.55rem;
+  width: min(100%, 16.8rem);
+}
+
+.hero-subline {
+  font-size: 1rem;
+  font-weight: 520;
+  line-height: 1.65;
+}
+
+.trust-line {
+  max-width: 40rem;
+  line-height: 1.45;
+}
+
+.market-preview {
+  width: min(100%, 780px);
+}
+
+.featured-grid {
+  gap: 1rem;
+}
+
+.bounty-card {
+  flex-basis: 9rem;
+  padding: 0.5rem;
+}
+
+.bounty-card h3 {
+  margin-top: 0.58rem;
+  font-size: 0.8rem;
+  line-height: 1.15;
+}
+
+.bounty-card p {
+  margin-bottom: 0.55rem;
+  font-size: 0.72rem;
+  line-height: 1.25;
+}
+
+.bounty-meta {
+  gap: 0.55rem;
+  font-size: 0.64rem;
+  line-height: 1.15;
+}
+
+.bounty-meta strong {
+  font-size: 0.76rem;
+}
+
+.landing-recent-board {
+  width: min(100%, 60rem);
+  margin-top: clamp(2.25rem, 4vw, 3.25rem);
+}
+
+.landing-recent-board .board-request-card button {
+  min-height: 7rem;
+  border-radius: var(--radius-card);
+}
+
+.board-request-card button {
+  border-radius: var(--radius-card);
+}
+
+.board-card-copy strong {
+  font-size: 0.9rem;
+  line-height: 1.18;
+}
+
+.board-card-copy em {
+  font-size: 0.68rem;
+  line-height: 1.25;
+}
+
+.board-status {
+  min-height: 1.55rem;
+  font-size: 0.65rem;
+  line-height: 1;
+}
+
+.board-card-stats small {
+  font-size: 0.65rem;
+}
+
+.board-card-stats b {
+  font-size: 0.78rem;
+}
+
+.problem-section,
+.how-section,
+.feed-section,
+.safety-section,
+.comparison-section,
+.finder-section,
+.founder-section,
+.closing-section {
+  padding:
+    var(--section-y)
+    max(var(--page-gutter), calc((100vw - 1120px) / 2));
+}
+
+.problem-section h2,
+.how-section h2,
+.safety-section h2,
+.comparison-section h2,
+.closing-section h2 {
+  max-width: 54rem;
+  margin-bottom: clamp(1.5rem, 3vw, 2.5rem);
+  font-size: 2.7rem;
+  line-height: 1.05;
+}
+
+.problem-grid {
+  gap: 1.35rem 0;
+}
+
+.problem-item {
+  gap: 0.7rem;
+}
+
+.problem-item h3,
+.work-step h3,
+.safety-step h3 {
+  font-size: 1rem;
+  line-height: 1.2;
+}
+
+.problem-item p,
+.work-step p,
+.safety-step p {
+  font-size: 0.9rem;
+  line-height: 1.5;
+}
+
+.how-steps {
+  gap: clamp(1.2rem, 3vw, 3rem);
+}
+
+.feed-table,
+.comparison-table {
+  box-shadow: 0 14px 36px rgba(17, 21, 19, 0.06);
+}
+
+.feed-row {
+  grid-template-columns: minmax(13rem, 2fr) minmax(5rem, 0.8fr) minmax(6.5rem, 0.95fr) minmax(6rem, 0.85fr) minmax(8rem, 1.05fr) minmax(5.5rem, 0.8fr);
+  gap: 0.9rem;
+  padding: 0.78rem 0.9rem;
+}
+
+.feed-row,
+.comparison-row > * {
+  font-size: 0.88rem;
+  line-height: 1.35;
+}
+
+.feed-row small {
+  font-size: 0.76rem;
+  line-height: 1.3;
+}
+
+.comparison-row > * {
+  min-height: 3.15rem;
+  padding: 0.72rem 0.9rem;
+}
+
+.finder-section {
+  gap: clamp(1.6rem, 3.5vw, 3rem);
+}
+
+.finder-copy h2,
+.founder-copy h2 {
+  font-size: 2.1rem;
+  line-height: 1.08;
+}
+
+.finder-copy ul,
+.finder-protection span,
+.founder-copy p {
+  font-size: 0.95rem;
+  line-height: 1.55;
+}
+
+.route-page {
+  padding:
+    clamp(1.8rem, 4vw, 3rem)
+    max(var(--page-gutter), calc((100vw - 1120px) / 2))
+    clamp(3rem, 6vw, 5rem);
+}
+
+.route-hero,
+.dashboard-head,
+.profile-hero {
+  gap: clamp(1.2rem, 3vw, 2.5rem);
+  margin-bottom: clamp(1.5rem, 3vw, 2.3rem);
+}
+
+.route-hero h1,
+.dashboard-head h1,
+.profile-hero h1,
+.form-panel h1 {
+  max-width: 13ch;
+  font-size: 3.55rem;
+  line-height: 1.02;
+}
+
+.route-hero p,
+.dashboard-head p,
+.profile-hero p,
+.form-panel p {
+  max-width: 44rem;
+  font-size: 1rem;
+  line-height: 1.58;
+}
+
+.route-kicker {
+  margin-bottom: 0.65rem !important;
+  font-size: 0.78rem !important;
+  line-height: 1.2 !important;
+}
+
+.auth-panel,
+.form-panel,
+.side-panel,
+.dashboard-panel {
+  gap: var(--panel-gap);
+  padding: clamp(1.15rem, 2.2vw, 1.5rem);
+}
+
+.auth-panel input,
+.auth-panel select,
+.form-panel input,
+.form-panel select,
+.form-panel textarea,
+.search-field input {
+  font-size: 0.95rem;
+  line-height: 1.35;
+}
+
+.auth-panel input,
+.auth-panel select,
+.form-panel input,
+.form-panel select {
+  min-height: 3.15rem;
+}
+
+.form-panel textarea {
+  min-height: 9rem;
+}
+
+.field-hint {
+  font-size: 0.84rem !important;
+}
+
+.sr-only-file-input {
+  position: absolute !important;
+  width: 1px !important;
+  height: 1px !important;
+  min-height: 0 !important;
+  padding: 0 !important;
+  margin: -1px !important;
+  overflow: hidden !important;
+  clip: rect(0, 0, 0, 0) !important;
+  white-space: nowrap !important;
+  border: 0 !important;
+}
+
+.post-progress {
+  gap: 0.8rem;
+}
+
+.post-progress div {
+  min-height: 3rem;
+  font-size: 0.86rem;
+}
+
+.two-column-page,
+.detail-layout,
+.dashboard-grid {
+  gap: clamp(1.1rem, 3vw, 2rem);
+}
+
+.upload-box {
+  min-height: 5.4rem;
+  padding: 0.95rem;
+}
+
+.upload-box strong {
+  font-size: 0.95rem;
+  line-height: 1.25;
+}
+
+.upload-box span {
+  font-size: 0.86rem;
+  line-height: 1.42;
+}
+
+.browse-toolbar {
+  gap: 0.85rem;
+  margin-bottom: 1.2rem;
+}
+
+.filter-pills button,
+.icon-label-button {
+  min-height: 2.65rem;
+}
+
+.listing-row {
+  border-radius: var(--radius-card);
+}
+
+.gallery-hero {
+  gap: 0.9rem;
+  margin-bottom: clamp(1.8rem, 4vw, 3rem);
+}
+
+.gallery-hero h1,
+.compact-gallery-hero h1 {
+  max-width: 12ch;
+  font-size: 5.15rem;
+  line-height: 0.96;
+}
+
+.gallery-hero p {
+  font-size: 1.02rem;
+  line-height: 1.5;
+}
+
+.top-bounty-grid,
+.bounty-square-grid,
+.full-gallery-grid {
+  gap: 1rem;
+}
+
+.square-card-hit {
+  grid-template-rows: minmax(0, 58%) auto auto;
+  gap: 0.5rem;
+  padding: 0.78rem;
+}
+
+.square-copy strong {
+  font-size: 1.02rem;
+  line-height: 1.12;
+}
+
+.square-copy em {
+  font-size: 0.82rem;
+  line-height: 1.25;
+}
+
+.square-meta {
+  gap: 0.48rem;
+  font-size: 0.76rem;
+  line-height: 1.2;
+}
+
+.square-rank,
+.square-price {
+  min-height: 1.82rem;
+  font-size: 0.74rem;
+}
+
+.detail-copy {
+  gap: 1rem;
+  padding: clamp(1.1rem, 2.5vw, 1.55rem);
+}
+
+.detail-copy h1,
+.listing-title-line h2 {
+  font-size: 1.5rem;
+  line-height: 1.12;
+}
+
+.detail-copy p {
+  font-size: 1rem;
+  line-height: 1.6;
+}
+
+.metric-grid {
+  gap: 0.9rem;
+  margin-bottom: 1.1rem;
+}
+
+.metric-card {
+  min-height: 7.2rem;
+  padding: 1rem;
+}
+
+.metric-card span {
+  font-size: 0.82rem;
+  line-height: 1.25;
+}
+
+.metric-card strong {
+  font-size: 1.75rem;
+  line-height: 1.05;
+}
+
+.panel-header {
+  min-width: 0;
+}
+
+.panel-header > * {
+  min-width: 0;
+}
+
+.review-row {
+  gap: 0.85rem;
+  padding: 0.78rem 0;
+}
+
+.review-row strong {
+  line-height: 1.25;
+}
+
+.review-row small,
+.review-row em {
+  font-size: 0.78rem;
+  line-height: 1.3;
+}
+
+.active-review h3 {
+  font-size: 1.5rem;
+  line-height: 1.12;
+}
+
+.faq-item button {
+  min-height: 3.5rem;
+  font-size: 1rem;
+  line-height: 1.3;
+}
+
+.faq-item p {
+  font-size: 0.95rem;
+  line-height: 1.6;
+}
+
+.post-success-main h2 {
+  max-width: 14ch;
+  font-size: 2.9rem;
+  line-height: 1.02;
+}
+
+.confirmation-copy {
+  font-size: 1rem;
+  line-height: 1.58;
+}
+
+.confirmation-detail-grid strong {
+  font-size: 1rem;
+}
+
+@media (max-width: 1180px) {
+  .side-find-rail {
+    display: none;
+  }
+
+  .hero-copy h1 {
+    font-size: 4.15rem;
+  }
+
+  .problem-section h2,
+  .how-section h2,
+  .safety-section h2,
+  .comparison-section h2,
+  .closing-section h2 {
+    font-size: 2.35rem;
+  }
+}
+
+@media (max-width: 1024px) {
+  :root {
+    --section-y: 3.6rem;
+  }
+
+  .route-hero h1,
+  .dashboard-head h1,
+  .profile-hero h1,
+  .form-panel h1 {
+    font-size: 3rem;
+  }
+
+  .gallery-hero h1,
+  .compact-gallery-hero h1 {
+    font-size: 4.2rem;
+  }
+
+  .feed-row {
+    grid-template-columns: minmax(12rem, 1.6fr) minmax(5rem, 0.8fr) minmax(6rem, 0.9fr) minmax(5.5rem, 0.8fr) minmax(7rem, 1fr) minmax(5rem, 0.8fr);
+  }
+}
+
+@media (max-width: 760px) {
+  :root {
+    --page-gutter: 1rem;
+    --section-y: 2.5rem;
+  }
+
+  .landing-page {
+    padding-bottom: calc(4.9rem + env(safe-area-inset-bottom));
+  }
+
+  .hero-section {
+    padding:
+      calc(4.95rem + env(safe-area-inset-top))
+      var(--page-gutter)
+      1.65rem;
+  }
+
+  .canvas-nav,
+  .app-header {
+    min-height: 3.05rem;
+  }
+
+  .brand {
+    max-width: min(68vw, 18rem);
+    overflow: hidden;
+    font-size: 0.9rem;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .icon-button {
+    width: 2.55rem;
+    height: 2.55rem;
+  }
+
+  .hero-copy {
+    max-width: 22rem;
+    margin-top: 1.15rem;
+  }
+
+  .hero-site-tag {
+    font-size: 0.78rem;
+  }
+
+  .hero-copy .mobile-hero-title {
+    font-size: 2.85rem;
+    line-height: 1.02;
+  }
+
+  .hero-search-form {
+    width: min(100%, 20.5rem);
+    min-height: 2.9rem;
+    margin-top: 1rem;
+  }
+
+  .hero-search-form input {
+    font-size: 0.88rem;
+  }
+
+  .mobile-hero-actions {
+    width: min(100%, 18.5rem);
+    margin-top: 0.85rem;
+  }
+
+  .primary-button,
+  .hero-cta,
+  .danger-button,
+  .icon-label-button,
+  .google-auth-button {
+    min-height: 2.75rem;
+    font-size: 0.84rem;
+    line-height: 1.15;
+  }
+
+  .mobile-browse-button,
+  .hero-secondary-link,
+  .finder-link,
+  .section-link {
+    font-size: 0.88rem;
+    line-height: 1.25;
+  }
+
+  .market-preview,
+  .landing-recent-board {
+    width: min(100%, 22.5rem);
+  }
+
+  .featured-grid {
+    gap: 0.75rem;
+  }
+
+  .bounty-card {
+    padding: 0.45rem;
+  }
+
+  .bounty-card h3 {
+    margin-top: 0.48rem;
+    font-size: 0.74rem;
+    line-height: 1.18;
+  }
+
+  .bounty-card p {
+    margin-bottom: 0.45rem;
+    font-size: 0.66rem;
+    line-height: 1.22;
+  }
+
+  .bounty-meta {
+    font-size: 0.64rem;
+    line-height: 1.15;
+  }
+
+  .bounty-meta strong {
+    font-size: 0.72rem;
+  }
+
+  .hero-lower {
+    width: min(100%, 21rem);
+    margin-top: 1.4rem;
+  }
+
+  .hero-subline {
+    max-width: 21rem;
+    font-size: 0.88rem;
+    line-height: 1.55;
+  }
+
+  .trust-line {
+    max-width: 21rem;
+    font-size: 0.82rem;
+    line-height: 1.45;
+  }
+
+  .landing-recent-board .board-request-card button {
+    min-height: 11.3rem;
+  }
+
+  .landing-recent-board .board-request-card img {
+    height: 6.2rem;
+  }
+
+  .board-card-copy strong {
+    font-size: 0.78rem;
+    white-space: normal;
+  }
+
+  .board-card-copy em {
+    font-size: 0.66rem;
+  }
+
+.board-card-stats small {
+    font-size: 0.64rem;
+  }
+
+  .board-card-stats b {
+    font-size: 0.68rem;
+  }
+
+  .mobile-find-ticker-card {
+    width: 12.7rem;
+    min-height: 3.45rem;
+  }
+
+  .mobile-find-ticker-card span {
+    font-size: 0.68rem;
+    line-height: 1.16;
+  }
+
+  .problem-section,
+  .how-section,
+  .feed-section,
+  .safety-section,
+  .comparison-section,
+  .finder-section,
+  .founder-section,
+  .closing-section {
+    padding: var(--section-y) var(--page-gutter);
+  }
+
+  .problem-section h2,
+  .how-section h2,
+  .safety-section h2,
+  .comparison-section h2,
+  .closing-section h2,
+  .finder-copy h2,
+  .founder-copy h2,
+  .section-head h2,
+  .gallery-section-head h2 {
+    font-size: 1.85rem;
+    line-height: 1.08;
+  }
+
+  .problem-item p,
+  .work-step p,
+  .safety-step p,
+  .section-head p,
+  .finder-copy ul,
+  .finder-protection span,
+  .founder-copy p {
+    font-size: 0.9rem;
+    line-height: 1.52;
+  }
+
+  .feed-row {
+    grid-template-columns: 1fr;
+    gap: 0.55rem;
+    padding: 0.95rem;
+  }
+
+  .feed-row > span {
+    min-width: 0;
+  }
+
+  .feed-bounty {
+    align-items: flex-start;
+  }
+
+  .feed-bounty img {
+    width: 3.35rem;
+    height: 3.35rem;
+  }
+
+  .comparison-row > * {
+    min-height: 2.9rem;
+    padding: 0.72rem 0.85rem;
+  }
+
+  .route-page {
+    padding: 1.35rem var(--page-gutter) 2.5rem;
+  }
+
+  .route-hero,
+  .dashboard-head,
+  .profile-hero {
+    gap: 1rem;
+    margin-bottom: 1.35rem;
+  }
+
+  .route-hero h1,
+  .dashboard-head h1,
+  .profile-hero h1,
+  .form-panel h1,
+  .app-page .reward-form-panel h1,
+  .app-page .payment-form-panel h1 {
+    max-width: 100%;
+    font-size: 2.45rem;
+    line-height: 1.05;
+  }
+
+  .route-hero p,
+  .dashboard-head p,
+  .profile-hero p,
+  .form-panel p,
+  .app-page .reward-form-panel p,
+  .app-page .payment-form-panel p {
+    font-size: 0.94rem;
+    line-height: 1.54;
+  }
+
+  .auth-panel,
+  .form-panel,
+  .side-panel,
+  .dashboard-panel {
+    padding: 1.05rem;
+  }
+
+  .post-progress div {
+    min-height: 2.65rem;
+  }
+
+  .upload-box {
+    grid-template-columns: auto minmax(0, 1fr);
+  }
+
+  .gallery-hero,
+  .compact-gallery-hero {
+    text-align: center;
+  }
+
+  .gallery-hero h1,
+  .compact-gallery-hero h1 {
+    max-width: 11ch;
+    font-size: 3.25rem;
+    line-height: 0.98;
+  }
+
+  .gallery-hero p {
+    font-size: 0.94rem;
+    line-height: 1.5;
+  }
+
+  .top-bounty-grid,
+  .bounty-square-grid,
+  .full-gallery-grid {
+    gap: 0.78rem;
+  }
+
+  .square-card-hit {
+    padding: 0.62rem;
+  }
+
+  .square-copy strong {
+    font-size: 0.86rem;
+    line-height: 1.15;
+  }
+
+  .square-copy em {
+    font-size: 0.72rem;
+  }
+
+  .square-meta {
+    font-size: 0.68rem;
+  }
+
+  .square-rank,
+  .square-price {
+    min-height: 1.65rem;
+    padding: 0.24rem 0.5rem;
+    font-size: 0.68rem;
+  }
+
+  .browse-toolbar {
+    gap: 0.7rem;
+  }
+
+  .filter-pills {
+    gap: 0.45rem;
+  }
+
+  .filter-pills button {
+    min-height: 2.35rem;
+    padding: 0.42rem 0.75rem;
+    font-size: 0.78rem;
+  }
+
+  .metric-card {
+    min-height: auto;
+    padding: 1rem;
+  }
+
+  .metric-card strong {
+    font-size: 1.55rem;
+  }
+
+  .review-row {
+    grid-template-columns: 3.25rem minmax(0, 1fr);
+    align-items: start;
+  }
+
+  .review-row img {
+    width: 3.25rem;
+    height: 3.25rem;
+  }
+
+  .faq-item button {
+    padding: 0.95rem;
+    font-size: 0.95rem;
+  }
+
+  .faq-item p {
+    padding: 0 0.95rem 0.95rem;
+    font-size: 0.9rem;
+  }
+
+  .post-success-main h2 {
+    font-size: 2.2rem;
+  }
+}
+
+@media (max-width: 430px) {
+  .hero-copy .mobile-hero-title {
+    font-size: 2.55rem;
+  }
+
+  .gallery-hero h1,
+  .compact-gallery-hero h1 {
+    font-size: 2.75rem;
+  }
+
+  .top-bounty-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .top-bounty-grid .bounty-square-card {
+    aspect-ratio: 1.08;
+  }
+
+  .bounty-square-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .bounty-square-card {
+    aspect-ratio: 1.08;
+  }
+
+  .square-image-wrap img,
+  .bounty-square-card.compact .square-image-wrap img {
+    max-width: min(64%, 10rem);
+  }
+}
+
+@media (max-width: 380px) {
+  .hero-copy .mobile-hero-title {
+    font-size: 2.35rem;
+  }
+
+  .primary-button,
+  .danger-button,
+  .icon-label-button,
+  .google-auth-button {
+    font-size: 0.8rem;
+  }
+
+  .mobile-find-ticker-card {
+    width: 11.6rem;
+  }
+}
+
+/* Final responsive polish: readable type, stable wrapping, and cleaner alignment. */
+h1,
+h2,
+h3,
+p,
+li,
+button,
+a,
+span,
+strong,
+em,
+small {
+  overflow-wrap: break-word;
+}
+
+.hero-copy h1,
+.route-hero h1,
+.dashboard-head h1,
+.profile-hero h1,
+.form-panel h1,
+.gallery-hero h1,
+.compact-gallery-hero h1,
+.section-head h2,
+.problem-section h2,
+.how-section h2,
+.safety-section h2,
+.comparison-section h2,
+.closing-section h2 {
+  text-wrap: balance;
+}
+
+.hero-subline,
+.section-head p,
+.route-hero p,
+.dashboard-head p,
+.profile-hero p,
+.form-panel p,
+.gallery-hero p,
+.detail-copy p,
+.active-review p,
+.faq-item p {
+  text-wrap: pretty;
+}
+
+.canvas-nav,
+.app-header,
+.panel-header,
+.head-actions,
+.profile-actions,
+.gallery-section-head,
+.listing-title-line,
+.review-row span,
+.board-card-copy,
+.board-card-stats,
+.square-copy,
+.square-meta {
+  min-width: 0;
+}
+
+.primary-button,
+.primary-nav-button,
+.danger-button,
+.icon-label-button,
+.google-auth-button,
+.retry-button,
+.mobile-browse-button,
+.section-link,
+.finder-link {
+  text-align: center;
+  white-space: normal;
+}
+
+.hero-copy h1 {
+  max-width: 14ch;
+  font-size: clamp(3.15rem, 5.1vw, 4.55rem);
+  line-height: 1.01;
+}
+
+.hero-copy {
+  margin-top: clamp(1.25rem, 3.2vw, 2.45rem);
+}
+
+.market-preview {
+  margin-top: clamp(1.35rem, 2.6vw, 2.1rem);
+}
+
+.bounty-card h3,
+.board-card-copy strong,
+.square-copy strong,
+.review-row strong {
+  text-wrap: balance;
+}
+
+.bounty-card p,
+.board-card-copy em,
+.square-copy em,
+.review-row small,
+.review-row em {
+  text-wrap: pretty;
+}
+
+.board-card-copy strong,
+.board-card-copy em,
+.square-copy strong,
+.square-copy em {
+  display: -webkit-box;
+  overflow: hidden;
+  white-space: normal;
+  -webkit-box-orient: vertical;
+}
+
+.board-card-copy strong,
+.square-copy strong {
+  -webkit-line-clamp: 2;
+}
+
+.board-card-copy em,
+.square-copy em {
+  -webkit-line-clamp: 2;
+}
+
+.feed-row > *,
+.comparison-row > *,
+.receipt-panel dl div > *,
+.checkout-status-message > * {
+  min-width: 0;
+}
+
+.review-row em {
+  justify-self: end;
+  white-space: nowrap;
+}
+
+.action-row,
+.head-actions,
+.profile-actions,
+.gallery-hero-actions,
+.confirmation-actions {
+  flex-wrap: wrap;
+}
+
+@media (max-width: 1180px) {
+  .hero-copy h1 {
+    font-size: clamp(3rem, 6vw, 4.05rem);
+  }
+}
+
+@media (max-width: 1024px) {
+  .gallery-hero h1,
+  .compact-gallery-hero h1 {
+    font-size: clamp(3rem, 8vw, 4rem);
+    line-height: 1;
+  }
+}
+
+@media (max-width: 760px) {
+  .landing-page {
+    padding-bottom: calc(4.35rem + env(safe-area-inset-bottom));
+  }
+
+  .landing-page .hero-section {
+    padding-top: calc(4.35rem + env(safe-area-inset-top));
+    padding-bottom: 1.25rem;
+  }
+
+  .landing-page .canvas-nav {
+    margin-bottom: 0.65rem;
+  }
+
+  .brand {
+    max-width: min(66vw, 17rem);
+    font-size: 0.88rem;
+  }
+
+  .hero-copy {
+    max-width: min(100%, 21.5rem);
+    margin-top: 0.82rem;
+  }
+
+  .hero-site-tag {
+    margin-bottom: 0.5rem;
+    font-size: 0.76rem;
+  }
+
+  .hero-copy .mobile-hero-title {
+    max-width: 11ch;
+    font-size: clamp(2.2rem, 9.7vw, 2.62rem);
+    line-height: 1.04;
+  }
+
+  .hero-search-form {
+    width: min(100%, 20.8rem);
+    min-height: 2.75rem;
+    margin-top: 0.85rem;
+  }
+
+  .hero-search-form input {
+    font-size: 0.9rem;
+    line-height: 1.25;
+  }
+
+  .mobile-hero-actions {
+    width: min(100%, 19rem);
+    margin-top: 0.72rem;
+  }
+
+  .primary-button,
+  .hero-cta,
+  .danger-button,
+  .icon-label-button,
+  .google-auth-button {
+    min-height: 2.8rem;
+    font-size: 0.85rem;
+  }
+
+  .market-preview,
+  .landing-recent-board {
+    width: min(100%, 23rem);
+  }
+
+  .featured-grid {
+    gap: 0.78rem;
+  }
+
+  .bounty-card {
+    padding: 0.5rem;
+  }
+
+  .bounty-card h3 {
+    display: -webkit-box;
+    overflow: hidden;
+    min-height: 2.05em;
+    font-size: clamp(0.78rem, 3.35vw, 0.86rem);
+    line-height: 1.16;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 2;
+  }
+
+  .bounty-card p {
+    display: -webkit-box;
+    overflow: hidden;
+    min-height: 2.5em;
+    font-size: 0.72rem;
+    line-height: 1.25;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 2;
+  }
+
+  .bounty-meta {
+    align-items: end;
+    font-size: 0.66rem;
+    line-height: 1.18;
+  }
+
+  .bounty-meta strong {
+    font-size: 0.76rem;
+  }
+
+  .landing-recent-board {
+    margin-top: 1.28rem;
+  }
+
+  .landing-recent-board .board-request-card button {
+    min-height: 11.65rem;
+    padding: 0.6rem;
+  }
+
+  .landing-recent-board .board-request-card img {
+    height: 6.25rem;
+  }
+
+  .board-status {
+    max-width: calc(100% - 1rem);
+    font-size: 0.6rem;
+  }
+
+  .board-card-copy strong {
+    font-size: clamp(0.82rem, 3.6vw, 0.94rem);
+    line-height: 1.12;
+  }
+
+  .board-card-copy em {
+    font-size: 0.68rem;
+    line-height: 1.22;
+  }
+
+  .board-card-stats small {
+    font-size: 0.62rem;
+  }
+
+  .board-card-stats b {
+    font-size: 0.72rem;
+  }
+
+  .mobile-find-ticker {
+    padding-top: 0.42rem;
+    padding-bottom: 0.42rem;
+  }
+
+  .mobile-find-ticker-card {
+    grid-template-columns: 2.35rem minmax(0, 1fr);
+    width: clamp(11rem, 48vw, 12.1rem);
+    min-height: 3.15rem;
+    padding: 0.32rem 0.5rem;
+  }
+
+  .mobile-find-ticker-card img {
+    width: 2.35rem;
+    height: 2.35rem;
+  }
+
+  .mobile-find-ticker-card span {
+    font-size: clamp(0.66rem, 2.7vw, 0.72rem);
+    line-height: 1.15;
+  }
+
+  .problem-section h2,
+  .how-section h2,
+  .safety-section h2,
+  .comparison-section h2,
+  .closing-section h2,
+  .finder-copy h2,
+  .founder-copy h2,
+  .section-head h2,
+  .gallery-section-head h2 {
+    font-size: clamp(1.75rem, 8vw, 2.05rem);
+    line-height: 1.1;
+  }
+
+  .route-hero h1,
+  .dashboard-head h1,
+  .profile-hero h1,
+  .form-panel h1,
+  .app-page .reward-form-panel h1,
+  .app-page .payment-form-panel h1 {
+    font-size: clamp(2rem, 8.8vw, 2.55rem);
+    line-height: 1.07;
+  }
+
+  .gallery-hero h1,
+  .compact-gallery-hero h1 {
+    max-width: 11ch;
+    font-size: clamp(2.35rem, 10vw, 2.85rem);
+    line-height: 1.02;
+  }
+
+  .square-card-hit {
+    grid-template-rows: minmax(0, 54%) minmax(2.7rem, auto) auto;
+    gap: 0.48rem;
+  }
+
+  .square-copy strong {
+    font-size: clamp(0.9rem, 4vw, 1rem);
+    line-height: 1.14;
+  }
+
+  .square-copy em {
+    font-size: 0.76rem;
+    line-height: 1.24;
+  }
+
+  .square-meta {
+    font-size: 0.72rem;
+    line-height: 1.2;
+  }
+
+  .browse-toolbar {
+    align-items: stretch;
+  }
+
+  .filter-pills {
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    padding-bottom: 0.12rem;
+    scrollbar-width: none;
+  }
+
+  .filter-pills::-webkit-scrollbar {
+    display: none;
+  }
+
+  .filter-pills button {
+    flex: 0 0 auto;
+  }
+
+  .review-row {
+    grid-template-columns: 3.1rem minmax(0, 1fr) auto;
+    align-items: center;
+    gap: 0.78rem;
+  }
+
+  .review-row img {
+    width: 3.1rem;
+    height: 3.1rem;
+  }
+
+  .review-row em {
+    grid-column: auto;
+    font-size: 0.8rem;
+  }
+
+  .listing-title-line {
+    flex-direction: column;
+    gap: 0.18rem;
+  }
+
+  .listing-title-line strong,
+  .detail-reward {
+    font-size: 1rem;
+  }
+
+  .auth-panel,
+  .form-panel,
+  .side-panel,
+  .dashboard-panel {
+    gap: 0.9rem;
+  }
+}
+
+@media (max-width: 430px) {
+  .hero-copy .mobile-hero-title {
+    font-size: clamp(2.18rem, 9.9vw, 2.48rem);
+  }
+
+  .landing-recent-board .board-request-card button {
+    min-height: 11.2rem;
+  }
+
+  .bounty-square-card,
+  .top-bounty-grid .bounty-square-card {
+    aspect-ratio: 1.06;
+  }
+}
+
+@media (max-width: 380px) {
+  .brand {
+    max-width: 64vw;
+    font-size: 0.84rem;
+  }
+
+  .hero-copy .mobile-hero-title {
+    font-size: 2.18rem;
+  }
+
+  .mobile-find-ticker-card {
+    width: 10.8rem;
+  }
+
+  .review-row {
+    grid-template-columns: 3rem minmax(0, 1fr);
+  }
+
+  .review-row em {
+    grid-column: 2;
+    justify-self: start;
   }
 }
