@@ -127,7 +127,7 @@ type FeedItem = {
   image: string;
 };
 
-type RequestCategory = "audio" | "camera" | "watch" | "gaming" | "parts";
+type RequestCategory = "home" | "audio" | "camera" | "watch" | "gaming" | "parts";
 type RequestDuration = 14 | 30 | 60;
 type ReferenceImageDraft = {
   file: File;
@@ -176,6 +176,7 @@ const requestSingular = "request";
 const requestPlural = "requests";
 
 const requestCategories: Array<{ value: RequestCategory; label: string }> = [
+  { value: "home", label: "Home goods" },
   { value: "audio", label: "Portable audio" },
   { value: "camera", label: "Camera gear" },
   { value: "watch", label: "Watches" },
@@ -184,8 +185,8 @@ const requestCategories: Array<{ value: RequestCategory; label: string }> = [
 ];
 
 const initialPostDraft: PostDraft = {
-  itemName: "Sony Walkman WM-D6C",
-  category: "audio",
+  itemName: "Help me find this art",
+  category: "home",
   details: "",
   referenceImages: [],
   reward: 180,
@@ -354,104 +355,99 @@ async function signInWithGoogleClientId(): Promise<GoogleProfile> {
 
 const bountyListings: BountyListing[] = [
   {
-    id: "fujifilm-x100f-cap",
-    name: "Fujifilm X100F",
-    detail: "Original silver lens cap",
-    reward: "US$120",
-    rewardValue: 120,
-    closes: "18 days",
-    category: "Camera gear",
+    id: "childhood-rose-blanket",
+    name: "Help me find this blanket",
+    detail: "I can pay $50",
+    reward: "US$50",
+    rewardValue: 50,
+    closes: "14 days",
+    category: "Home goods",
     status: "Open",
     location: "Ships to United States",
-    poster: "Ari P.",
-    posted: "2 days ago",
-    submissions: 3,
-    image:
-      "https://images.unsplash.com/photo-1516035069371-29a1b244cc32?auto=format&fit=crop&w=720&q=80",
-    description:
-      "Looking for the original Fujifilm X100F silver lens cap in clean condition. Aftermarket caps are not useful for this request.",
-    mustHaves: ["Original Fujifilm part", "Silver finish", "No deep scratches", "Ships with tracking"],
-    timeline: ["Reward funded", "Three finders watching", "Latest source submitted 2 hours ago"],
-  },
-  {
-    id: "seiko-6139-panda",
-    name: "Seiko 6139-6002",
-    detail: "Panda dial, running condition",
-    reward: "£450",
-    rewardValue: 570,
-    closes: "12 days",
-    category: "Watches",
-    status: "Finder in touch",
-    location: "United Kingdom",
-    poster: "Mina T.",
-    posted: "4 days ago",
-    submissions: 5,
-    image:
-      "https://images.unsplash.com/photo-1523170335258-f5ed11844a49?auto=format&fit=crop&w=720&q=80",
-    description:
-      "Searching for a Seiko 6139-6002 with a clean panda dial. Service history is helpful, but originality matters most.",
-    mustHaves: ["Panda dial", "Working chronograph", "Clear caseback photos", "Seller or source is reachable"],
-    timeline: ["Reward funded", "Two shortlisted leads", "Authenticity review in progress"],
-  },
-  {
-    id: "marantz-pm94-knobs",
-    name: "Marantz PM-94",
-    detail: "Original amplifier knobs",
-    reward: "€280",
-    rewardValue: 300,
-    closes: "20 days",
-    category: "Vintage audio",
-    status: "Open",
-    location: "European Union",
-    poster: "Theo N.",
-    posted: "1 day ago",
-    submissions: 1,
-    image:
-      "https://images.unsplash.com/photo-1545454675-3531b543be5d?auto=format&fit=crop&w=720&q=80",
-    description:
-      "Need a set of original Marantz PM-94 knobs for a restoration project. Close visual match is not enough.",
-    mustHaves: ["Original PM-94 parts", "Full knob set preferred", "No cracked stems", "Clear macro photos"],
-    timeline: ["Reward funded", "Parts recyclers contacted", "Waiting on photos"],
-  },
-  {
-    id: "ps3-cecha01",
-    name: "PS3 60GB CECHA01",
-    detail: "Backward compatible model",
-    reward: "US$180",
-    rewardValue: 180,
-    closes: "9 days",
-    category: "Gaming",
-    status: "Found",
-    location: "North America",
-    poster: "Ravi S.",
-    posted: "7 days ago",
-    submissions: 7,
-    image:
-      "https://images.unsplash.com/photo-1605901309584-818e25960a8f?auto=format&fit=crop&w=720&q=80",
-    description:
-      "Looking for a clean CECHA01 unit that powers on, reads discs, and has not been heavily modified.",
-    mustHaves: ["CECHA01 serial proof", "Reads PS2 discs", "No yellow light history", "Video proof requested"],
-    timeline: ["Reward funded", "Finder matched a local unit", "Handoff pending"],
-  },
-  {
-    id: "nikon-ais-35",
-    name: "Nikon AIS",
-    detail: "35mm f/1.4 lens",
-    reward: "A$240",
-    rewardValue: 160,
-    closes: "15 days",
-    category: "Camera gear",
-    status: "Accepted",
-    location: "Australia",
-    poster: "June R.",
-    posted: "10 days ago",
+    poster: "Rude E.",
+    posted: "12 hours ago",
     submissions: 4,
-    image:
-      "https://images.unsplash.com/photo-1502920917128-1aa500764cbd?auto=format&fit=crop&w=720&q=80",
+    image: "/find-requests/childhood-blanket.jpg",
     description:
-      "Wanted: Nikon 35mm f/1.4 AIS lens with clean optics and smooth focus. Cosmetic wear is acceptable.",
-    mustHaves: ["Clean glass", "Smooth focus ring", "No fungus", "Sample photos"],
-    timeline: ["Reward funded", "Finder shared direct source", "Source accepted"],
+      "Help me find a replacement for this pink rose childhood blanket. It does not have to be new, just the same print.",
+    mustHaves: ["Pink rose print", "Same soft blanket style", "Good photo of the match", "Seller or source link"],
+    timeline: ["Reward funded", "Four people helping", "Latest lead received today"],
+  },
+  {
+    id: "seiko-wired-w543",
+    name: "Does anyone know this watch?",
+    detail: "I can pay $20",
+    reward: "US$20",
+    rewardValue: 20,
+    closes: "10 days",
+    category: "Watches",
+    status: "Open",
+    location: "Worldwide",
+    poster: "Common I.",
+    posted: "13 hours ago",
+    submissions: 2,
+    image: "/find-requests/seiko-wired-watch.jpg",
+    description:
+      "Looking for this Seiko Wired W543-0AA0 or a close dupe. A shop link, model number, or used listing would help.",
+    mustHaves: ["Digital Seiko Wired style", "Silver bracelet", "Clear listing photos", "Working condition preferred"],
+    timeline: ["Reward funded", "Two leads received", "Model number being checked"],
+  },
+  {
+    id: "yellow-stay-home-pillow",
+    name: "Help me find this pillow",
+    detail: "I will pay $35",
+    reward: "US$35",
+    rewardValue: 35,
+    closes: "18 days",
+    category: "Home goods",
+    status: "Open",
+    location: "United States",
+    poster: "Lost K.",
+    posted: "18 hours ago",
+    submissions: 3,
+    image: "/find-requests/yellow-home-pillow.jpg",
+    description:
+      "Trying to find the yellow Threshold pillow that says Let's Stay Home. A Target resale link is perfect.",
+    mustHaves: ["Yellow lumbar pillow", "Let's Stay Home text", "Threshold or close match", "Seller can ship"],
+    timeline: ["Reward funded", "Three people searching", "One similar listing reviewed"],
+  },
+  {
+    id: "living-and-co-cat-mug",
+    name: "Find this cat mug",
+    detail: "I can pay $20",
+    reward: "US$20",
+    rewardValue: 20,
+    closes: "7 days",
+    category: "Kitchen",
+    status: "Open",
+    location: "New Zealand or ships worldwide",
+    poster: "Bitter J.",
+    posted: "2 hours ago",
+    submissions: 0,
+    image: "/find-requests/living-and-co-mug.jpg",
+    description:
+      "My mum gave me this Living & Co cat mug and I want another one. Please share any shop or resale listing.",
+    mustHaves: ["Living & Co mug", "Black cat line art", "Same shape if possible", "Uncracked condition"],
+    timeline: ["Reward funded", "New request", "Finders can submit links"],
+  },
+  {
+    id: "duck-wall-art",
+    name: "Help me find this art",
+    detail: "I will give $50",
+    reward: "US$50",
+    rewardValue: 50,
+    closes: "21 days",
+    category: "Art & decor",
+    status: "Found",
+    location: "United States",
+    poster: "Jack S.",
+    posted: "2 days ago",
+    submissions: 9,
+    image: "/find-requests/duck-wall-art-reddit.jpg",
+    description:
+      "Looking for this silly framed duck art because we want one for our home. Any artist name or buying link helps.",
+    mustHaves: ["Same duck artwork", "Artist or print source", "Framed or unframed is fine", "Clear buying link"],
+    timeline: ["Reward funded", "Finder shared a source", "Source marked found"],
   },
   {
     id: "walkman-wmd6c",
@@ -897,57 +893,53 @@ const bountyListings: BountyListing[] = [
 
 const featuredBounties = bountyListings.slice(0, 5);
 const rewardSortedBounties = [...bountyListings].sort((left, right) => right.rewardValue - left.rewardValue);
-const topFiveBounties = rewardSortedBounties.slice(0, 5);
-const overviewBounties = rewardSortedBounties.slice(5, 20);
+const topFiveBounties = featuredBounties;
+const overviewBounties = bountyListings.slice(5, 20);
 
 const feedItems: FeedItem[] = [
   {
-    bounty: "Leica M6 TTL 0.72 Body",
-    reward: "US$1,450",
+    bounty: "Help me find this art",
+    reward: "US$50",
     finder: "Maya L.",
     rating: "4.9",
     location: "New York",
-    status: "Finder in touch",
-    note: "Source located",
+    status: "Found",
+    note: "Print source shared",
     updated: "2 hours ago",
-    image:
-      "https://images.unsplash.com/photo-1516035069371-29a1b244cc32?auto=format&fit=crop&w=160&q=80",
+    image: "/find-requests/duck-wall-art-reddit.jpg",
   },
   {
-    bounty: "Omega Speedmaster 125th",
-    reward: "£820",
+    bounty: "Help me find this blanket",
+    reward: "US$50",
     finder: "Jonas K.",
     rating: "4.8",
     location: "London",
-    status: "Price agreed",
-    note: "Checking authenticity",
+    status: "Open",
+    note: "Two similar leads",
     updated: "5 hours ago",
-    image:
-      "https://images.unsplash.com/photo-1523170335258-f5ed11844a49?auto=format&fit=crop&w=160&q=80",
+    image: "/find-requests/childhood-blanket.jpg",
   },
   {
-    bounty: "PS3 60GB CECHA01",
-    reward: "€230",
+    bounty: "Help me find this pillow",
+    reward: "US$35",
     finder: "Lina M.",
     rating: "4.7",
     location: "Berlin",
-    status: "Found",
-    note: "Finder has it",
+    status: "Open",
+    note: "Target resale checked",
     updated: "7 hours ago",
-    image:
-      "https://images.unsplash.com/photo-1605901309584-818e25960a8f?auto=format&fit=crop&w=160&q=80",
+    image: "/find-requests/yellow-home-pillow.jpg",
   },
   {
-    bounty: "Nikon 35mm f/1.4 AIS Lens",
-    reward: "A$390",
+    bounty: "Does anyone know this watch?",
+    reward: "US$20",
     finder: "Noah R.",
     rating: "4.9",
     location: "Singapore",
-    status: "Accepted",
-    note: "Source accepted",
+    status: "Open",
+    note: "Model number matched",
     updated: "1 day ago",
-    image:
-      "https://images.unsplash.com/photo-1502920917128-1aa500764cbd?auto=format&fit=crop&w=160&q=80",
+    image: "/find-requests/seiko-wired-watch.jpg",
   },
 ];
 
@@ -999,67 +991,47 @@ const workSteps = [
 
 const leftFindRequests = [
   {
-    copy: "Please find me this old wallet.",
-    image: "/find-requests/wallet.jpg",
+    copy: "Help me find this art. I will give $50.",
+    image: "/find-requests/duck-wall-art-reddit.jpg",
   },
   {
-    copy: "$100 reward if you find these black shoes.",
-    image: "/find-requests/black-shoes.jpg",
+    copy: "Help me find this blanket. I can pay $50.",
+    image: "/find-requests/childhood-blanket.jpg",
   },
   {
-    copy: "Can anyone help me find these coin earrings?",
-    image: "/find-requests/coin-earrings.jpg",
+    copy: "Does anyone know where to find this watch? $20.",
+    image: "/find-requests/seiko-wired-watch.jpg",
   },
   {
-    copy: "Please find me this dog bowl set.",
-    image: "/find-requests/dog-bowls.jpg",
+    copy: "Can someone find this yellow pillow? I will pay $35.",
+    image: "/find-requests/yellow-home-pillow.jpg",
   },
   {
-    copy: "Can anyone help me find this bunny plush?",
-    image: "/find-requests/bunny-plush.jpg",
-  },
-  {
-    copy: "$10 reward to help me find this rubber band.",
-    image: "/find-requests/purple-rubber-band.jpg",
-  },
-  {
-    copy: "Reward if you find this red taillight piece.",
-    image: "/find-requests/red-taillight.jpg",
-  },
-  {
-    copy: "Please find me this broken plate.",
-    image: "/find-requests/broken-plate.jpg",
+    copy: "Please help me find this cat mug. I can pay $20.",
+    image: "/find-requests/living-and-co-mug.jpg",
   },
 ];
 
 const rightFindRequests = [
   {
-    copy: "Can anyone help me find this floral skirt?",
-    image: "/find-requests/floral-skirt.jpg",
+    copy: "I want this framed duck print for my room. $50 reward.",
+    image: "/find-requests/duck-wall-art-reddit.jpg",
   },
   {
-    copy: "Please find me this toddler plushie.",
-    image: "/find-requests/toddler-plush.jpg",
+    copy: "Looking for the same pink rose blanket. I can pay $50.",
+    image: "/find-requests/childhood-blanket.jpg",
   },
   {
-    copy: "$100 reward if you find this orange fox plush.",
-    image: "/find-requests/fox-plush.jpg",
+    copy: "Need a dupe of this Seiko Wired watch. $20.",
+    image: "/find-requests/seiko-wired-watch.jpg",
   },
   {
-    copy: "Can anyone help me find this vintage 90s T-shirt?",
-    image: "/find-requests/vintage-shirt.jpg",
+    copy: "Does anyone know where this pillow is sold?",
+    image: "/find-requests/yellow-home-pillow.jpg",
   },
   {
-    copy: "Please find me these celestial kitchen items.",
-    image: "/find-requests/celestial-kitchen.jpg",
-  },
-  {
-    copy: "Can anyone help me find this duck wall art?",
-    image: "/find-requests/duck-wall-art.jpg",
-  },
-  {
-    copy: "Please find me this Powerpuff Girls cup.",
-    image: "/find-requests/powerpuff-cup.jpg",
+    copy: "Trying to find this Living & Co cat mug.",
+    image: "/find-requests/living-and-co-mug.jpg",
   },
 ];
 
@@ -1729,8 +1701,8 @@ function LandingPage({
   setVideoPlaying: React.Dispatch<React.SetStateAction<boolean>>;
   videoPlaying: boolean;
 }) {
-  const [heroSearch, setHeroSearch] = useState("Sony Walkman WM-D6C");
-  const recentBoardBounties = [bountyListings[0], bountyListings[1], bountyListings[5], bountyListings[6]];
+  const [heroSearch, setHeroSearch] = useState("");
+  const recentBoardBounties = bountyListings.slice(0, 4);
 
   const submitHeroSearch = (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -1864,7 +1836,7 @@ function LandingPage({
           </p>
           <form className="hero-search-form" onSubmit={submitHeroSearch}>
             <Search size={20} aria-hidden="true" />
-            <input value={heroSearch} aria-label="Search requests" onChange={(event) => setHeroSearch(event.target.value)} placeholder="Sony Walkman WM-D6C" />
+            <input value={heroSearch} aria-label="Search requests" onChange={(event) => setHeroSearch(event.target.value)} placeholder="yellow pillow or wall art" />
             <button type="submit">Search</button>
           </form>
           <div className="mobile-hero-actions" aria-label="Hero actions">
@@ -1976,8 +1948,8 @@ function LandingPage({
       <section className="feed-section" id="feed" aria-labelledby="feed-title">
         <div className="section-head split-head">
           <div>
-            <h2 id="feed-title">Live feed: real requests, real sources</h2>
-            <p>Example requests seeded before launch, with status visible as finders submit links, contacts, and handoff paths.</p>
+            <h2 id="feed-title">Live feed: simple requests, real rewards</h2>
+            <p>Short posts with clear photos, simple captions, and a small reward for anyone who finds the right source.</p>
           </div>
           <button className="section-link section-button" type="button" onClick={onBrowse}>
             View all requests <ArrowRight size={17} />
@@ -2323,7 +2295,7 @@ function PostDescribePage({
           <p>Clear details help expert finders avoid lookalikes and weak leads.</p>
           <label>
             Item name
-            <input value={draft.itemName} placeholder="Sony Walkman WM-D6C, working condition" onChange={(event) => onDraftChange({ itemName: event.target.value })} />
+            <input value={draft.itemName} placeholder="yellow pillow, cat mug, wall art..." onChange={(event) => onDraftChange({ itemName: event.target.value })} />
           </label>
           <label>
             Category
@@ -2753,8 +2725,8 @@ function BrowsePage({
   return (
     <main className="route-page bounty-gallery-page" aria-labelledby="browse-title">
       <section className="gallery-hero">
-        <h1 id="browse-title">Top five requests</h1>
-        <p>The highest rewards on the board right now, shown first so expert finders can jump straight into the most valuable sources.</p>
+        <h1 id="browse-title">Featured requests</h1>
+        <p>Simple posts with clear photos and small rewards, shown first so finders can quickly spot what they recognize.</p>
         <div className="gallery-hero-actions">
           <button className="primary-button" type="button" onClick={onPost}>
             Post a request <ArrowRight size={18} />
@@ -2765,7 +2737,7 @@ function BrowsePage({
         </div>
       </section>
 
-      <section className="top-bounty-grid" aria-label="Top five requests by reward">
+      <section className="top-bounty-grid" aria-label="Featured requests">
         {topFiveBounties.map((bounty, index) => (
           <BountySquareCard bounty={bounty} featured={index === 0} key={bounty.id} onDetail={onDetail} rank={index + 1} />
         ))}
@@ -2775,7 +2747,7 @@ function BrowsePage({
         <div className="gallery-section-head">
           <div>
             <h2 id="more-bounties-title">More requests closing soon</h2>
-            <p>Fifteen active requests with real rewards, live source submissions, and a 30-day protection window.</p>
+            <p>Active requests with real rewards, live source submissions, and a 30-day protection window.</p>
           </div>
           <button className="section-link section-button" type="button" onClick={onBrowseAll}>
             Browse all <ArrowRight size={17} />
@@ -2795,7 +2767,7 @@ function BrowseAllPage({ onDetail, onPost }: { onDetail: (bountyId: string) => v
   const [filter, setFilter] = useState("All");
   const [query, setQuery] = useState("");
   const [visibleCount, setVisibleCount] = useState(16);
-  const categories = ["All", "Camera gear", "Watches", "Vintage audio", "Gaming", "Portable audio"];
+  const categories = ["All", "Home goods", "Art & decor", "Kitchen", "Watches", "Camera gear", "Vintage audio", "Gaming", "Portable audio"];
   const filteredBounties = useMemo(() => {
     const normalizedQuery = query.trim().toLowerCase();
     return rewardSortedBounties.filter((bounty) => {
@@ -3197,8 +3169,8 @@ function PosterDashboardPage({
             <h2>Recommended find</h2>
             <BadgeCheck size={20} />
           </div>
-          <h3>Fujifilm X100F original cap</h3>
-          <p>Finder shared a seller link, a contact email, packaging notes, and the handoff questions to ask next. Item matches all must-have details.</p>
+          <h3>Help me find this art</h3>
+          <p>Finder shared a print source, a seller link, and the handoff questions to ask next. The image matches the framed duck art request.</p>
           <div className="action-row">
             <button className="primary-button" type="button">
               Accept source and contact finder
