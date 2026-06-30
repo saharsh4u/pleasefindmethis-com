@@ -7624,3 +7624,76 @@ small {
     justify-self: start;
   }
 }
+
+/* Interaction polish: keep the visual style while making controls easier to hit. */
+.brand-button,
+.desktop-nav button,
+.text-button,
+.section-button,
+.finder-button,
+.back-button,
+.mobile-browse-button,
+.board-view-all {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.35rem;
+  min-height: 2.5rem;
+  padding-block: 0.35rem;
+  border-radius: 999px;
+}
+
+.desktop-nav button,
+.section-button,
+.finder-button,
+.back-button,
+.mobile-browse-button,
+.board-view-all {
+  padding-inline: 0.2rem;
+}
+
+.text-button {
+  padding-inline: 0.55rem;
+}
+
+.save-button {
+  width: 2rem;
+  height: 2rem;
+}
+
+.save-button svg {
+  width: 0.95rem;
+  height: 0.95rem;
+}
+
+@media (max-width: 1024px) {
+  .canvas-actions > .text-button,
+  .app-page .canvas-actions > .text-button {
+    display: none;
+  }
+}
+
+@media (max-width: 760px) {
+  .brand-button,
+  .desktop-nav button,
+  .text-button,
+  .section-button,
+  .finder-button,
+  .back-button,
+  .mobile-browse-button,
+  .board-view-all {
+    min-height: 2.75rem;
+  }
+
+  .save-button {
+    top: 0.55rem;
+    right: 0.55rem;
+    width: 2.18rem;
+    height: 2.18rem;
+  }
+
+  .save-button svg {
+    width: 1rem;
+    height: 1rem;
+  }
+}

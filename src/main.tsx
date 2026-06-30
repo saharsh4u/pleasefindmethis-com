@@ -1627,11 +1627,11 @@ function PageChrome({
           <button
             className="icon-button mobile-menu-button"
             type="button"
-            aria-label="Open menu"
+            aria-label={menuOpen ? "Close menu" : "Open menu"}
             aria-expanded={menuOpen}
             onClick={() => setMenuOpen((value) => !value)}
           >
-            {menuOpen ? <X size={20} /> : <Menu size={20} />}
+            {menuOpen ? <X size={20} aria-hidden="true" /> : <Menu size={20} aria-hidden="true" />}
           </button>
         </div>
         {menuOpen ? (
@@ -1762,6 +1762,12 @@ function LandingPage({
   const submitHeroSearch = (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     const normalizedQuery = heroSearch.trim().toLowerCase();
+
+    if (!normalizedQuery) {
+      onBrowse();
+      return;
+    }
+
     const match = bountyListings.find((bounty) => `${bounty.name} ${bounty.detail}`.toLowerCase().includes(normalizedQuery));
 
     if (match) {
@@ -1817,11 +1823,11 @@ function LandingPage({
             <button
               className="icon-button mobile-menu-button"
               type="button"
-              aria-label="Open menu"
+              aria-label={menuOpen ? "Close menu" : "Open menu"}
               aria-expanded={menuOpen}
               onClick={() => setMenuOpen((value) => !value)}
             >
-              {menuOpen ? <X size={20} /> : <Menu size={20} />}
+              {menuOpen ? <X size={20} aria-hidden="true" /> : <Menu size={20} aria-hidden="true" />}
             </button>
           </div>
           {menuOpen ? (
@@ -1913,7 +1919,7 @@ function LandingPage({
               <article className={`bounty-card bounty-card-${index + 1}`} key={bounty.name}>
                 <img src={bounty.image} alt="" />
                 <button className="save-button" type="button" aria-label={`Open ${bounty.name}`} onClick={() => onDetail(bounty.id)}>
-                  <BadgeCheck size={15} />
+                  <BadgeCheck size={15} aria-hidden="true" />
                 </button>
                 <h3>{bounty.name}</h3>
                 <p>{bounty.detail}</p>
@@ -2229,10 +2235,10 @@ function AuthPage({
         </div>
         <div className="auth-panel">
           <div className="segmented-control" role="tablist" aria-label="Authentication mode">
-            <button className={mode === "signup" ? "active" : ""} type="button" onClick={() => onModeChange("signup")}>
+            <button className={mode === "signup" ? "active" : ""} type="button" role="tab" aria-selected={mode === "signup"} onClick={() => onModeChange("signup")}>
               Sign up
             </button>
-            <button className={mode === "login" ? "active" : ""} type="button" onClick={() => onModeChange("login")}>
+            <button className={mode === "login" ? "active" : ""} type="button" role="tab" aria-selected={mode === "login"} onClick={() => onModeChange("login")}>
               Log in
             </button>
           </div>
@@ -2906,11 +2912,11 @@ function BrowseAllPage({ onDetail, onPost }: { onDetail: (bountyId: string) => v
       <section className="browse-toolbar" aria-label="Browse filters">
         <div className="search-field">
           <Search size={18} />
-          <input placeholder="Search requests" value={query} onChange={(event) => setQuery(event.target.value)} />
+          <input aria-label="Search all requests" placeholder="Search requests" value={query} onChange={(event) => setQuery(event.target.value)} />
         </div>
         <div className="filter-pills">
           {categories.map((category) => (
-            <button className={filter === category ? "active" : ""} key={category} type="button" onClick={() => setFilter(category)}>
+            <button className={filter === category ? "active" : ""} key={category} type="button" aria-pressed={filter === category} onClick={() => setFilter(category)}>
               {category}
             </button>
           ))}
@@ -2995,7 +3001,7 @@ function BountyDetailPage({
       </button>
       <section className="detail-layout">
         <article className="detail-main">
-          <img className="detail-image" src={bounty.image} alt="" />
+          <img className="detail-image" src={bounty.image} alt={bounty.name} />
           <div className="detail-copy">
             <div className="status-strip">
               <span>{bounty.status}</span>
@@ -3595,13 +3601,14 @@ function FaqPage({ onBrowse, onPost }: { onBrowse: () => void; onPost: () => voi
       <section className="faq-list">
         {faqItems.map((item) => {
           const isOpen = openQuestion === item.question;
+          const answerId = `faq-answer-${item.question.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/(^-|-$)/g, "")}`;
           return (
             <article className={isOpen ? "faq-item open" : "faq-item"} key={item.question}>
-              <button type="button" onClick={() => setOpenQuestion(isOpen ? "" : item.question)}>
+              <button type="button" aria-expanded={isOpen} aria-controls={answerId} onClick={() => setOpenQuestion(isOpen ? "" : item.question)}>
                 <span>{item.question}</span>
-                {isOpen ? <X size={18} /> : <CircleHelp size={18} />}
+                {isOpen ? <X size={18} aria-hidden="true" /> : <CircleHelp size={18} aria-hidden="true" />}
               </button>
-              {isOpen ? <p>{item.answer}</p> : null}
+              {isOpen ? <p id={answerId}>{item.answer}</p> : null}
             </article>
           );
         })}
