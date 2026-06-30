@@ -5535,3 +5535,315 @@ main {
     font-size: 0.62rem;
   }
 }
+
+/* Posted request confirmation */
+.post-success-confirmation {
+  display: grid;
+  grid-template-columns: minmax(0, 1.12fr) minmax(18rem, 0.88fr);
+  width: min(100%, 1120px);
+  margin: 0 auto clamp(1rem, 2.6vw, 1.5rem);
+  overflow: hidden;
+  border: 1px solid rgba(8, 115, 67, 0.24);
+  border-radius: 8px;
+  background: #fff;
+  box-shadow: 0 20px 55px rgba(17, 42, 28, 0.1);
+}
+
+.post-success-main,
+.confirmation-next-steps {
+  display: grid;
+  align-content: start;
+  gap: 1rem;
+  padding: clamp(1rem, 2.1vw, 1.35rem);
+}
+
+.confirmation-next-steps {
+  border-left: 1px solid var(--line);
+  background: linear-gradient(180deg, #fbfdfb, #f4faf7);
+}
+
+.confirmation-title-row {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: 0.9rem;
+  align-items: start;
+}
+
+.confirmation-check {
+  display: grid;
+  width: 3.15rem;
+  height: 3.15rem;
+  place-items: center;
+  border: 1px solid rgba(8, 115, 67, 0.18);
+  border-radius: 8px;
+  background:
+    radial-gradient(circle at 30% 22%, rgba(255, 255, 255, 0.95), transparent 38%),
+    linear-gradient(145deg, #e9f8f0, #d6f0e3);
+  color: var(--green);
+  box-shadow: 0 12px 24px rgba(8, 115, 67, 0.1);
+}
+
+.confirmation-label {
+  margin: 0 0 0.35rem;
+  color: var(--green);
+  font-size: 0.75rem;
+  font-weight: 900;
+  line-height: 1;
+  text-transform: uppercase;
+}
+
+.post-success-main h2 {
+  max-width: 13ch;
+  margin: 0;
+  color: var(--text);
+  font-size: clamp(1.85rem, 3.8vw, 3.35rem);
+  font-weight: 880;
+  line-height: 0.98;
+  letter-spacing: 0;
+  overflow-wrap: anywhere;
+}
+
+.confirmation-copy {
+  max-width: 43rem;
+  margin: 0;
+  color: #363d38;
+  font-size: clamp(0.92rem, 1.1vw, 1.02rem);
+  font-weight: 650;
+  line-height: 1.5;
+}
+
+.confirmation-detail-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  overflow: hidden;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: #fff;
+}
+
+.confirmation-detail-grid div {
+  display: grid;
+  gap: 0.28rem;
+  min-width: 0;
+  padding: 0.82rem 0.9rem;
+  border-right: 1px solid var(--line);
+}
+
+.confirmation-detail-grid div:last-child {
+  border-right: 0;
+}
+
+.confirmation-detail-grid span {
+  color: var(--muted);
+  font-size: 0.7rem;
+  font-weight: 900;
+  line-height: 1;
+  text-transform: uppercase;
+}
+
+.confirmation-detail-grid strong {
+  min-width: 0;
+  color: var(--text);
+  font-size: clamp(0.9rem, 1.3vw, 1.08rem);
+  font-weight: 900;
+  line-height: 1.12;
+  overflow-wrap: anywhere;
+}
+
+.confirmation-payment-strip {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: 0.72rem;
+  align-items: start;
+  padding: 0.88rem;
+  border: 1px solid rgba(42, 164, 188, 0.28);
+  border-radius: 8px;
+  background: #effafd;
+  color: #21444c;
+}
+
+.confirmation-payment-strip > svg {
+  width: 2.35rem;
+  height: 2.35rem;
+  padding: 0.52rem;
+  border: 1px solid rgba(42, 164, 188, 0.18);
+  border-radius: 0.82rem;
+  background: #fff;
+  color: var(--cyan);
+  box-sizing: border-box;
+}
+
+.confirmation-payment-strip span,
+.confirmation-payment-strip strong {
+  display: block;
+}
+
+.confirmation-payment-strip strong {
+  margin-bottom: 0.18rem;
+  color: #123138;
+  font-size: 0.9rem;
+  font-weight: 900;
+}
+
+.confirmation-payment-strip span {
+  font-size: 0.83rem;
+  font-weight: 680;
+  line-height: 1.44;
+}
+
+.confirmation-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+  align-items: center;
+}
+
+.confirmation-actions .primary-button,
+.confirmation-actions .section-link {
+  min-height: 2.7rem;
+}
+
+.confirmation-next-steps h3 {
+  margin: 0;
+  color: var(--text);
+  font-size: 1.05rem;
+  font-weight: 900;
+}
+
+.confirmation-steps {
+  display: grid;
+  gap: 0.9rem;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.confirmation-steps li {
+  position: relative;
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: 0.68rem;
+  align-items: start;
+}
+
+.confirmation-steps li:not(:last-child)::after {
+  content: "";
+  position: absolute;
+  top: 2.25rem;
+  bottom: -0.7rem;
+  left: 1rem;
+  width: 1px;
+  background: var(--line);
+}
+
+.confirmation-step-icon {
+  position: relative;
+  z-index: 1;
+  display: grid;
+  width: 2rem;
+  height: 2rem;
+  place-items: center;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: #fff;
+  color: var(--green);
+}
+
+.confirmation-steps .is-complete .confirmation-step-icon {
+  border-color: rgba(8, 115, 67, 0.2);
+  background: var(--green);
+  color: #fff;
+}
+
+.confirmation-steps strong,
+.confirmation-steps p {
+  display: block;
+}
+
+.confirmation-steps strong {
+  color: var(--text);
+  font-size: 0.9rem;
+  font-weight: 900;
+  line-height: 1.2;
+}
+
+.confirmation-steps p {
+  margin: 0.18rem 0 0;
+  color: var(--muted);
+  font-size: 0.8rem;
+  font-weight: 670;
+  line-height: 1.42;
+}
+
+.app-page .post-success-confirmation {
+  border-color: rgba(8, 115, 67, 0.24);
+  background: #fff;
+  color: var(--text);
+}
+
+.app-page .confirmation-next-steps {
+  border-color: var(--line);
+  background: linear-gradient(180deg, #fbfdfb, #f4faf7);
+}
+
+.app-page .confirmation-payment-strip {
+  background: #effafd;
+}
+
+@media (max-width: 860px) {
+  .post-success-confirmation {
+    grid-template-columns: 1fr;
+  }
+
+  .confirmation-next-steps {
+    border-top: 1px solid var(--line);
+    border-left: 0;
+  }
+
+  .confirmation-detail-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .confirmation-detail-grid div:nth-child(2) {
+    border-right: 0;
+  }
+
+  .confirmation-detail-grid div:nth-child(-n + 2) {
+    border-bottom: 1px solid var(--line);
+  }
+}
+
+@media (max-width: 560px) {
+  .confirmation-title-row {
+    grid-template-columns: 1fr;
+  }
+
+  .post-success-main h2 {
+    max-width: none;
+  }
+
+  .confirmation-detail-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .confirmation-detail-grid div,
+  .confirmation-detail-grid div:nth-child(2) {
+    border-right: 0;
+    border-bottom: 1px solid var(--line);
+  }
+
+  .confirmation-detail-grid div:last-child {
+    border-bottom: 0;
+  }
+
+  .confirmation-actions {
+    display: grid;
+    grid-template-columns: 1fr;
+  }
+
+  .confirmation-actions .primary-button,
+  .confirmation-actions .section-link {
+    width: 100%;
+    justify-content: center;
+  }
+}

@@ -157,14 +157,18 @@ type EscrowBreakdown = {
 type CheckoutReturnStatus = "success" | "cancelled" | null;
 
 type CheckoutSnapshot = {
+  requestId?: string;
   itemName: string;
   provider: string;
+  category?: string;
   reward: number;
   platformFee: number;
   protection: number;
   platformShare: number;
   total: number;
   email: string;
+  durationDays?: number;
+  createdAt?: string;
 };
 
 const siteName = "pleasefindmethis.com";
@@ -1197,14 +1201,18 @@ function readStoredCheckoutSnapshot(): CheckoutSnapshot | null {
       typeof parsed.email === "string"
     ) {
       return {
+        ...(typeof parsed.requestId === "string" ? { requestId: parsed.requestId } : {}),
         itemName: parsed.itemName,
         provider: parsed.provider ?? "hosted checkout",
+        ...(typeof parsed.category === "string" ? { category: parsed.category } : {}),
         reward: parsed.reward,
         platformFee: parsed.platformFee,
         protection: parsed.protection,
         platformShare: parsed.platformShare,
         total: parsed.total,
         email: parsed.email,
+        ...(typeof parsed.durationDays === "number" && Number.isFinite(parsed.durationDays) ? { durationDays: parsed.durationDays } : {}),
+        ...(typeof parsed.createdAt === "string" ? { createdAt: parsed.createdAt } : {}),
       };
     }
   } catch {
@@ -1212,6 +1220,32 @@ function readStoredCheckoutSnapshot(): CheckoutSnapshot | null {
   }
 
   return null;
+}
+
+function formatConfirmationCode(requestId?: string) {
+  if (!requestId) {
+    return "PFM-CONFIRMED";
+  }
+
+  return `PFM-${requestId.replace(/-/g, "").slice(0, 8).toUpperCase()}`;
+}
+
+function formatConfirmationDate(value?: string) {
+  if (!value) {
+    return "Today";
+  }
+
+  const date = new Date(value);
+
+  if (Number.isNaN(date.getTime())) {
+    return "Today";
+  }
+
+  return new Intl.DateTimeFormat(undefined, {
+    month: "short",
+    day: "numeric",
+    year: "numeric",
+  }).format(date);
 }
 
 function App() {
@@ -2506,14 +2540,18 @@ function PostPayPage({
       window.sessionStorage.setItem(
         checkoutSnapshotStorageKey,
         JSON.stringify({
+          requestId,
           itemName,
           provider: "hosted checkout",
+          category: getCategoryLabel(draft.category),
           reward: breakdown.reward,
           platformFee: breakdown.platformFee,
           protection: breakdown.protection,
           platformShare: breakdown.platformShare,
           total: breakdown.total,
           email: normalizedEmail,
+          durationDays: draft.durationDays,
+          createdAt: new Date().toISOString(),
         } satisfies CheckoutSnapshot),
       );
 
@@ -3119,6 +3157,9 @@ function PosterDashboardPage({
 
   return (
     <main className="route-page dashboard-page" aria-labelledby="poster-dashboard-title">
+      {checkoutReturnStatus === "success" ? (
+        <PostSuccessConfirmation checkoutSnapshot={checkoutSnapshot} onProfile={onProfile} />
+      ) : null}
       <section className="dashboard-head">
         <div>
           <p className="route-kicker">Poster dashboard</p>
@@ -3128,14 +3169,6 @@ function PosterDashboardPage({
           Public trust page <ArrowRight size={17} />
         </button>
       </section>
-      {checkoutReturnStatus === "success" && checkoutSnapshot ? (
-        <div className="summary-card submission-success" role="status">
-          <CheckCircle2 size={24} />
-          <strong>{checkoutSnapshot.itemName} was sent to checkout for funding</strong>
-          <span>Poster paid US${checkoutSnapshot.total}: US${checkoutSnapshot.reward} finder payout and US${checkoutSnapshot.platformShare} platform share.</span>
-          <span>Receipt email: {checkoutSnapshot.email}</span>
-        </div>
-      ) : null}
       <section className="metric-grid">
         <Metric icon={LockKeyhole} label="Escrow funded" value="US$1,280" />
         <Metric icon={MessageSquare} label="Sources awaiting review" value="4" />
@@ -3177,6 +3210,113 @@ function PosterDashboardPage({
         </div>
       </section>
     </main>
+  );
+}
+
+function PostSuccessConfirmation({
+  checkoutSnapshot,
+  onProfile,
+}: {
+  checkoutSnapshot: CheckoutSnapshot | null;
+  onProfile: () => void;
+}) {
+  const itemName = checkoutSnapshot?.itemName ?? "Your request";
+  const confirmationCode = formatConfirmationCode(checkoutSnapshot?.requestId);
+  const postedDate = formatConfirmationDate(checkoutSnapshot?.createdAt);
+  const durationText = checkoutSnapshot?.durationDays ? `${checkoutSnapshot.durationDays} days` : "Active window";
+  const categoryText = checkoutSnapshot?.category ?? "Public request";
+  const paidTodayText = checkoutSnapshot ? `US$${checkoutSnapshot.total}` : "Payment processed";
+  const rewardText = checkoutSnapshot ? `US$${checkoutSnapshot.reward}` : "Held after acceptance";
+  const receiptTarget = checkoutSnapshot?.email ? `Receipt sent to ${checkoutSnapshot.email}` : "Receipt saved to your checkout account";
+  const platformShareText = checkoutSnapshot
+    ? `Platform share is US$${checkoutSnapshot.platformShare}, including service fee and protection reserve.`
+    : "The hosted checkout keeps the receipt and payment split attached to this request.";
+  const reviewDashboard = () => {
+    document.getElementById("poster-dashboard-title")?.scrollIntoView({ behavior: "smooth", block: "start" });
+  };
+
+  return (
+    <section className="post-success-confirmation" role="status" aria-label="Request posted confirmation">
+      <div className="post-success-main">
+        <div className="confirmation-title-row">
+          <span className="confirmation-check" aria-hidden="true">
+            <CheckCircle2 size={30} />
+          </span>
+          <div>
+            <p className="confirmation-label">Request posted</p>
+            <h2>{itemName} is funded and live.</h2>
+          </div>
+        </div>
+        <p className="confirmation-copy">
+          Your payment is recorded, the finder reward is held for acceptance, and the request is ready for sources. Use this confirmation to track the post while finders start working.
+        </p>
+        <div className="confirmation-detail-grid" aria-label="Posted request receipt">
+          <div>
+            <span>Confirmation</span>
+            <strong>{confirmationCode}</strong>
+          </div>
+          <div>
+            <span>Paid today</span>
+            <strong>{paidTodayText}</strong>
+          </div>
+          <div>
+            <span>Finder payout</span>
+            <strong>{rewardText}</strong>
+          </div>
+          <div>
+            <span>Live for</span>
+            <strong>{durationText}</strong>
+          </div>
+        </div>
+        <div className="confirmation-payment-strip">
+          <CreditCard size={21} />
+          <span>
+            <strong>{receiptTarget}</strong>
+            {categoryText} posted on {postedDate}. {platformShareText}
+          </span>
+        </div>
+        <div className="confirmation-actions">
+          <button className="primary-button" type="button" onClick={reviewDashboard}>
+            Review dashboard <ArrowRight size={17} />
+          </button>
+          <button className="section-link section-button" type="button" onClick={onProfile}>
+            Open trust page <ArrowRight size={17} />
+          </button>
+        </div>
+      </div>
+      <aside className="confirmation-next-steps" aria-label="What happens next">
+        <h3>What happens next</h3>
+        <ol className="confirmation-steps">
+          <li className="is-complete">
+            <span className="confirmation-step-icon" aria-hidden="true">
+              <Check size={16} />
+            </span>
+            <div>
+              <strong>Payment confirmed</strong>
+              <p>The processor collected the poster payment and returned you to the dashboard.</p>
+            </div>
+          </li>
+          <li>
+            <span className="confirmation-step-icon" aria-hidden="true">
+              <MessageSquare size={16} />
+            </span>
+            <div>
+              <strong>Finders send sources</strong>
+              <p>New links, contacts, or handoff options appear here for review.</p>
+            </div>
+          </li>
+          <li>
+            <span className="confirmation-step-icon" aria-hidden="true">
+              <PackageCheck size={16} />
+            </span>
+            <div>
+              <strong>Accept the right match</strong>
+              <p>Contact the finder, verify the item, then release payout when the source works.</p>
+            </div>
+          </li>
+        </ol>
+      </aside>
+    </section>
   );
 }
 
