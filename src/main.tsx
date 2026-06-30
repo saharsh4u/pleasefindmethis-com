@@ -991,47 +991,67 @@ const workSteps = [
 
 const leftFindRequests = [
   {
-    copy: "Help me find this art. I will give $50.",
-    image: "/find-requests/duck-wall-art-reddit.jpg",
+    copy: "Please find me this old wallet.",
+    image: "/find-requests/wallet.jpg",
   },
   {
-    copy: "Help me find this blanket. I can pay $50.",
-    image: "/find-requests/childhood-blanket.jpg",
+    copy: "$100 reward if you find these black shoes.",
+    image: "/find-requests/black-shoes.jpg",
   },
   {
-    copy: "Does anyone know where to find this watch? $20.",
-    image: "/find-requests/seiko-wired-watch.jpg",
+    copy: "Can anyone help me find these coin earrings?",
+    image: "/find-requests/coin-earrings.jpg",
   },
   {
-    copy: "Can someone find this yellow pillow? I will pay $35.",
-    image: "/find-requests/yellow-home-pillow.jpg",
+    copy: "Please find me this dog bowl set.",
+    image: "/find-requests/dog-bowls.jpg",
   },
   {
-    copy: "Please help me find this cat mug. I can pay $20.",
-    image: "/find-requests/living-and-co-mug.jpg",
+    copy: "Can anyone help me find this bunny plush?",
+    image: "/find-requests/bunny-plush.jpg",
+  },
+  {
+    copy: "$10 reward to help me find this rubber band.",
+    image: "/find-requests/purple-rubber-band.jpg",
+  },
+  {
+    copy: "Reward if you find this red taillight piece.",
+    image: "/find-requests/red-taillight.jpg",
+  },
+  {
+    copy: "Please find me this broken plate.",
+    image: "/find-requests/broken-plate.jpg",
   },
 ];
 
 const rightFindRequests = [
   {
-    copy: "I want this framed duck print for my room. $50 reward.",
-    image: "/find-requests/duck-wall-art-reddit.jpg",
+    copy: "Can anyone help me find this floral skirt?",
+    image: "/find-requests/floral-skirt.jpg",
   },
   {
-    copy: "Looking for the same pink rose blanket. I can pay $50.",
-    image: "/find-requests/childhood-blanket.jpg",
+    copy: "Please find me this toddler plushie.",
+    image: "/find-requests/toddler-plush.jpg",
   },
   {
-    copy: "Need a dupe of this Seiko Wired watch. $20.",
-    image: "/find-requests/seiko-wired-watch.jpg",
+    copy: "$100 reward if you find this orange fox plush.",
+    image: "/find-requests/fox-plush.jpg",
   },
   {
-    copy: "Does anyone know where this pillow is sold?",
-    image: "/find-requests/yellow-home-pillow.jpg",
+    copy: "Can anyone help me find this vintage 90s T-shirt?",
+    image: "/find-requests/vintage-shirt.jpg",
   },
   {
-    copy: "Trying to find this Living & Co cat mug.",
-    image: "/find-requests/living-and-co-mug.jpg",
+    copy: "Please find me these celestial kitchen items.",
+    image: "/find-requests/celestial-kitchen.jpg",
+  },
+  {
+    copy: "Can anyone help me find this duck wall art?",
+    image: "/find-requests/duck-wall-art.jpg",
+  },
+  {
+    copy: "Please find me this Powerpuff Girls cup.",
+    image: "/find-requests/powerpuff-cup.jpg",
   },
 ];
 
@@ -1133,6 +1153,16 @@ function routeHref(page: Page) {
   return `#/${pageRoutes[page]}`;
 }
 
+function getInitialRoute(): Page {
+  const initialRoute = parseRoute();
+
+  if (initialRoute !== "landing") {
+    window.history.replaceState(null, "", `${window.location.pathname}${window.location.search}${routeHref("landing")}`);
+  }
+
+  return "landing";
+}
+
 function getCategoryLabel(category: RequestCategory) {
   return requestCategories.find((item) => item.value === category)?.label ?? "General";
 }
@@ -1221,7 +1251,7 @@ function formatConfirmationDate(value?: string) {
 }
 
 function App() {
-  const [route, setRoute] = useState<Page>(() => parseRoute());
+  const [route, setRoute] = useState<Page>(() => getInitialRoute());
   const [checkoutReturnStatus, setCheckoutReturnStatus] = useState<CheckoutReturnStatus>(() => parseCheckoutReturnStatus());
   const [menuOpen, setMenuOpen] = useState(false);
   const [signedIn, setSignedIn] = useState(() => window.sessionStorage.getItem(signedInStorageKey) === "true");
