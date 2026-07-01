@@ -177,6 +177,11 @@ const siteName = "pleasefindmethis.com";
 const requestSingular = "request";
 const requestPlural = "requests";
 const checkoutRequestTimeoutMs = 25000;
+const minimumReward = 10;
+const platformServiceFeeRate = 0.12;
+const trustProtectionRate = 0.03;
+const minimumPlatformFee = 6;
+const minimumTrustProtectionFee = 1;
 
 const requestCategories: Array<{ value: RequestCategory; label: string }> = [
   { value: "home", label: "Home goods" },
@@ -1598,7 +1603,7 @@ const safetySteps = [
   {
     icon: Banknote,
     title: "30-day protection",
-    copy: "Not found in 30 days? You get your full reward back.",
+    copy: "No accepted source in 30 days? The funded finder reward comes back to you.",
   },
 ];
 
@@ -1627,11 +1632,12 @@ const faqItems = [
   {
     question: "When do I pay?",
     answer:
-      "You fund the request before it goes live. The reward stays held until you accept a valid source or complete the handoff with the finder.",
+      "You fund the request before it goes live. Checkout shows the finder reward plus transparent poster-paid service and trust fees before you pay.",
   },
   {
     question: "What happens if nobody finds it?",
-    answer: "If the request is not fulfilled within 30 days, the reward is returned to you.",
+    answer:
+      "If the request is not fulfilled within 30 days, the funded finder reward is returned to you. Service and protection fees cover the live request, payment handling, review tools, and support.",
   },
   {
     question: "Can I reject a find?",
@@ -1641,7 +1647,12 @@ const faqItems = [
   {
     question: "How do finders get paid?",
     answer:
-      "Finders earn the posted reward after the poster accepts the source or confirms that the direct handoff worked. Reputation improves with clear links, useful contact details, and successful outcomes.",
+      "Finders earn the posted reward after the poster accepts the source or confirms that the direct handoff worked. We do not take a cut from the posted finder reward.",
+  },
+  {
+    question: "How does pleasefindmethis make money?",
+    answer:
+      "Posters pay a 12% platform service fee plus 3% trust and payment protection at checkout. The posted reward remains the finder payout.",
   },
   {
     question: "Is the browse feed public?",
@@ -1678,9 +1689,9 @@ function getCategoryLabel(category: RequestCategory) {
 }
 
 function getEscrowBreakdown(reward: number): EscrowBreakdown {
-  const normalizedReward = Math.max(25, Math.round(Number.isFinite(reward) ? reward : initialPostDraft.reward));
-  const platformFee = Math.max(12, Math.round(normalizedReward * 0.08));
-  const protection = Math.round(normalizedReward * 0.03);
+  const normalizedReward = Math.max(minimumReward, Math.round(Number.isFinite(reward) ? reward : initialPostDraft.reward));
+  const platformFee = Math.max(minimumPlatformFee, Math.round(normalizedReward * platformServiceFeeRate));
+  const protection = Math.max(minimumTrustProtectionFee, Math.round(normalizedReward * trustProtectionRate));
   const platformShare = platformFee + protection;
 
   return {
@@ -2227,7 +2238,7 @@ function PageChrome({
       <header className="app-header">
         <button className="brand brand-button" type="button" onClick={() => navigate("landing")} aria-label={`${siteName} home`}>
           <span className="brand-mark" aria-hidden="true">
-            <Search size={16} />
+            <img className="brand-mark-image" src="/magnifying-glass.png" alt="" />
           </span>
           {siteName}
         </button>
@@ -2465,7 +2476,7 @@ function LandingPage({
         <div className="canvas-nav">
           <button className="brand brand-button" type="button" onClick={() => window.scrollTo({ top: 0, behavior: "smooth" })} aria-label={`${siteName} home`}>
             <span className="brand-mark" aria-hidden="true">
-              <Search size={16} />
+              <img className="brand-mark-image" src="/magnifying-glass.png" alt="" />
             </span>
             {siteName}
           </button>
@@ -2630,7 +2641,7 @@ function LandingPage({
           </button>
           <p className="trust-line">
             <LockKeyhole size={18} />
-            Your reward is held safely. No useful source in 30 days? You get your full reward back.
+            Your finder reward is held safely. No accepted source in 30 days? The funded reward comes back to you.
           </p>
         </div>
 
@@ -3197,7 +3208,7 @@ function PostRewardPage({
     const nextReward = Number(value);
 
     if (Number.isFinite(nextReward)) {
-      onDraftChange({ reward: Math.max(25, Math.round(nextReward)) });
+      onDraftChange({ reward: Math.max(minimumReward, Math.round(nextReward)) });
     }
   };
 
@@ -3210,13 +3221,13 @@ function PostRewardPage({
             <ArrowLeft size={17} /> Describe
           </button>
           <h1 id="reward-title">Set a reward that gets attention.</h1>
-          <p>The reward is what the finder earns after you accept their source or complete the handoff.</p>
+          <p>The reward is what the finder earns after you accept their source or complete the handoff. Platform fees are paid by the poster at checkout.</p>
           <label>
             Reward amount
-            <input type="number" min="25" value={draft.reward} onChange={(event) => setReward(event.target.value)} />
+            <input type="number" min={minimumReward} value={draft.reward} onChange={(event) => setReward(event.target.value)} />
           </label>
           <div className="reward-slider">
-            <input type="range" min="25" max="1000" value={Math.min(draft.reward, 1000)} onChange={(event) => setReward(event.target.value)} />
+            <input type="range" min={minimumReward} max="1000" value={Math.min(draft.reward, 1000)} onChange={(event) => setReward(event.target.value)} />
             <div>
               <span>Low urgency</span>
               <span>High urgency</span>
@@ -3244,24 +3255,35 @@ function PostRewardPage({
           <h2>Payment summary</h2>
           <dl>
             <div>
-              <dt>Reward</dt>
+              <dt>Finder reward</dt>
               <dd>{formatUsdMoney(breakdown.reward, currencyPreference)}</dd>
             </div>
             <div>
-              <dt>Platform fee</dt>
+              <dt>Platform service (12%)</dt>
               <dd>{formatUsdMoney(breakdown.platformFee, currencyPreference)}</dd>
             </div>
             <div>
-              <dt>Protection</dt>
+              <dt>Trust & payment protection (3%)</dt>
               <dd>{formatUsdMoney(breakdown.protection, currencyPreference)}</dd>
             </div>
             <div className="total-row">
-              <dt>Total due today</dt>
+              <dt>Poster pays today</dt>
               <dd>{formatUsdMoney(breakdown.total, currencyPreference)}</dd>
             </div>
           </dl>
+          <ul className="check-list">
+            <li>
+              <Banknote size={18} /> Finder sees and earns the full reward
+            </li>
+            <li>
+              <Search size={18} /> 12% service fee funds matching, review, and support
+            </li>
+            <li>
+              <ShieldCheck size={18} /> 3% protection covers escrow, payment risk, and disputes
+            </li>
+          </ul>
           <p>
-            <LockKeyhole size={18} /> The reward is held safely until the item is returned or the source is approved.
+            <LockKeyhole size={18} /> The finder reward is held safely until a source or handoff is approved.
           </p>
         </aside>
       </section>
@@ -3500,7 +3522,7 @@ function PostPayPage({
             <ExternalLink size={19} />
             <span>
               <strong>Secure Checkout</strong>
-              Your payment is processed securely. We never store your card details. Your reward is held safely until the item is returned or the source is approved.
+              Your payment is processed securely. We never store your card details. The finder reward is held safely until a source or handoff is approved.
             </span>
           </div>
           <button className="primary-button" type="button" disabled={checkoutStatus === "loading"} onClick={startCheckout}>
@@ -3522,19 +3544,19 @@ function PostPayPage({
           <div className="summary-card">
             <Banknote size={28} />
             <strong>{formatUsdMoney(breakdown.total, currencyPreference)} due today</strong>
-            <span>Total for {itemName}, including the reward and platform protection.</span>
+            <span>Total for {itemName}, including the finder reward, platform service, and trust protection.</span>
           </div>
           <dl>
             <div>
-              <dt>Reward</dt>
+              <dt>Finder reward</dt>
               <dd>{formatUsdMoney(breakdown.reward, currencyPreference)}</dd>
             </div>
             <div>
-              <dt>Platform fee</dt>
+              <dt>Platform service (12%)</dt>
               <dd>{formatUsdMoney(breakdown.platformFee, currencyPreference)}</dd>
             </div>
             <div>
-              <dt>Protection</dt>
+              <dt>Trust & payment protection (3%)</dt>
               <dd>{formatUsdMoney(breakdown.protection, currencyPreference)}</dd>
             </div>
             <div>
@@ -3551,7 +3573,7 @@ function PostPayPage({
               <ShieldCheck size={18} /> The processor collects the full poster payment
             </li>
             <li>
-              <Banknote size={18} /> Fees and protection total {formatUsdMoney(breakdown.platformShare, currencyPreference)}
+              <Banknote size={18} /> Service and protection fees total {formatUsdMoney(breakdown.platformShare, currencyPreference)}
             </li>
             <li>
               <TimerReset size={18} /> Finder payout becomes payable after acceptance
@@ -4056,7 +4078,7 @@ function PostSuccessConfirmation({
   const rewardText = checkoutSnapshot ? formatUsdMoney(checkoutSnapshot.reward, currencyPreference) : "Held after acceptance";
   const receiptTarget = checkoutSnapshot?.email ? `Receipt sent to ${checkoutSnapshot.email}` : "Receipt saved to your checkout account";
   const platformShareText = checkoutSnapshot
-    ? `Platform share is ${formatUsdMoney(checkoutSnapshot.platformShare, currencyPreference)}, including service fee and protection reserve.`
+    ? `Service and protection fees total ${formatUsdMoney(checkoutSnapshot.platformShare, currencyPreference)}, while the finder reward stays reserved for acceptance.`
     : "The hosted checkout keeps the receipt and payment split attached to this request.";
   const reviewDashboard = () => {
     document.getElementById("poster-dashboard-title")?.scrollIntoView({ behavior: "smooth", block: "start" });

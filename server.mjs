@@ -23,6 +23,11 @@ let port = Number(process.env.PORT ?? 5173);
 const distRoot = path.resolve(root, "dist");
 const supabaseAdmin = createSupabaseAdminClient();
 const paymentProviderTimeoutMs = 20000;
+const minimumReward = 10;
+const platformServiceFeeRate = 0.12;
+const trustProtectionRate = 0.03;
+const minimumPlatformFee = 6;
+const minimumTrustProtectionFee = 1;
 
 const vite = isProduction ? null : await createDevViteServer();
 
@@ -363,7 +368,7 @@ async function handleCreateLemonSqueezyCheckout(req, res) {
         custom_price: breakdown.total * 100,
         product_options: {
           name: `Fund request: ${itemName}`,
-          description: `Finder payout: US$${breakdown.reward}. Platform share: US$${breakdown.platformShare}. Category: ${category}.`,
+          description: `Finder reward: US$${breakdown.reward}. Service and protection fees: US$${breakdown.platformShare}. Category: ${category}.`,
           redirect_url: `${origin}/#/poster-dashboard?checkout=success`,
           enabled_variants: [parseLemonSqueezyVariantId(variantId)],
           receipt_button_text: "View your request",
@@ -568,9 +573,9 @@ async function handleLemonSqueezyWebhook(req, res) {
 }
 
 function getEscrowBreakdown(reward) {
-  const normalizedReward = Math.round(reward);
-  const platformFee = Math.max(12, Math.round(normalizedReward * 0.08));
-  const protection = Math.round(normalizedReward * 0.03);
+  const normalizedReward = Math.max(minimumReward, Math.round(reward));
+  const platformFee = Math.max(minimumPlatformFee, Math.round(normalizedReward * platformServiceFeeRate));
+  const protection = Math.max(minimumTrustProtectionFee, Math.round(normalizedReward * trustProtectionRate));
   const platformShare = platformFee + protection;
 
   return {
@@ -954,8 +959,8 @@ function parseReward(value) {
 
   const rounded = Math.round(reward);
 
-  if (rounded < 25 || rounded > 10000) {
-    throw new Error("Reward must be between 25 and 10,000.");
+  if (rounded < minimumReward || rounded > 10000) {
+    throw new Error(`Reward must be between ${minimumReward} and 10,000.`);
   }
 
   return rounded;
