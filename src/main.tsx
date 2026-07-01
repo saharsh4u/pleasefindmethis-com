@@ -2365,6 +2365,40 @@ function BoardRequestCard({
   );
 }
 
+function FeaturedBountyCard({
+  bounty,
+  className = "",
+  index,
+  onDetail,
+}: {
+  bounty: BountyListing;
+  className?: string;
+  index: number;
+  onDetail: (bountyId: string) => void;
+}) {
+  const currencyPreference = useCurrencyPreference();
+  const rewardText = formatUsdMoney(bounty.rewardValue, currencyPreference, { compact: true });
+
+  return (
+    <article className={`bounty-card bounty-card-${index + 1} ${className}`.trim()}>
+      <img src={bounty.image} alt="" />
+      <button className="save-button" type="button" aria-label={`Open ${bounty.name}`} onClick={() => onDetail(bounty.id)}>
+        <BadgeCheck size={15} aria-hidden="true" />
+      </button>
+      <h3>{bounty.name}</h3>
+      <p>{formatBountyDetail(bounty, currencyPreference)}</p>
+      <div className="bounty-meta">
+        <span>
+          Reward<strong>{rewardText}</strong>
+        </span>
+        <span>
+          Closes in<strong>{bounty.closes}</strong>
+        </span>
+      </div>
+    </article>
+  );
+}
+
 function LandingPage({
   menuOpen,
   onAccount,
@@ -2403,6 +2437,7 @@ function LandingPage({
   const currencyPreference = useCurrencyPreference();
   const [heroSearch, setHeroSearch] = useState("");
   const [heroPlaceholder, setHeroPlaceholder] = useState(heroPlaceholderExamples[0]);
+  const [activeFeaturedBountyIndex, setActiveFeaturedBountyIndex] = useState(0);
   const recentBoardBounties = bountyListings.slice(0, 4);
 
   useEffect(() => {
@@ -2447,6 +2482,21 @@ function LandingPage({
     timeoutId = window.setTimeout(tick, 240);
 
     return () => window.clearTimeout(timeoutId);
+  }, []);
+
+  useEffect(() => {
+    const reduceMotionQuery = window.matchMedia("(prefers-reduced-motion: reduce)");
+
+    if (reduceMotionQuery.matches || featuredBounties.length < 2) {
+      setActiveFeaturedBountyIndex(0);
+      return undefined;
+    }
+
+    const intervalId = window.setInterval(() => {
+      setActiveFeaturedBountyIndex((index) => (index + 1) % featuredBounties.length);
+    }, 3600);
+
+    return () => window.clearInterval(intervalId);
   }, []);
 
   const submitHeroSearch = (event: React.FormEvent<HTMLFormElement>) => {
@@ -2604,28 +2654,21 @@ function LandingPage({
         <aside className="market-preview" aria-label="Featured request preview">
           <span className="floating-tag cyan">Rare finds</span>
           <span className="floating-tag orange">Escrow held</span>
-          <div className="featured-grid">
+          <div className="featured-grid featured-grid-desktop">
             {featuredBounties.map((bounty, index) => {
-              const rewardText = formatUsdMoney(bounty.rewardValue, currencyPreference, { compact: true });
               return (
-                <article className={`bounty-card bounty-card-${index + 1}`} key={bounty.name}>
-                  <img src={bounty.image} alt="" />
-                  <button className="save-button" type="button" aria-label={`Open ${bounty.name}`} onClick={() => onDetail(bounty.id)}>
-                    <BadgeCheck size={15} aria-hidden="true" />
-                  </button>
-                  <h3>{bounty.name}</h3>
-                  <p>{formatBountyDetail(bounty, currencyPreference)}</p>
-                  <div className="bounty-meta">
-                    <span>
-                      Reward<strong>{rewardText}</strong>
-                    </span>
-                    <span>
-                      Closes in<strong>{bounty.closes}</strong>
-                    </span>
-                  </div>
-                </article>
+                <FeaturedBountyCard bounty={bounty} index={index} key={bounty.name} onDetail={onDetail} />
               );
             })}
+          </div>
+          <div className="featured-mobile-carousel" aria-label="Featured request carousel">
+            <FeaturedBountyCard
+              bounty={featuredBounties[activeFeaturedBountyIndex]}
+              className="featured-mobile-card"
+              index={activeFeaturedBountyIndex}
+              key={featuredBounties[activeFeaturedBountyIndex].id}
+              onDetail={onDetail}
+            />
           </div>
         </aside>
 
@@ -3695,7 +3738,7 @@ function BrowseAllPage({ onDetail, onPost }: { onDetail: (bountyId: string) => v
       </section>
       <section className="bounty-square-grid full-gallery-grid" aria-label="All request results">
         {visibleBounties.map((bounty) => (
-          <BountySquareCard bounty={bounty} key={bounty.id} onDetail={onDetail} />
+          <BountySquareCard bounty={bounty} key={bounty.id} onDetail={onDetail} variant="request" />
         ))}
       </section>
       <div className="browse-end-state" aria-live="polite">
@@ -3719,21 +3762,32 @@ function BountySquareCard({
   featured = false,
   onDetail,
   rank,
+  variant = "square",
 }: {
   bounty: BountyListing;
   compact?: boolean;
   featured?: boolean;
   onDetail: (bountyId: string) => void;
   rank?: number;
+  variant?: "square" | "request";
 }) {
   const currencyPreference = useCurrencyPreference();
   const rewardText = formatUsdMoney(bounty.rewardValue, currencyPreference, { compact: true });
+  const requestVariant = variant === "request";
 
   return (
-    <article className={`bounty-square-card tone-${rank ? ((rank - 1) % 5) + 1 : (bounty.rewardValue % 5) + 1} ${compact ? "compact" : ""} ${featured ? "featured" : ""}`}>
+    <article className={`bounty-square-card tone-${rank ? ((rank - 1) % 5) + 1 : (bounty.rewardValue % 5) + 1} ${compact ? "compact" : ""} ${featured ? "featured" : ""} ${requestVariant ? "request-card" : ""}`}>
       <button className="square-card-hit" type="button" onClick={() => onDetail(bounty.id)} aria-label={`View ${bounty.name}`}>
-        <span className="square-rank">{rank ? `#${rank}` : bounty.category}</span>
-        <span className="square-price">{rewardText}</span>
+        {requestVariant ? (
+          <span className="square-check" aria-hidden="true">
+            <BadgeCheck size={15} />
+          </span>
+        ) : (
+          <>
+            <span className="square-rank">{rank ? `#${rank}` : bounty.category}</span>
+            <span className="square-price">{rewardText}</span>
+          </>
+        )}
         <span className="square-image-wrap">
           <img src={bounty.image} alt="" />
         </span>
@@ -3741,14 +3795,27 @@ function BountySquareCard({
           <strong>{bounty.name}</strong>
           <em>{formatBountyDetail(bounty, currencyPreference)}</em>
         </span>
-        <span className="square-meta">
-          <span>
-            <Clock3 size={14} /> {bounty.closes}
+        {requestVariant ? (
+          <span className="square-meta request-card-meta">
+            <span>
+              <small>Reward</small>
+              <b>{rewardText}</b>
+            </span>
+            <span>
+              <small>Closes in</small>
+              <b>{bounty.closes}</b>
+            </span>
           </span>
-          <span>
-            <MessageSquare size={14} /> {bounty.submissions}
+        ) : (
+          <span className="square-meta">
+            <span>
+              <Clock3 size={14} /> {bounty.closes}
+            </span>
+            <span>
+              <MessageSquare size={14} /> {bounty.submissions}
+            </span>
           </span>
-        </span>
+        )}
       </button>
     </article>
   );
