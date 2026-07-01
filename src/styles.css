@@ -5700,6 +5700,56 @@ main {
   line-height: 1.4;
 }
 
+.email-auth-form {
+  display: grid;
+  gap: 0.9rem;
+}
+
+.auth-panel input:disabled,
+.auth-panel select:disabled,
+.segmented-control button:disabled {
+  cursor: not-allowed;
+  opacity: 0.72;
+}
+
+.auth-panel input:disabled,
+.auth-panel select:disabled {
+  background: #f5f7f5;
+  color: #686f6a;
+}
+
+.email-code-input {
+  text-align: center;
+  font-weight: 900;
+}
+
+.auth-secondary-actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 0.55rem 0.9rem;
+  margin-top: -0.2rem;
+}
+
+.auth-inline-button {
+  border: 0;
+  background: transparent;
+  color: #175d39;
+  font: inherit;
+  font-size: 0.82rem;
+  font-weight: 850;
+  cursor: pointer;
+}
+
+.auth-inline-button:hover {
+  color: var(--green);
+}
+
+.auth-inline-button:disabled {
+  cursor: wait;
+  opacity: 0.58;
+}
+
 .logout-button {
   display: inline-flex;
   align-items: center;

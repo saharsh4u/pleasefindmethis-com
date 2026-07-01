@@ -955,7 +955,7 @@ function parseReward(value) {
   const rounded = Math.round(reward);
 
   if (rounded < 25 || rounded > 10000) {
-    throw new Error("Reward must be between US$25 and US$10,000.");
+    throw new Error("Reward must be between 25 and 10,000.");
   }
 
   return rounded;

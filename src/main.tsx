@@ -1,5 +1,6 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { createRoot } from "react-dom/client";
+import type { Session } from "@supabase/supabase-js";
 import {
   AlertTriangle,
   ArrowLeft,
@@ -11,7 +12,6 @@ import {
   CircleHelp,
   Clock3,
   CreditCard,
-  DollarSign,
   ExternalLink,
   FileText,
   Filter,
@@ -62,6 +62,8 @@ type Page =
   | "faq";
 
 type AuthMode = "signup" | "login";
+type AuthBusyAction = "email" | "google" | null;
+type AuthAccountType = "both" | "poster" | "finder";
 
 type GoogleProfile = {
   email?: string;
@@ -117,6 +119,7 @@ type BountyListing = {
 type FeedItem = {
   bounty: string;
   reward: string;
+  rewardValue: number;
   finder: string;
   rating: string;
   location: string;
@@ -281,13 +284,507 @@ const authEmailStorageKey = "pleasefindmethis-auth-email";
 const checkoutSnapshotStorageKey = "pleasefindmethis-last-checkout";
 const requestReferenceImagesBucket = "request-reference-images";
 const googleClientId = import.meta.env.VITE_GOOGLE_CLIENT_ID;
+const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+type CurrencySource = "locale" | "timezone" | "geolocation" | "fallback";
+
+type CurrencyPreference = {
+  currency: string;
+  locale: string;
+  region: string;
+  rateFromUsd: number;
+  source: CurrencySource;
+  ratesUpdatedAt?: string;
+};
+
+type ExchangeRateCache = {
+  fetchedAt: number;
+  rates: Record<string, number>;
+  updatedAt?: string;
+};
+
+type CoordinateRegion = {
+  region: string;
+  south: number;
+  west: number;
+  north: number;
+  east: number;
+};
+
+const defaultCurrencyPreference: CurrencyPreference = {
+  currency: "USD",
+  locale: "en-US",
+  region: "US",
+  rateFromUsd: 1,
+  source: "fallback",
+};
+const CurrencyContext = React.createContext<CurrencyPreference>(defaultCurrencyPreference);
+const exchangeRateCacheKey = "pleasefindmethis-usd-exchange-rates";
+const exchangeRateCacheTtlMs = 12 * 60 * 60 * 1000;
+const exchangeRateApiUrl = "https://open.er-api.com/v6/latest/USD";
+const fallbackUsdExchangeRates: Record<string, number> = {
+  USD: 1,
+  AED: 3.67,
+  ARS: 1480,
+  AUD: 1.45,
+  BDT: 123,
+  BGN: 1.71,
+  BHD: 0.38,
+  BRL: 5.18,
+  CAD: 1.42,
+  CHF: 0.8,
+  CLP: 940,
+  CNY: 7.16,
+  COP: 4050,
+  CZK: 21.4,
+  DKK: 6.53,
+  EGP: 49,
+  EUR: 0.88,
+  GBP: 0.76,
+  HKD: 7.75,
+  HUF: 345,
+  IDR: 16400,
+  ILS: 3.3,
+  INR: 94.7,
+  JPY: 143,
+  KES: 129,
+  KRW: 1360,
+  KWD: 0.31,
+  LKR: 302,
+  MAD: 9.1,
+  MXN: 18.3,
+  MYR: 4.13,
+  NGN: 1530,
+  NOK: 10.1,
+  NPR: 151,
+  NZD: 1.58,
+  OMR: 0.38,
+  PEN: 3.55,
+  PHP: 56.5,
+  PKR: 284,
+  PLN: 3.74,
+  QAR: 3.64,
+  RON: 4.45,
+  SAR: 3.75,
+  SEK: 9.57,
+  SGD: 1.29,
+  THB: 32.4,
+  TRY: 39.8,
+  TWD: 29.2,
+  UAH: 41.8,
+  VND: 26100,
+  ZAR: 17.7,
+};
+const regionCurrencyMap: Record<string, string> = {
+  AD: "EUR",
+  AE: "AED",
+  AR: "ARS",
+  AT: "EUR",
+  AU: "AUD",
+  BE: "EUR",
+  BG: "BGN",
+  BH: "BHD",
+  BR: "BRL",
+  CA: "CAD",
+  CH: "CHF",
+  CL: "CLP",
+  CN: "CNY",
+  CO: "COP",
+  CY: "EUR",
+  CZ: "CZK",
+  DE: "EUR",
+  DK: "DKK",
+  EE: "EUR",
+  EG: "EGP",
+  ES: "EUR",
+  FI: "EUR",
+  FR: "EUR",
+  GB: "GBP",
+  GR: "EUR",
+  HK: "HKD",
+  HR: "EUR",
+  HU: "HUF",
+  ID: "IDR",
+  IE: "EUR",
+  IL: "ILS",
+  IN: "INR",
+  IT: "EUR",
+  JP: "JPY",
+  KE: "KES",
+  KR: "KRW",
+  KW: "KWD",
+  LK: "LKR",
+  LT: "EUR",
+  LU: "EUR",
+  LV: "EUR",
+  MA: "MAD",
+  MC: "EUR",
+  MT: "EUR",
+  MX: "MXN",
+  MY: "MYR",
+  NG: "NGN",
+  NL: "EUR",
+  NO: "NOK",
+  NP: "NPR",
+  NZ: "NZD",
+  OM: "OMR",
+  PE: "PEN",
+  PH: "PHP",
+  PK: "PKR",
+  PL: "PLN",
+  PT: "EUR",
+  QA: "QAR",
+  RO: "RON",
+  SA: "SAR",
+  SE: "SEK",
+  SG: "SGD",
+  SI: "EUR",
+  SK: "EUR",
+  TH: "THB",
+  TR: "TRY",
+  TW: "TWD",
+  UA: "UAH",
+  US: "USD",
+  VN: "VND",
+  ZA: "ZAR",
+};
+const timeZoneRegionMap: Record<string, string> = {
+  "America/Anchorage": "US",
+  "America/Chicago": "US",
+  "America/Denver": "US",
+  "America/Los_Angeles": "US",
+  "America/New_York": "US",
+  "America/Phoenix": "US",
+  "America/Toronto": "CA",
+  "America/Vancouver": "CA",
+  "Asia/Calcutta": "IN",
+  "Asia/Dubai": "AE",
+  "Asia/Hong_Kong": "HK",
+  "Asia/Kolkata": "IN",
+  "Asia/Seoul": "KR",
+  "Asia/Shanghai": "CN",
+  "Asia/Singapore": "SG",
+  "Asia/Tokyo": "JP",
+  "Australia/Sydney": "AU",
+  "Europe/Amsterdam": "NL",
+  "Europe/Berlin": "DE",
+  "Europe/Dublin": "IE",
+  "Europe/London": "GB",
+  "Europe/Madrid": "ES",
+  "Europe/Paris": "FR",
+  "Europe/Rome": "IT",
+  "Europe/Stockholm": "SE",
+  "Europe/Zurich": "CH",
+  "Pacific/Auckland": "NZ",
+  "Pacific/Honolulu": "US",
+};
+const coordinateRegions: CoordinateRegion[] = [
+  { region: "US", south: 24, west: -125, north: 50, east: -66 },
+  { region: "US", south: 51, west: -170, north: 72, east: -130 },
+  { region: "US", south: 18, west: -161, north: 23, east: -154 },
+  { region: "CA", south: 42, west: -141, north: 84, east: -52 },
+  { region: "GB", south: 49, west: -9, north: 61, east: 2 },
+  { region: "IE", south: 51, west: -11, north: 56, east: -5 },
+  { region: "IN", south: 6, west: 68, north: 37, east: 98 },
+  { region: "AU", south: -44, west: 112, north: -10, east: 154 },
+  { region: "NZ", south: -48, west: 166, north: -34, east: 179 },
+  { region: "JP", south: 24, west: 122, north: 46, east: 146 },
+  { region: "SG", south: 1.1, west: 103.6, north: 1.6, east: 104.1 },
+  { region: "HK", south: 22.1, west: 113.8, north: 22.6, east: 114.5 },
+  { region: "AE", south: 22.6, west: 51.4, north: 26.3, east: 56.4 },
+  { region: "FR", south: 41, west: -5.5, north: 51.5, east: 9.8 },
+  { region: "DE", south: 47, west: 5.8, north: 55.2, east: 15.1 },
+  { region: "IT", south: 35.4, west: 6.6, north: 47.2, east: 18.6 },
+  { region: "ES", south: 36, west: -9.5, north: 43.9, east: 4.4 },
+  { region: "BR", south: -34, west: -74, north: 6, east: -34 },
+  { region: "MX", south: 14, west: -118, north: 33, east: -86 },
+  { region: "ZA", south: -35, west: 16, north: -22, east: 33 },
+];
 const heroPlaceholderExamples = [
   "Help me find this cat mug",
   "Find this old wallet",
-  "I can pay $20",
+  "I can add a reward",
   "Help me find this pillow",
   "Find this exact wall art",
 ];
+
+function getBrowserLocales() {
+  const languages = typeof navigator !== "undefined" && Array.isArray(navigator.languages) ? navigator.languages : [];
+  const primaryLanguage = typeof navigator !== "undefined" ? navigator.language : "";
+  return [...languages, primaryLanguage].filter((locale, index, locales): locale is string => Boolean(locale) && locales.indexOf(locale) === index);
+}
+
+function getRegionFromLocale(locale: string) {
+  const parts = locale.replace(/_/g, "-").split("-");
+
+  for (const part of parts.slice(1)) {
+    if (/^[A-Za-z]{2}$/.test(part) || /^\d{3}$/.test(part)) {
+      return part.toUpperCase();
+    }
+  }
+
+  return "";
+}
+
+function getLocaleForRegion(region: string) {
+  const browserLocales = getBrowserLocales();
+  const matchingLocale = browserLocales.find((locale) => getRegionFromLocale(locale) === region);
+
+  if (matchingLocale) {
+    return matchingLocale;
+  }
+
+  const language = browserLocales[0]?.split("-")[0] || "en";
+  return `${language}-${region}`;
+}
+
+function getRegionFromTimeZone() {
+  try {
+    const timeZone = Intl.DateTimeFormat().resolvedOptions().timeZone;
+    return timeZoneRegionMap[timeZone] ?? "";
+  } catch {
+    return "";
+  }
+}
+
+function getCurrencyForRegion(region: string) {
+  return regionCurrencyMap[region] ?? "USD";
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null && !Array.isArray(value);
+}
+
+function createCurrencyPreference(region: string, source: CurrencySource): CurrencyPreference {
+  const currency = getCurrencyForRegion(region);
+  return {
+    currency,
+    locale: region ? getLocaleForRegion(region) : defaultCurrencyPreference.locale,
+    region: region || defaultCurrencyPreference.region,
+    rateFromUsd: fallbackUsdExchangeRates[currency] ?? 1,
+    source,
+  };
+}
+
+function resolveInitialCurrencyPreference() {
+  const timeZoneRegion = getRegionFromTimeZone();
+
+  if (timeZoneRegion) {
+    return createCurrencyPreference(timeZoneRegion, "timezone");
+  }
+
+  const localeRegion = getBrowserLocales().map(getRegionFromLocale).find((region) => Boolean(region && regionCurrencyMap[region]));
+
+  if (localeRegion) {
+    return createCurrencyPreference(localeRegion, "locale");
+  }
+
+  return defaultCurrencyPreference;
+}
+
+function normalizeLongitude(longitude: number) {
+  return ((((longitude + 180) % 360) + 360) % 360) - 180;
+}
+
+function getRegionFromCoordinates(latitude: number, longitude: number) {
+  const normalizedLongitude = normalizeLongitude(longitude);
+  const match = coordinateRegions.find(
+    (bounds) =>
+      latitude >= bounds.south &&
+      latitude <= bounds.north &&
+      normalizedLongitude >= bounds.west &&
+      normalizedLongitude <= bounds.east,
+  );
+
+  return match?.region ?? "";
+}
+
+function readCachedExchangeRates(): ExchangeRateCache | null {
+  try {
+    const cached = window.localStorage.getItem(exchangeRateCacheKey);
+
+    if (!cached) {
+      return null;
+    }
+
+    const parsed = JSON.parse(cached) as Partial<ExchangeRateCache>;
+
+    if (
+      typeof parsed.fetchedAt === "number" &&
+      isRecord(parsed.rates) &&
+      Object.values(parsed.rates).every((rate) => typeof rate === "number" && Number.isFinite(rate))
+    ) {
+      return {
+        fetchedAt: parsed.fetchedAt,
+        rates: parsed.rates as Record<string, number>,
+        ...(typeof parsed.updatedAt === "string" ? { updatedAt: parsed.updatedAt } : {}),
+      };
+    }
+  } catch {
+    // Ignore blocked storage or corrupted exchange-rate cache.
+  }
+
+  return null;
+}
+
+function writeCachedExchangeRates(cache: ExchangeRateCache) {
+  try {
+    window.localStorage.setItem(exchangeRateCacheKey, JSON.stringify(cache));
+  } catch {
+    // Currency formatting can still use fallback rates when storage is blocked.
+  }
+}
+
+async function loadUsdExchangeRates(): Promise<ExchangeRateCache | null> {
+  const cached = readCachedExchangeRates();
+
+  if (cached && Date.now() - cached.fetchedAt < exchangeRateCacheTtlMs) {
+    return cached;
+  }
+
+  try {
+    const response = await fetch(exchangeRateApiUrl, { cache: "no-store" });
+
+    if (!response.ok) {
+      return cached;
+    }
+
+    const payload = (await response.json()) as unknown;
+
+    if (!isRecord(payload) || payload.result !== "success" || !isRecord(payload.rates)) {
+      return cached;
+    }
+
+    const rates = Object.fromEntries(
+      Object.entries(payload.rates).filter((entry): entry is [string, number] => typeof entry[1] === "number" && Number.isFinite(entry[1])),
+    );
+    const nextCache: ExchangeRateCache = {
+      fetchedAt: Date.now(),
+      rates,
+      ...(typeof payload.time_last_update_utc === "string" ? { updatedAt: payload.time_last_update_utc } : {}),
+    };
+
+    writeCachedExchangeRates(nextCache);
+    return nextCache;
+  } catch {
+    return cached;
+  }
+}
+
+function useViewerCurrencyPreference() {
+  const [preference, setPreference] = useState<CurrencyPreference>(() => resolveInitialCurrencyPreference());
+
+  useEffect(() => {
+    let cancelled = false;
+
+    loadUsdExchangeRates().then((cache) => {
+      const liveRate = cache?.rates[preference.currency];
+
+      if (cancelled || typeof liveRate !== "number" || !Number.isFinite(liveRate)) {
+        return;
+      }
+
+      setPreference((current) =>
+        current.currency === preference.currency
+          ? {
+              ...current,
+              rateFromUsd: liveRate,
+              ratesUpdatedAt: cache?.updatedAt,
+            }
+          : current,
+      );
+    });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [preference.currency]);
+
+  useEffect(() => {
+    if (!navigator.geolocation || !window.isSecureContext) {
+      return undefined;
+    }
+
+    let cancelled = false;
+
+    const refineFromPosition = (position: GeolocationPosition) => {
+      if (cancelled) {
+        return;
+      }
+
+      const region = getRegionFromCoordinates(position.coords.latitude, position.coords.longitude);
+
+      if (!region || !regionCurrencyMap[region]) {
+        return;
+      }
+
+      setPreference((current) => {
+        const nextPreference = createCurrencyPreference(region, "geolocation");
+        return current.region === nextPreference.region ? current : nextPreference;
+      });
+    };
+
+    const requestPosition = () => {
+      navigator.geolocation.getCurrentPosition(refineFromPosition, () => undefined, {
+        enableHighAccuracy: false,
+        maximumAge: 24 * 60 * 60 * 1000,
+        timeout: 4500,
+      });
+    };
+
+    if (navigator.permissions?.query) {
+      navigator.permissions
+        .query({ name: "geolocation" as PermissionName })
+        .then((permissionStatus) => {
+          if (!cancelled && permissionStatus.state === "granted") {
+            requestPosition();
+          }
+        })
+        .catch(() => undefined);
+    }
+
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  return preference;
+}
+
+function useCurrencyPreference() {
+  return React.useContext(CurrencyContext);
+}
+
+function formatUsdMoney(usdAmount: number, preference: CurrencyPreference, options: { compact?: boolean } = {}) {
+  const safeUsdAmount = Number.isFinite(usdAmount) ? usdAmount : 0;
+  const rate = Number.isFinite(preference.rateFromUsd) && preference.rateFromUsd > 0 ? preference.rateFromUsd : 1;
+  const convertedAmount = safeUsdAmount * rate;
+  const formatOptions: Intl.NumberFormatOptions = {
+    style: "currency",
+    currency: preference.currency,
+    maximumFractionDigits: options.compact ? 1 : 0,
+    minimumFractionDigits: 0,
+  };
+
+  if (options.compact) {
+    formatOptions.notation = "compact";
+    formatOptions.compactDisplay = "short";
+  }
+
+  try {
+    return new Intl.NumberFormat(preference.locale, formatOptions).format(convertedAmount);
+  } catch {
+    return new Intl.NumberFormat(defaultCurrencyPreference.locale, {
+      style: "currency",
+      currency: defaultCurrencyPreference.currency,
+      maximumFractionDigits: 0,
+    }).format(safeUsdAmount);
+  }
+}
+
+function formatBountyDetail(bounty: BountyListing, preference: CurrencyPreference) {
+  const rewardText = formatUsdMoney(bounty.rewardValue, preference, { compact: true });
+  return bounty.detail.replace(/(?:US\$|\$|£|€)\s?[\d,]+/g, rewardText);
+}
 
 function readStoredPendingRoute(): Page {
   const storedRoute = window.sessionStorage.getItem(pendingRouteStorageKey);
@@ -915,6 +1412,7 @@ const feedItems: FeedItem[] = [
   {
     bounty: "Help me find this art",
     reward: "US$50",
+    rewardValue: 50,
     finder: "Maya L.",
     rating: "4.9",
     location: "New York",
@@ -926,6 +1424,7 @@ const feedItems: FeedItem[] = [
   {
     bounty: "Help me find this blanket",
     reward: "US$50",
+    rewardValue: 50,
     finder: "Jonas K.",
     rating: "4.8",
     location: "London",
@@ -937,6 +1436,7 @@ const feedItems: FeedItem[] = [
   {
     bounty: "Help me find this pillow",
     reward: "US$35",
+    rewardValue: 35,
     finder: "Lina M.",
     rating: "4.7",
     location: "Berlin",
@@ -948,6 +1448,7 @@ const feedItems: FeedItem[] = [
   {
     bounty: "Does anyone know this watch?",
     reward: "US$20",
+    rewardValue: 20,
     finder: "Noah R.",
     rating: "4.9",
     location: "Singapore",
@@ -1010,7 +1511,7 @@ const leftFindRequests = [
     image: "/find-requests/wallet.jpg",
   },
   {
-    copy: "$100 reward if you find these black shoes.",
+    copy: "Reward if you find these black shoes.",
     image: "/find-requests/black-shoes.jpg",
   },
   {
@@ -1026,7 +1527,7 @@ const leftFindRequests = [
     image: "/find-requests/bunny-plush.jpg",
   },
   {
-    copy: "$10 reward to help me find this rubber band.",
+    copy: "Reward to help me find this rubber band.",
     image: "/find-requests/purple-rubber-band.jpg",
   },
   {
@@ -1049,7 +1550,7 @@ const rightFindRequests = [
     image: "/find-requests/toddler-plush.jpg",
   },
   {
-    copy: "$100 reward if you find this orange fox plush.",
+    copy: "Reward if you find this orange fox plush.",
     image: "/find-requests/fox-plush.jpg",
   },
   {
@@ -1278,14 +1779,16 @@ function getCheckoutErrorMessage(error: unknown) {
 }
 
 function App() {
+  const currencyPreference = useViewerCurrencyPreference();
   const [route, setRoute] = useState<Page>(() => getInitialRoute());
   const [checkoutReturnStatus, setCheckoutReturnStatus] = useState<CheckoutReturnStatus>(() => parseCheckoutReturnStatus());
   const [menuOpen, setMenuOpen] = useState(false);
   const [signedIn, setSignedIn] = useState(() => window.sessionStorage.getItem(signedInStorageKey) === "true");
   const [pendingRoute, setPendingRoute] = useState<Page>(() => readStoredPendingRoute());
   const [authMode, setAuthMode] = useState<AuthMode>("signup");
-  const [authBusy, setAuthBusy] = useState(false);
+  const [authBusyAction, setAuthBusyAction] = useState<AuthBusyAction>(null);
   const [authMessage, setAuthMessage] = useState("");
+  const [emailOtpSentTo, setEmailOtpSentTo] = useState("");
   const [postDraft, setPostDraft] = useState<PostDraft>(initialPostDraft);
   const [selectedFeedBounty, setSelectedFeedBounty] = useState(feedItems[0].bounty);
   const [activeBountyId, setActiveBountyId] = useState(bountyListings[0].id);
@@ -1322,6 +1825,7 @@ function App() {
     setPendingRoute(target);
     setAuthMode(mode);
     setAuthMessage("");
+    setEmailOtpSentTo("");
     window.sessionStorage.setItem(pendingRouteStorageKey, target);
     if (signedIn) {
       navigate(target);
@@ -1347,16 +1851,122 @@ function App() {
     document.getElementById(sectionId)?.scrollIntoView({ behavior: "smooth", block: "start" });
   };
 
-  const markSignedIn = (provider = "email-demo") => {
+  const markSignedIn = (provider = "email", email?: string) => {
     window.sessionStorage.setItem(signedInStorageKey, "true");
     window.sessionStorage.setItem(authProviderStorageKey, provider);
+    if (email) {
+      window.sessionStorage.setItem(authEmailStorageKey, email);
+    }
     window.sessionStorage.removeItem(pendingRouteStorageKey);
+    setEmailOtpSentTo("");
+    setAuthMessage("");
     setSignedIn(true);
     navigate(pendingRoute);
   };
 
-  const completeAuth = () => {
-    markSignedIn("email-demo");
+  const changeAuthMode = (mode: AuthMode) => {
+    setAuthMode(mode);
+    setEmailOtpSentTo("");
+    setAuthMessage("");
+  };
+
+  const requestEmailAuthCode = async (email: string, accountType: AuthAccountType) => {
+    const normalizedEmail = email.trim().toLowerCase();
+
+    setAuthMessage("");
+
+    if (!emailPattern.test(normalizedEmail)) {
+      setAuthMessage("Enter a valid email address.");
+      return;
+    }
+
+    window.sessionStorage.setItem(pendingRouteStorageKey, pendingRoute);
+    setAuthBusyAction("email");
+
+    try {
+      if (supabase) {
+        const { error } = await supabase.auth.signInWithOtp({
+          email: normalizedEmail,
+          options: {
+            shouldCreateUser: authMode === "signup",
+            emailRedirectTo: getOAuthRedirectUrl(),
+            ...(authMode === "signup" ? { data: { account_type: accountType } } : {}),
+          },
+        });
+
+        if (error) {
+          throw error;
+        }
+
+        setEmailOtpSentTo(normalizedEmail);
+        window.sessionStorage.setItem(authEmailStorageKey, normalizedEmail);
+        setAuthMessage(`We sent a 6-digit verification code to ${normalizedEmail}.`);
+        return;
+      }
+
+      if (window.location.hostname === "localhost" || window.location.hostname === "127.0.0.1") {
+        setEmailOtpSentTo(normalizedEmail);
+        window.sessionStorage.setItem(authEmailStorageKey, normalizedEmail);
+        setAuthMessage(`Local email verification is using demo code 123456 for ${normalizedEmail}.`);
+        return;
+      }
+
+      throw new Error("Email verification needs VITE_SUPABASE_URL and VITE_SUPABASE_PUBLISHABLE_KEY.");
+    } catch (error) {
+      setAuthMessage(error instanceof Error ? error.message : "Could not send the email verification code.");
+    } finally {
+      setAuthBusyAction(null);
+    }
+  };
+
+  const verifyEmailAuthCode = async (code: string) => {
+    const token = code.trim().replace(/\s+/g, "");
+
+    setAuthMessage("");
+
+    if (!emailOtpSentTo) {
+      setAuthMessage("Send a verification code first.");
+      return;
+    }
+
+    if (!/^\d{6}$/.test(token)) {
+      setAuthMessage("Enter the 6-digit code from your email.");
+      return;
+    }
+
+    setAuthBusyAction("email");
+
+    try {
+      if (supabase) {
+        const { data, error } = await supabase.auth.verifyOtp({
+          email: emailOtpSentTo,
+          token,
+          type: "email",
+        });
+
+        if (error) {
+          throw error;
+        }
+
+        markSignedIn("email", data.user?.email ?? emailOtpSentTo);
+        return;
+      }
+
+      if (window.location.hostname === "localhost" || window.location.hostname === "127.0.0.1") {
+        if (token !== "123456") {
+          throw new Error("Use demo code 123456 for local email verification.");
+        }
+
+        markSignedIn("email-demo", emailOtpSentTo);
+        return;
+      }
+
+      throw new Error("Email verification needs VITE_SUPABASE_URL and VITE_SUPABASE_PUBLISHABLE_KEY.");
+    } catch (error) {
+      setAuthMessage(error instanceof Error ? error.message : "Could not verify that code.");
+    } finally {
+      setAuthBusyAction(null);
+    }
   };
 
   const logOut = async () => {
@@ -1364,6 +1974,7 @@ function App() {
 
     setMenuOpen(false);
     setAuthMessage("");
+    setEmailOtpSentTo("");
 
     try {
       if (supabase) {
@@ -1390,8 +2001,9 @@ function App() {
   };
 
   const signInWithGoogle = async () => {
-    setAuthBusy(true);
+    setAuthBusyAction("google");
     setAuthMessage("");
+    setEmailOtpSentTo("");
     window.sessionStorage.setItem(pendingRouteStorageKey, pendingRoute);
 
     try {
@@ -1429,7 +2041,7 @@ function App() {
     } catch (error) {
       setAuthMessage(error instanceof Error ? error.message : "Google sign-in could not start.");
     } finally {
-      setAuthBusy(false);
+      setAuthBusyAction(null);
     }
   };
 
@@ -1457,11 +2069,18 @@ function App() {
     }
 
     let mounted = true;
-    const finishOAuthSession = () => {
+    const finishSupabaseSession = (session: Session) => {
       const storedRoute = readStoredPendingRoute();
+      const provider = session.user.app_metadata?.provider;
+
       window.sessionStorage.setItem(signedInStorageKey, "true");
-      window.sessionStorage.setItem(authProviderStorageKey, "google");
+      window.sessionStorage.setItem(authProviderStorageKey, typeof provider === "string" ? provider : "email");
+      if (session.user.email) {
+        window.sessionStorage.setItem(authEmailStorageKey, session.user.email);
+      }
       window.sessionStorage.removeItem(pendingRouteStorageKey);
+      setEmailOtpSentTo("");
+      setAuthMessage("");
       setSignedIn(true);
       setPendingRoute(storedRoute);
       navigate(storedRoute);
@@ -1471,7 +2090,7 @@ function App() {
       if (!mounted || !data.session) {
         return;
       }
-      finishOAuthSession();
+      finishSupabaseSession(data.session);
     });
 
     const {
@@ -1480,7 +2099,7 @@ function App() {
       if (!mounted || !session) {
         return;
       }
-      finishOAuthSession();
+      finishSupabaseSession(session);
     });
 
     return () => {
@@ -1499,7 +2118,7 @@ function App() {
   };
 
   return (
-    <>
+    <CurrencyContext.Provider value={currencyPreference}>
       {visibleRoute === "landing" ? (
         <LandingPage
           menuOpen={menuOpen}
@@ -1509,7 +2128,7 @@ function App() {
           onFinders={() => requireAuth("finder-dashboard")}
           onLogin={() => {
             setPendingRoute("poster-dashboard");
-            setAuthMode("login");
+            changeAuthMode("login");
             navigate("auth");
           }}
           onAccount={() => navigate("poster-dashboard")}
@@ -1527,13 +2146,18 @@ function App() {
         <PageChrome {...pageProps}>
           {visibleRoute === "auth" ? (
             <AuthPage
-              authBusy={authBusy}
+              authBusyAction={authBusyAction}
               authMessage={authMessage}
+              emailOtpSentTo={emailOtpSentTo}
               mode={authMode}
-              nextPage={pendingRoute}
-              onComplete={completeAuth}
+              onEmailAuthCodeRequest={requestEmailAuthCode}
+              onEmailAuthCodeVerify={verifyEmailAuthCode}
+              onEmailAuthReset={() => {
+                setEmailOtpSentTo("");
+                setAuthMessage("");
+              }}
               onGoogleAuth={signInWithGoogle}
-              onModeChange={setAuthMode}
+              onModeChange={changeAuthMode}
               onPublicBrowse={() => navigate("browse")}
             />
           ) : null}
@@ -1570,7 +2194,7 @@ function App() {
           {visibleRoute === "faq" ? <FaqPage onBrowse={() => navigate("browse")} onPost={() => requireAuth("post-describe")} /> : null}
         </PageChrome>
       )}
-    </>
+    </CurrencyContext.Provider>
   );
 }
 
@@ -1698,6 +2322,9 @@ function BoardRequestCard({
   variant?: "recent" | "reward";
 }) {
   const activeStatus = ["Finder in touch", "Price agreed", "Found", "Delivered", "Accepted"].includes(bounty.status);
+  const currencyPreference = useCurrencyPreference();
+  const compactReward = formatUsdMoney(bounty.rewardValue, currencyPreference, { compact: true });
+  const fullReward = formatUsdMoney(bounty.rewardValue, currencyPreference);
 
   return (
     <article className={`board-request-card ${variant === "reward" ? "board-request-card-reward" : ""}`}>
@@ -1706,12 +2333,12 @@ function BoardRequestCard({
         <img src={bounty.image} alt="" />
         <span className="board-card-copy">
           <strong>{bounty.name}</strong>
-          <em>{bounty.detail}</em>
+          <em>{formatBountyDetail(bounty, currencyPreference)}</em>
         </span>
-        <span className="board-card-stats" aria-label={`${bounty.reward} reward, closes in ${bounty.closes}, ${bounty.submissions} leads`}>
+        <span className="board-card-stats" aria-label={`${fullReward} reward, closes in ${bounty.closes}, ${bounty.submissions} leads`}>
           <span>
             <small>Reward</small>
-            <b>{bounty.reward}</b>
+            <b>{compactReward}</b>
           </span>
           <span>
             <small>Closes</small>
@@ -1762,6 +2389,7 @@ function LandingPage({
   setVideoPlaying: React.Dispatch<React.SetStateAction<boolean>>;
   videoPlaying: boolean;
 }) {
+  const currencyPreference = useCurrencyPreference();
   const [heroSearch, setHeroSearch] = useState("");
   const [heroPlaceholder, setHeroPlaceholder] = useState(heroPlaceholderExamples[0]);
   const recentBoardBounties = bountyListings.slice(0, 4);
@@ -1966,24 +2594,27 @@ function LandingPage({
           <span className="floating-tag cyan">Rare finds</span>
           <span className="floating-tag orange">Escrow held</span>
           <div className="featured-grid">
-            {featuredBounties.map((bounty, index) => (
-              <article className={`bounty-card bounty-card-${index + 1}`} key={bounty.name}>
-                <img src={bounty.image} alt="" />
-                <button className="save-button" type="button" aria-label={`Open ${bounty.name}`} onClick={() => onDetail(bounty.id)}>
-                  <BadgeCheck size={15} aria-hidden="true" />
-                </button>
-                <h3>{bounty.name}</h3>
-                <p>{bounty.detail}</p>
-                <div className="bounty-meta">
-                  <span>
-                    Reward<strong>{bounty.reward}</strong>
-                  </span>
-                  <span>
-                    Closes in<strong>{bounty.closes}</strong>
-                  </span>
-                </div>
-              </article>
-            ))}
+            {featuredBounties.map((bounty, index) => {
+              const rewardText = formatUsdMoney(bounty.rewardValue, currencyPreference, { compact: true });
+              return (
+                <article className={`bounty-card bounty-card-${index + 1}`} key={bounty.name}>
+                  <img src={bounty.image} alt="" />
+                  <button className="save-button" type="button" aria-label={`Open ${bounty.name}`} onClick={() => onDetail(bounty.id)}>
+                    <BadgeCheck size={15} aria-hidden="true" />
+                  </button>
+                  <h3>{bounty.name}</h3>
+                  <p>{formatBountyDetail(bounty, currencyPreference)}</p>
+                  <div className="bounty-meta">
+                    <span>
+                      Reward<strong>{rewardText}</strong>
+                    </span>
+                    <span>
+                      Closes in<strong>{bounty.closes}</strong>
+                    </span>
+                  </div>
+                </article>
+              );
+            })}
           </div>
         </aside>
 
@@ -2088,7 +2719,7 @@ function LandingPage({
                 <img src={item.image} alt="" />
                 <strong>{item.bounty}</strong>
               </span>
-              <span className="reward-cell">{item.reward}</span>
+              <span className="reward-cell">{formatUsdMoney(item.rewardValue, currencyPreference, { compact: true })}</span>
               <span>
                 {item.finder}
                 <small>{item.rating} ★ verified</small>
@@ -2256,24 +2887,51 @@ function LandingPage({
 }
 
 function AuthPage({
-  authBusy,
+  authBusyAction,
   authMessage,
+  emailOtpSentTo,
   mode,
-  nextPage,
-  onComplete,
+  onEmailAuthCodeRequest,
+  onEmailAuthCodeVerify,
+  onEmailAuthReset,
   onGoogleAuth,
   onModeChange,
   onPublicBrowse,
 }: {
-  authBusy: boolean;
+  authBusyAction: AuthBusyAction;
   authMessage: string;
+  emailOtpSentTo: string;
   mode: AuthMode;
-  nextPage: Page;
-  onComplete: () => void;
+  onEmailAuthCodeRequest: (email: string, accountType: AuthAccountType) => void;
+  onEmailAuthCodeVerify: (code: string) => void;
+  onEmailAuthReset: () => void;
   onGoogleAuth: () => void;
   onModeChange: (mode: AuthMode) => void;
   onPublicBrowse: () => void;
 }) {
+  const [email, setEmail] = useState("");
+  const [verificationCode, setVerificationCode] = useState("");
+  const [accountType, setAccountType] = useState<AuthAccountType>("both");
+  const authBusy = authBusyAction !== null;
+  const emailBusy = authBusyAction === "email";
+  const googleBusy = authBusyAction === "google";
+  const codeSent = Boolean(emailOtpSentTo);
+
+  useEffect(() => {
+    setVerificationCode("");
+  }, [emailOtpSentTo, mode]);
+
+  const submitEmailAuth = (event: React.FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+
+    if (codeSent) {
+      onEmailAuthCodeVerify(verificationCode);
+      return;
+    }
+
+    onEmailAuthCodeRequest(email, accountType);
+  };
+
   return (
     <main className="route-page auth-route" aria-labelledby="auth-title">
       <section className="route-hero auth-hero">
@@ -2286,10 +2944,10 @@ function AuthPage({
         </div>
         <div className="auth-panel">
           <div className="segmented-control" role="tablist" aria-label="Authentication mode">
-            <button className={mode === "signup" ? "active" : ""} type="button" role="tab" aria-selected={mode === "signup"} onClick={() => onModeChange("signup")}>
+            <button className={mode === "signup" ? "active" : ""} type="button" role="tab" aria-selected={mode === "signup"} onClick={() => onModeChange("signup")} disabled={authBusy}>
               Sign up
             </button>
-            <button className={mode === "login" ? "active" : ""} type="button" role="tab" aria-selected={mode === "login"} onClick={() => onModeChange("login")}>
+            <button className={mode === "login" ? "active" : ""} type="button" role="tab" aria-selected={mode === "login"} onClick={() => onModeChange("login")} disabled={authBusy}>
               Log in
             </button>
           </div>
@@ -2302,7 +2960,7 @@ function AuthPage({
                 <path fill="#EA4335" d="M12 5.4c1.6 0 3.1.6 4.2 1.7l3.1-3.1A10.6 10.6 0 0 0 12 1 11 11 0 0 0 2.3 7.1L6 9.9c.8-2.6 3.2-4.5 6.1-4.5Z" />
               </svg>
             </span>
-            {authBusy ? "Opening Google..." : "Continue with Google"}
+            {googleBusy ? "Opening Google..." : "Continue with Google"}
           </button>
           <div className="auth-divider">
             <span>or continue with email</span>
@@ -2312,27 +2970,65 @@ function AuthPage({
               {authMessage}
             </p>
           ) : null}
-          <label>
-            Email
-            <input type="email" placeholder="you@example.com" />
-          </label>
-          <label>
-            Password
-            <input type="password" placeholder="Minimum 8 characters" />
-          </label>
-          {mode === "signup" ? (
+          <form className="email-auth-form" onSubmit={submitEmailAuth}>
             <label>
-              Account type
-              <select defaultValue="both">
-                <option value="both">Post requests and submit sources</option>
-                <option value="poster">Post requests only</option>
-                <option value="finder">Submit sources only</option>
-              </select>
+              Email
+              <input
+                type="email"
+                value={codeSent ? emailOtpSentTo : email}
+                placeholder="you@example.com"
+                autoComplete="email"
+                disabled={codeSent || authBusy}
+                onChange={(event) => setEmail(event.target.value)}
+              />
             </label>
+            {codeSent ? (
+              <label>
+                Verification code
+                <input
+                  className="email-code-input"
+                  type="text"
+                  value={verificationCode}
+                  placeholder="6-digit code"
+                  inputMode="numeric"
+                  autoComplete="one-time-code"
+                  maxLength={6}
+                  disabled={authBusy}
+                  onChange={(event) => setVerificationCode(event.target.value.replace(/\D/g, "").slice(0, 6))}
+                />
+              </label>
+            ) : mode === "signup" ? (
+              <label>
+                Account type
+                <select value={accountType} disabled={authBusy} onChange={(event) => setAccountType(event.target.value as AuthAccountType)}>
+                  <option value="both">Post requests and submit sources</option>
+                  <option value="poster">Post requests only</option>
+                  <option value="finder">Submit sources only</option>
+                </select>
+              </label>
+            ) : null}
+            <button className="primary-button wide-button" type="submit" disabled={authBusy}>
+              {codeSent
+                ? emailBusy
+                  ? "Verifying code..."
+                  : "Verify code and continue"
+                : emailBusy
+                  ? "Sending code..."
+                  : mode === "signup"
+                    ? "Send sign up code"
+                    : "Send login code"}
+            </button>
+          </form>
+          {codeSent ? (
+            <div className="auth-secondary-actions">
+              <button className="auth-inline-button" type="button" disabled={authBusy} onClick={() => onEmailAuthCodeRequest(emailOtpSentTo, accountType)}>
+                Resend code
+              </button>
+              <button className="auth-inline-button" type="button" disabled={authBusy} onClick={onEmailAuthReset}>
+                Change email
+              </button>
+            </div>
           ) : null}
-          <button className="primary-button wide-button" type="button" onClick={onComplete}>
-            Continue to {pageLabels[nextPage]}
-          </button>
           <button className="section-link section-button center-link" type="button" onClick={onPublicBrowse}>
             Browse public feed instead <ArrowRight size={17} />
           </button>
@@ -2495,6 +3191,7 @@ function PostRewardPage({
   onDraftChange: (updates: Partial<PostDraft>) => void;
   onNext: () => void;
 }) {
+  const currencyPreference = useCurrencyPreference();
   const breakdown = getEscrowBreakdown(draft.reward);
   const setReward = (value: string) => {
     const nextReward = Number(value);
@@ -2548,19 +3245,19 @@ function PostRewardPage({
           <dl>
             <div>
               <dt>Reward</dt>
-              <dd>US${breakdown.reward}</dd>
+              <dd>{formatUsdMoney(breakdown.reward, currencyPreference)}</dd>
             </div>
             <div>
               <dt>Platform fee</dt>
-              <dd>US${breakdown.platformFee}</dd>
+              <dd>{formatUsdMoney(breakdown.platformFee, currencyPreference)}</dd>
             </div>
             <div>
               <dt>Protection</dt>
-              <dd>US${breakdown.protection}</dd>
+              <dd>{formatUsdMoney(breakdown.protection, currencyPreference)}</dd>
             </div>
             <div className="total-row">
               <dt>Total due today</dt>
-              <dd>US${breakdown.total}</dd>
+              <dd>{formatUsdMoney(breakdown.total, currencyPreference)}</dd>
             </div>
           </dl>
           <p>
@@ -2581,6 +3278,7 @@ function PostPayPage({
   draft: PostDraft;
   onBack: () => void;
 }) {
+  const currencyPreference = useCurrencyPreference();
   const [customerEmail, setCustomerEmail] = useState(() => window.sessionStorage.getItem(authEmailStorageKey) ?? "");
   const [customerName, setCustomerName] = useState("");
   const [checkoutStatus, setCheckoutStatus] = useState<"idle" | "loading" | "error">("idle");
@@ -2822,30 +3520,30 @@ function PostPayPage({
         <aside className="side-panel payment-summary receipt-panel">
           <h2>Payment summary</h2>
           <div className="summary-card">
-            <DollarSign size={28} />
-            <strong>US${breakdown.total} due today</strong>
+            <Banknote size={28} />
+            <strong>{formatUsdMoney(breakdown.total, currencyPreference)} due today</strong>
             <span>Total for {itemName}, including the reward and platform protection.</span>
           </div>
           <dl>
             <div>
               <dt>Reward</dt>
-              <dd>US${breakdown.reward}</dd>
+              <dd>{formatUsdMoney(breakdown.reward, currencyPreference)}</dd>
             </div>
             <div>
               <dt>Platform fee</dt>
-              <dd>US${breakdown.platformFee}</dd>
+              <dd>{formatUsdMoney(breakdown.platformFee, currencyPreference)}</dd>
             </div>
             <div>
               <dt>Protection</dt>
-              <dd>US${breakdown.protection}</dd>
+              <dd>{formatUsdMoney(breakdown.protection, currencyPreference)}</dd>
             </div>
             <div>
               <dt>Fees total</dt>
-              <dd>US${breakdown.platformShare}</dd>
+              <dd>{formatUsdMoney(breakdown.platformShare, currencyPreference)}</dd>
             </div>
             <div className="total-row">
               <dt>Poster pays today</dt>
-              <dd>US${breakdown.total}</dd>
+              <dd>{formatUsdMoney(breakdown.total, currencyPreference)}</dd>
             </div>
           </dl>
           <ul className="check-list">
@@ -2853,7 +3551,7 @@ function PostPayPage({
               <ShieldCheck size={18} /> The processor collects the full poster payment
             </li>
             <li>
-              <Banknote size={18} /> Fees and protection total US${breakdown.platformShare}
+              <Banknote size={18} /> Fees and protection total {formatUsdMoney(breakdown.platformShare, currencyPreference)}
             </li>
             <li>
               <TimerReset size={18} /> Finder payout becomes payable after acceptance
@@ -3006,17 +3704,20 @@ function BountySquareCard({
   onDetail: (bountyId: string) => void;
   rank?: number;
 }) {
+  const currencyPreference = useCurrencyPreference();
+  const rewardText = formatUsdMoney(bounty.rewardValue, currencyPreference, { compact: true });
+
   return (
     <article className={`bounty-square-card tone-${rank ? ((rank - 1) % 5) + 1 : (bounty.rewardValue % 5) + 1} ${compact ? "compact" : ""} ${featured ? "featured" : ""}`}>
       <button className="square-card-hit" type="button" onClick={() => onDetail(bounty.id)} aria-label={`View ${bounty.name}`}>
         <span className="square-rank">{rank ? `#${rank}` : bounty.category}</span>
-        <span className="square-price">{bounty.reward}</span>
+        <span className="square-price">{rewardText}</span>
         <span className="square-image-wrap">
           <img src={bounty.image} alt="" />
         </span>
         <span className="square-copy">
           <strong>{bounty.name}</strong>
-          <em>{bounty.detail}</em>
+          <em>{formatBountyDetail(bounty, currencyPreference)}</em>
         </span>
         <span className="square-meta">
           <span>
@@ -3042,6 +3743,8 @@ function BountyDetailPage({
   onPosterProfile: () => void;
   onSubmit: () => void;
 }) {
+  const currencyPreference = useCurrencyPreference();
+
   return (
     <main className="route-page" aria-labelledby="detail-title">
       <button className="back-button page-back" type="button" onClick={onBrowse}>
@@ -3069,7 +3772,7 @@ function BountyDetailPage({
           </div>
         </article>
         <aside className="side-panel detail-side">
-          <strong className="detail-reward">{bounty.reward}</strong>
+          <strong className="detail-reward">{formatUsdMoney(bounty.rewardValue, currencyPreference)}</strong>
           <span>Reward for accepted source</span>
           <button className="primary-button wide-button" type="button" onClick={onSubmit}>
             Submit a source <Send size={18} />
@@ -3101,6 +3804,7 @@ function SubmitFindPage({
   onBack: () => void;
   onDashboard: () => void;
 }) {
+  const currencyPreference = useCurrencyPreference();
   const [submitted, setSubmitted] = useState(false);
   const [sourceType, setSourceType] = useState<FindSourceType>("source-link");
   const [sourceLink, setSourceLink] = useState("");
@@ -3254,7 +3958,7 @@ function SubmitFindPage({
             <img src={bounty.image} alt="" />
             <div>
               <strong>{bounty.name}</strong>
-              <span>{bounty.reward} reward · {bounty.closes} left</span>
+              <span>{formatUsdMoney(bounty.rewardValue, currencyPreference, { compact: true })} reward · {bounty.closes} left</span>
             </div>
           </div>
         </aside>
@@ -3274,6 +3978,7 @@ function PosterDashboardPage({
   onDispute: () => void;
   onProfile: () => void;
 }) {
+  const currencyPreference = useCurrencyPreference();
   const checkoutSnapshot = readStoredCheckoutSnapshot();
 
   return (
@@ -3291,10 +3996,10 @@ function PosterDashboardPage({
         </button>
       </section>
       <section className="metric-grid">
-        <Metric icon={LockKeyhole} label="Escrow funded" value="US$1,280" />
+        <Metric icon={LockKeyhole} label="Escrow funded" value={formatUsdMoney(1280, currencyPreference, { compact: true })} />
         <Metric icon={MessageSquare} label="Sources awaiting review" value="4" />
         <Metric icon={PackageCheck} label="Handoffs in discussion" value="2" />
-        <Metric icon={CheckCircle2} label="Accepted this month" value="US$930" />
+        <Metric icon={CheckCircle2} label="Accepted this month" value={formatUsdMoney(930, currencyPreference, { compact: true })} />
       </section>
       <section className="dashboard-grid">
         <div className="dashboard-panel">
@@ -3309,7 +4014,7 @@ function PosterDashboardPage({
                 <strong>{bounty.name}</strong>
                 <small>{bounty.submissions} submissions · {bounty.status}</small>
               </span>
-              <em>{bounty.reward}</em>
+              <em>{formatUsdMoney(bounty.rewardValue, currencyPreference, { compact: true })}</em>
             </button>
           ))}
         </div>
@@ -3341,16 +4046,17 @@ function PostSuccessConfirmation({
   checkoutSnapshot: CheckoutSnapshot | null;
   onProfile: () => void;
 }) {
+  const currencyPreference = useCurrencyPreference();
   const itemName = checkoutSnapshot?.itemName ?? "Your request";
   const confirmationCode = formatConfirmationCode(checkoutSnapshot?.requestId);
   const postedDate = formatConfirmationDate(checkoutSnapshot?.createdAt);
   const durationText = checkoutSnapshot?.durationDays ? `${checkoutSnapshot.durationDays} days` : "Active window";
   const categoryText = checkoutSnapshot?.category ?? "Public request";
-  const paidTodayText = checkoutSnapshot ? `US$${checkoutSnapshot.total}` : "Payment processed";
-  const rewardText = checkoutSnapshot ? `US$${checkoutSnapshot.reward}` : "Held after acceptance";
+  const paidTodayText = checkoutSnapshot ? formatUsdMoney(checkoutSnapshot.total, currencyPreference) : "Payment processed";
+  const rewardText = checkoutSnapshot ? formatUsdMoney(checkoutSnapshot.reward, currencyPreference) : "Held after acceptance";
   const receiptTarget = checkoutSnapshot?.email ? `Receipt sent to ${checkoutSnapshot.email}` : "Receipt saved to your checkout account";
   const platformShareText = checkoutSnapshot
-    ? `Platform share is US$${checkoutSnapshot.platformShare}, including service fee and protection reserve.`
+    ? `Platform share is ${formatUsdMoney(checkoutSnapshot.platformShare, currencyPreference)}, including service fee and protection reserve.`
     : "The hosted checkout keeps the receipt and payment split attached to this request.";
   const reviewDashboard = () => {
     document.getElementById("poster-dashboard-title")?.scrollIntoView({ behavior: "smooth", block: "start" });
@@ -3450,6 +4156,8 @@ function FinderDashboardPage({
   onProfile: () => void;
   onSubmit: () => void;
 }) {
+  const currencyPreference = useCurrencyPreference();
+
   return (
     <main className="route-page dashboard-page" aria-labelledby="finder-dashboard-title">
       <section className="dashboard-head">
@@ -3467,7 +4175,7 @@ function FinderDashboardPage({
         </div>
       </section>
       <section className="metric-grid">
-        <Metric icon={Banknote} label="Available reward" value="US$640" />
+        <Metric icon={Banknote} label="Available reward" value={formatUsdMoney(640, currencyPreference, { compact: true })} />
         <Metric icon={Star} label="Reputation" value="4.9" />
         <Metric icon={Trophy} label="Accepted sources" value="18" />
         <Metric icon={Clock3} label="Pending source reviews" value="3" />
@@ -3485,7 +4193,7 @@ function FinderDashboardPage({
                 <strong>{bounty.name}</strong>
                 <small>{bounty.category} · {bounty.closes} left</small>
               </span>
-              <em>{bounty.reward}</em>
+              <em>{formatUsdMoney(bounty.rewardValue, currencyPreference, { compact: true })}</em>
             </button>
           ))}
         </div>
