@@ -3483,7 +3483,7 @@ function LandingPage({
         <div className="landing-recent-board board-rails" aria-label="Request board preview">
           <section className="board-row" aria-labelledby="recent-board-title">
             <div className="board-row-head">
-              <h2 id="recent-board-title">Open funded requests</h2>
+              <h2 id="recent-board-title">Example find requests</h2>
               <button className="board-view-all" type="button" onClick={onBrowse}>
                 View all <ArrowRight size={18} />
               </button>
