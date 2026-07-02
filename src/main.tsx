@@ -4535,7 +4535,6 @@ function BrowsePage({
         <h1 id="browse-title">Featured requests</h1>
         <p>Simple posts with clear photos and small offers, shown first so finders can quickly spot what they recognize.</p>
         {dataLoading ? <p className="dialog-note">Loading live paid requests...</p> : null}
-        {dataError ? <p className="dialog-error">Live request feed is unavailable, so demo requests are shown.</p> : null}
         <div className="gallery-hero-actions">
           <button className="primary-button" type="button" onClick={onPost}>
             Post a request <ArrowRight size={18} />
@@ -4625,7 +4624,6 @@ function BrowseAllPage({
           <h1 id="browse-all-title">Browse all requests</h1>
           <p>Search open requests by item, category, or location.</p>
           {dataLoading ? <p className="dialog-note">Loading live paid requests...</p> : null}
-          {dataError ? <p className="dialog-error">Live request feed is unavailable, so demo requests are shown.</p> : null}
         </div>
         <button className="primary-button" type="button" onClick={onPost}>
           Post a request <ArrowRight size={18} />

@@ -5,6 +5,11 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <meta name="theme-color" content="#0b6d3b" />
     <meta name="robots" content="index,follow" />
+    <style>
+      #root > [data-static-fallback] {
+        display: none;
+      }
+    </style>
     <meta
       name="description"
       content="pleasefindmethis.com helps people find sold-out, rare, vintage, and hard-to-find items by posting a request and offering a finder reward."
@@ -79,7 +84,7 @@
   </head>
   <body>
     <div id="root">
-      <main>
+      <main data-static-fallback>
         <h1>Find hard-to-find items with protected offers</h1>
         <p>
           pleasefindmethis.com is a marketplace for hard-to-find items. Posters fund a finder payout for a specific item,
