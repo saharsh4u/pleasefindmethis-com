@@ -6217,6 +6217,14 @@ function Metric({ icon: Icon, label, value }: { icon: React.ElementType; label: 
   );
 }
 
+function AppReadyMarker() {
+  useEffect(() => {
+    document.documentElement.dataset.appReady = "true";
+  }, []);
+
+  return null;
+}
+
 type RootWindow = Window & {
   __bountyMarketplaceRoot?: ReturnType<typeof createRoot>;
 };
@@ -6230,5 +6238,6 @@ root.render(
   <>
     <App />
     <Analytics />
+    <AppReadyMarker />
   </>,
 );
