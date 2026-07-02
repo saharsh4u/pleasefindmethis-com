@@ -266,6 +266,7 @@ type CheckoutSnapshot = {
 type SeoMeta = {
   title: string;
   description: string;
+  socialDescription?: string;
   path: string;
   robots: "index,follow" | "noindex,follow";
   image: string;
@@ -276,9 +277,10 @@ type JsonLdNode = Record<string, unknown>;
 const siteName = "pleasefindmethis.com";
 const siteOrigin = "https://pleasefindmethis.com";
 const defaultSeoDescription =
-  "Reward-style requests for hard-to-find, discontinued, and sold-out items. Post a photo, fund a reward, and let finders submit protected source leads.";
+  "pleasefindmethis.com helps people find sold-out, rare, vintage, and hard-to-find items by posting a request and offering a finder reward.";
+const defaultSocialDescription = "Post what you want. Add a reward. Real finders send links and leads to help you buy it.";
 const organizationLogo = `${siteOrigin}/magnifying-glass.png`;
-const defaultSeoImage = `${siteOrigin}/og/pleasefindmethis-vintage-tee-poster-4k.png`;
+const defaultSeoImage = `${siteOrigin}/og/pleasefindmethis-vintage-tee-fullscreen-v3.png`;
 const requestSingular = "request";
 const requestPlural = "requests";
 const checkoutRequestTimeoutMs = 25000;
@@ -431,10 +433,11 @@ const indexablePages = new Set<Page>([
   "report",
 ]);
 
-const pageSeoCopy: Record<Page, { title: string; description: string }> = {
+const pageSeoCopy: Record<Page, { title: string; description: string; socialDescription?: string }> = {
   landing: {
-    title: "Please help me find this vintage T-shirt | pleasefindmethis.com",
-    description: "Reward-style requests for hard-to-find, discontinued, and sold-out items.",
+    title: "Find Sold-Out, Rare, and Vintage Items",
+    description: defaultSeoDescription,
+    socialDescription: defaultSocialDescription,
   },
   auth: {
     title: "Sign In | pleasefindmethis.com",
@@ -2426,6 +2429,7 @@ function setStructuredData(data: JsonLdNode) {
 function updateDocumentSeo(page: Page, bounties: BountyListing[], activeBounty?: BountyListing) {
   const meta = getSeoMeta(page, activeBounty);
   const canonicalUrl = getCanonicalUrl(meta.path);
+  const socialDescription = meta.socialDescription ?? meta.description;
 
   document.title = meta.title;
   setMetaTag("name", "description", meta.description);
@@ -2433,17 +2437,17 @@ function updateDocumentSeo(page: Page, bounties: BountyListing[], activeBounty?:
   setMetaTag("property", "og:type", "website");
   setMetaTag("property", "og:site_name", siteName);
   setMetaTag("property", "og:title", meta.title);
-  setMetaTag("property", "og:description", meta.description);
+  setMetaTag("property", "og:description", socialDescription);
   setMetaTag("property", "og:url", canonicalUrl);
   setMetaTag("property", "og:image", meta.image);
   setMetaTag("property", "og:image:secure_url", meta.image);
   setMetaTag("property", "og:image:type", "image/png");
-  setMetaTag("property", "og:image:width", "3840");
-  setMetaTag("property", "og:image:height", "2160");
+  setMetaTag("property", "og:image:width", "1200");
+  setMetaTag("property", "og:image:height", "675");
   setMetaTag("property", "og:image:alt", "A reward-style poster asking for help finding a vintage T-shirt with a protected source lead.");
   setMetaTag("name", "twitter:card", "summary_large_image");
   setMetaTag("name", "twitter:title", meta.title);
-  setMetaTag("name", "twitter:description", meta.description);
+  setMetaTag("name", "twitter:description", socialDescription);
   setMetaTag("name", "twitter:image", meta.image);
   setMetaTag("name", "twitter:image:alt", "A reward-style poster asking for help finding a vintage T-shirt with a protected source lead.");
   setCanonicalLink(canonicalUrl);
