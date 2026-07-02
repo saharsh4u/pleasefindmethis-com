@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { createRoot } from "react-dom/client";
 import type { Session } from "@supabase/supabase-js";
+import { Analytics } from "@vercel/analytics/react";
 import {
   AlertTriangle,
   ArrowLeft,
@@ -6225,4 +6226,9 @@ const rootWindow = window as RootWindow;
 const root = rootWindow.__bountyMarketplaceRoot ?? createRoot(rootElement);
 
 rootWindow.__bountyMarketplaceRoot = root;
-root.render(<App />);
+root.render(
+  <>
+    <App />
+    <Analytics />
+  </>,
+);
