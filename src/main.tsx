@@ -1972,18 +1972,18 @@ const problemItems = [
 const workSteps = [
   {
     icon: Search,
-    title: "1. Fund a real request",
-    copy: "Add photos, describe the exact item, and choose the payout for the right source.",
+    title: "1. Post the item",
+    copy: "Add photos and describe the exact thing you want finders to look for.",
   },
   {
     icon: LockKeyhole,
-    title: "2. Sources stay private first",
-    copy: "Finders send a store link, seller contact, local lead, or handoff path. The full source is saved before reveal.",
+    title: "2. Set a reward",
+    copy: "Choose what a finder can earn for a useful link, seller lead, local tip, or handoff.",
   },
   {
     icon: BadgeCheck,
-    title: "3. Reveal, check, and decide",
-    copy: "Open the source, check the match, then accept it when it works. If it does not, give a clear reason.",
+    title: "3. Review finder leads",
+    copy: "Reveal the lead, check the match, then accept it when it helps you buy the item.",
   },
 ];
 
@@ -3535,14 +3535,14 @@ function LandingPage({
 
         <div className="hero-copy">
           <p className="hero-site-tag">{siteName}</p>
-          <h1>Can&apos;t find it anywhere?</h1>
-          <p className="mobile-hero-title" aria-hidden="true">Can&apos;t find it anywhere?</p>
+          <h1>Can&apos;t find that one item anywhere?</h1>
+          <p className="mobile-hero-title" aria-hidden="true">Can&apos;t find that one item anywhere?</p>
           <p className="micro-line">
-            <span>Post what you need</span>
+            <span>Post a photo</span>
             <ArrowRight size={16} />
-            <span>finders share a source</span>
+            <span>set a reward</span>
             <ArrowRight size={16} />
-            <span>you connect and get it.</span>
+            <span>review finder leads</span>
           </p>
           <form className="hero-search-form" onSubmit={submitHeroSearch}>
             <Search size={20} aria-hidden="true" />
@@ -3552,10 +3552,10 @@ function LandingPage({
           <div className="mobile-hero-actions" aria-label="Hero actions">
             <button className="primary-button mobile-post-button hero-plus-button" type="button" onClick={onPost}>
               <span aria-hidden="true">+</span>
-              Post it now
+              Post a Find Request
             </button>
             <a className="mobile-browse-button" href={routeHref("browse-all")} onClick={(event) => handleRoutedAnchorClick(event, onBrowseAll)}>
-              Browse all <ArrowRight size={14} />
+              Browse Open Requests <ArrowRight size={14} />
             </a>
           </div>
         </div>
@@ -3585,17 +3585,17 @@ function LandingPage({
 
         <div className="hero-lower">
           <p className="hero-subline">
-            You&apos;ve searched every site, called every shop, scrolled for hours, and it&apos;s still nowhere. Let someone who knows the link, the shop, the friend, or the hidden source point you to it.
+            Post a photo, set a reward, and get links, seller leads, or local tips from people who know where to look.
           </p>
           <button className="primary-button hero-cta" type="button" onClick={onPost}>
-            Post what you&apos;re looking for
+            Post a Find Request
           </button>
           <a className="finder-link finder-button hero-secondary-link" href={routeHref("finder-dashboard")} onClick={(event) => handleRoutedAnchorClick(event, onFinders)}>
-            Good at finding things? Earn by finding <ArrowRight size={18} />
+            Know where to find rare items? Earn from helpful leads <ArrowRight size={18} />
           </a>
           <p className="trust-line">
             <LockKeyhole size={18} />
-            Your funded offer is tracked. If no valid source is accepted during the request window, the finder offer can be returned under the refund policy.
+            Your reward is tracked. If no valid lead is accepted, the finder payout can be returned under the refund policy.
           </p>
         </div>
 
@@ -3604,7 +3604,7 @@ function LandingPage({
             <div className="board-row-head">
               <h2 id="recent-board-title">Example find requests</h2>
               <button className="board-view-all" type="button" onClick={onBrowse}>
-                View all <ArrowRight size={18} />
+                Browse Open Requests <ArrowRight size={18} />
               </button>
             </div>
             <div className="board-card-rail">
@@ -3646,7 +3646,7 @@ function LandingPage({
       <section className="how-section" id="how" aria-labelledby="how-title">
         <h2 id="how-title">How it works</h2>
         <p className="how-intro">
-          Post the thing you cannot find. Fund an offer. Finders send protected leads. You reveal the source only when you are ready to review it.
+          Post what you are looking for, set a reward, and review leads from people who know where to look.
         </p>
         <div className="how-steps">
           {workSteps.map((step, index) => {
@@ -3803,7 +3803,7 @@ function LandingPage({
           <span> Someone out there knows exactly where it is.</span>
         </h2>
         <button className="primary-button" type="button" onClick={onPost}>
-          Post what you're looking for
+          Post a Find Request
         </button>
       </section>
       <SiteFooter navigate={onNavigate} />
