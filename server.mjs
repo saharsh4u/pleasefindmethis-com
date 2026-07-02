@@ -18,6 +18,7 @@ for (const [key, value] of Object.entries(env)) {
 }
 
 const isProduction = mode === "production";
+const publicAppUrl = normalizeAppUrl(process.env.PUBLIC_APP_URL ?? process.env.VITE_PUBLIC_APP_URL ?? "");
 const host = process.env.HOST ?? "127.0.0.1";
 let port = Number(process.env.PORT ?? 5173);
 const distRoot = path.resolve(root, "dist");
@@ -47,6 +48,16 @@ export async function handleRequest(req, res) {
 
     if (requestUrl.pathname === "/api/payments/checkout") {
       await handleCreatePaymentCheckout(req, res);
+      return;
+    }
+
+    if (requestUrl.pathname === "/api/requests/public") {
+      await handlePublicRequests(req, res);
+      return;
+    }
+
+    if (requestUrl.pathname === "/api/health") {
+      await handleHealthCheck(req, res);
       return;
     }
 
@@ -219,6 +230,11 @@ async function handleCreateDodoCheckout(req, res) {
     return;
   }
 
+  if (isProduction && !isDodoLiveMode()) {
+    sendJson(res, 503, { error: "Dodo live mode is required before production checkout can be enabled." });
+    return;
+  }
+
   const checkoutRequest = await readCheckoutRequest(req, res);
 
   if (!checkoutRequest) {
@@ -226,6 +242,13 @@ async function handleCreateDodoCheckout(req, res) {
   }
 
   const { breakdown, category, details, durationDays, email, itemName, name, requestId } = checkoutRequest;
+  const claimed = await claimCheckoutRequest(requestId, "dodo");
+
+  if (!claimed) {
+    sendJson(res, 409, { error: "Checkout is already in progress for this request. Refresh your dashboard for the latest payment link." });
+    return;
+  }
+
   const origin = getRequestOrigin(req);
   const checkoutPayload = {
     product_cart: [
@@ -253,6 +276,8 @@ async function handleCreateDodoCheckout(req, res) {
       total_usd: String(breakdown.total),
       duration_days: String(durationDays),
       source: "pleasefindmethis-post-paywall",
+      payment_provider: "dodo",
+      payment_environment: getDodoEnvironment(),
     },
     return_url: `${origin}/#/poster-dashboard?checkout=success`,
     cancel_url: `${origin}/#/post/pay?checkout=cancelled`,
@@ -268,6 +293,7 @@ async function handleCreateDodoCheckout(req, res) {
         headers: {
           Authorization: `Bearer ${apiKey}`,
           "Content-Type": "application/json",
+          "Idempotency-Key": `request:${requestId}:checkout`,
         },
         body: JSON.stringify(checkoutPayload),
       },
@@ -275,10 +301,7 @@ async function handleCreateDodoCheckout(req, res) {
     );
   } catch (error) {
     console.error("Dodo checkout creation timed out or failed", error);
-    await updateRequestPaymentState(requestId, {
-      status: "checkout_failed",
-      payment_status: "failed",
-    });
+    await markCheckoutFailed(requestId, true);
     sendJson(res, 504, { error: "The payment provider took too long to create checkout. Please try again." });
     return;
   }
@@ -288,10 +311,7 @@ async function handleCreateDodoCheckout(req, res) {
 
   if (!dodoResponse.ok) {
     console.error("Dodo checkout creation failed", dodoResponse.status, dodoPayload ?? responseText);
-    await updateRequestPaymentState(requestId, {
-      status: "checkout_failed",
-      payment_status: "failed",
-    });
+    await markCheckoutFailed(requestId, dodoResponse.status >= 500);
     const checkoutError = getDodoCheckoutError(dodoResponse.status, dodoPayload);
     sendJson(res, checkoutError.status, { error: checkoutError.message });
     return;
@@ -299,6 +319,7 @@ async function handleCreateDodoCheckout(req, res) {
 
   if (!isRecord(dodoPayload) || typeof dodoPayload.checkout_url !== "string") {
     console.error("Dodo checkout response did not include checkout_url", dodoPayload);
+    await markCheckoutFailed(requestId, false);
     sendJson(res, 502, { error: "Dodo did not return a checkout URL." });
     return;
   }
@@ -336,6 +357,167 @@ async function handleCreatePaymentCheckout(req, res) {
   await handleCreateDodoCheckout(req, res);
 }
 
+async function handlePublicRequests(req, res) {
+  if (req.method !== "GET") {
+    sendJson(res, 405, { error: "Method not allowed." });
+    return;
+  }
+
+  if (!supabaseAdmin) {
+    sendJson(res, 503, { error: "Public request feed is not configured." });
+    return;
+  }
+
+  const { data, error } = await supabaseAdmin
+    .from("public_request_cards")
+    .select("id,item_name,category,details,reward,duration_days,status,payment_status,created_at,paid_at,closes_at,days_remaining,primary_image_url,submission_count")
+    .order("reward", { ascending: false })
+    .limit(24);
+
+  if (!error) {
+    sendJson(res, 200, { requests: data ?? [] });
+    return;
+  }
+
+  const schemaCacheMiss = error.code === "PGRST205" || /public_request_cards/.test(error.message ?? "");
+
+  if (!schemaCacheMiss) {
+    console.error("Could not load public request cards", error);
+    sendJson(res, 503, { error: "Public request feed is unavailable." });
+    return;
+  }
+
+  try {
+    const fallback = await loadPublicRequestsFallback();
+    sendJson(res, 200, { requests: fallback });
+  } catch (fallbackError) {
+    console.error("Could not load fallback public request feed", fallbackError);
+    sendJson(res, 503, { error: "Public request feed is unavailable." });
+  }
+}
+
+async function loadPublicRequestsFallback() {
+  const { data: requestRows, error: requestError } = await supabaseAdmin
+    .from("requests")
+    .select("id,item_name,category,details,reward,duration_days,status,payment_status,reference_images,created_at,paid_at")
+    .in("status", ["paid", "disputed"])
+    .in("payment_status", ["paid", "disputed"])
+    .not("paid_at", "is", null)
+    .order("reward", { ascending: false })
+    .limit(24);
+
+  if (requestError) {
+    console.error("Could not load fallback public request rows", requestError);
+    throw new Error("Public request feed is unavailable.");
+  }
+
+  const requests = requestRows ?? [];
+  const requestIds = requests.map((request) => request.id).filter(Boolean);
+  const submissionCounts = await loadSubmissionCounts(requestIds);
+
+  return requests.map((request) => {
+    const createdAt = parseString(request.created_at, 80);
+    const durationDays = parseDuration(request.duration_days);
+    const closesAt = createdAt ? new Date(new Date(createdAt).getTime() + durationDays * 24 * 60 * 60 * 1000) : null;
+    const daysRemaining = closesAt ? Math.max(0, Math.ceil((closesAt.getTime() - Date.now()) / 86400000)) : null;
+    const referenceImages = Array.isArray(request.reference_images) ? request.reference_images : [];
+    const firstImage = referenceImages.find(isRecord);
+    const primaryImageUrl = parseString(firstImage?.url, 1000) || "/find-requests/duck-wall-art.jpg";
+
+    return {
+      id: request.id,
+      item_name: parseString(request.item_name, 120),
+      category: parseString(request.category, 80),
+      details: parseString(request.details, 500),
+      reward: Number(request.reward) || minimumReward,
+      duration_days: durationDays,
+      status: request.status,
+      payment_status: request.payment_status,
+      created_at: createdAt,
+      paid_at: request.paid_at,
+      closes_at: closesAt ? closesAt.toISOString() : null,
+      days_remaining: daysRemaining,
+      primary_image_url: primaryImageUrl,
+      submission_count: submissionCounts.get(request.id) ?? 0,
+    };
+  });
+}
+
+async function loadSubmissionCounts(requestIds) {
+  const counts = new Map();
+
+  if (!requestIds.length) {
+    return counts;
+  }
+
+  const { data, error } = await supabaseAdmin
+    .from("source_submissions")
+    .select("request_id,status")
+    .in("request_id", requestIds);
+
+  if (error) {
+    console.error("Could not load public submission counts", error);
+    return counts;
+  }
+
+  for (const row of data ?? []) {
+    if (row.status === "withdrawn" || row.status === "invalid") {
+      continue;
+    }
+
+    counts.set(row.request_id, (counts.get(row.request_id) ?? 0) + 1);
+  }
+
+  return counts;
+}
+
+async function handleHealthCheck(req, res) {
+  if (req.method !== "GET") {
+    sendJson(res, 405, { error: "Method not allowed." });
+    return;
+  }
+
+  const checks = {
+    app: "pleasefindmethis-com",
+    mode,
+    publicAppUrl: Boolean(publicAppUrl),
+    supabase: {
+      publicEnv: Boolean(process.env.VITE_SUPABASE_URL && process.env.VITE_SUPABASE_PUBLISHABLE_KEY),
+      adminEnv: Boolean(supabaseAdmin),
+      requestsTable: false,
+      publicRequestCardsView: false,
+    },
+    payments: {
+      provider: getPaymentProvider(),
+      productionLiveMode: !isProduction || isConfiguredPaymentProviderLive(),
+      lemonSqueezyConfigured: Boolean(process.env.LEMONSQUEEZY_API_KEY && process.env.LEMONSQUEEZY_STORE_ID && process.env.LEMONSQUEEZY_VARIANT_ID && process.env.LEMONSQUEEZY_WEBHOOK_SECRET),
+      dodoConfigured: Boolean(process.env.DODO_PAYMENTS_API_KEY && process.env.DODO_PRODUCT_ID && process.env.DODO_WEBHOOK_SECRET),
+    },
+  };
+
+  if (supabaseAdmin) {
+    const [{ error: requestsError }, { error: publicCardsError }] = await Promise.all([
+      supabaseAdmin.from("requests").select("id", { count: "exact", head: true }),
+      supabaseAdmin.from("public_request_cards").select("id", { count: "exact", head: true }),
+    ]);
+
+    checks.supabase.requestsTable = !requestsError;
+    checks.supabase.publicRequestCardsView = !publicCardsError;
+  }
+
+  const healthy =
+    checks.supabase.publicEnv &&
+    checks.supabase.adminEnv &&
+    checks.supabase.requestsTable &&
+    checks.supabase.publicRequestCardsView &&
+    checks.payments.productionLiveMode;
+
+  sendJson(res, healthy ? 200 : 503, {
+    ok: healthy,
+    checks,
+  });
+}
+
 async function handleCreateLemonSqueezyCheckout(req, res) {
   if (req.method !== "POST") {
     sendJson(res, 405, { error: "Method not allowed." });
@@ -353,6 +535,11 @@ async function handleCreateLemonSqueezyCheckout(req, res) {
     return;
   }
 
+  if (isProduction && parseBooleanEnv("LEMONSQUEEZY_TEST_MODE", false)) {
+    sendJson(res, 503, { error: "Lemon Squeezy live mode is required before production checkout can be enabled." });
+    return;
+  }
+
   const checkoutRequest = await readCheckoutRequest(req, res);
 
   if (!checkoutRequest) {
@@ -360,6 +547,13 @@ async function handleCreateLemonSqueezyCheckout(req, res) {
   }
 
   const { breakdown, category, details, durationDays, email, itemName, name, requestId } = checkoutRequest;
+  const claimed = await claimCheckoutRequest(requestId, "lemonsqueezy");
+
+  if (!claimed) {
+    sendJson(res, 409, { error: "Checkout is already in progress for this request. Refresh your dashboard for the latest payment link." });
+    return;
+  }
+
   const origin = getRequestOrigin(req);
   const checkoutPayload = {
     data: {
@@ -398,6 +592,7 @@ async function handleCreateLemonSqueezyCheckout(req, res) {
             duration_days: String(durationDays),
             source: "pleasefindmethis-post-paywall",
             payment_provider: "lemonsqueezy",
+            payment_environment: parseBooleanEnv("LEMONSQUEEZY_TEST_MODE", false) ? "test" : "live",
           },
         },
         test_mode: parseBooleanEnv("LEMONSQUEEZY_TEST_MODE", false),
@@ -430,6 +625,7 @@ async function handleCreateLemonSqueezyCheckout(req, res) {
           Accept: "application/vnd.api+json",
           Authorization: `Bearer ${apiKey}`,
           "Content-Type": "application/vnd.api+json",
+          "Idempotency-Key": `request:${requestId}:checkout`,
         },
         body: JSON.stringify(checkoutPayload),
       },
@@ -437,10 +633,7 @@ async function handleCreateLemonSqueezyCheckout(req, res) {
     );
   } catch (error) {
     console.error("Lemon Squeezy checkout creation timed out or failed", error);
-    await updateRequestPaymentState(requestId, {
-      status: "checkout_failed",
-      payment_status: "failed",
-    });
+    await markCheckoutFailed(requestId, true);
     sendJson(res, 504, { error: "The payment provider took too long to create checkout. Please try again." });
     return;
   }
@@ -450,10 +643,7 @@ async function handleCreateLemonSqueezyCheckout(req, res) {
 
   if (!lemonResponse.ok) {
     console.error("Lemon Squeezy checkout creation failed", lemonResponse.status, getLemonSqueezyErrorSummary(lemonPayload, responseText));
-    await updateRequestPaymentState(requestId, {
-      status: "checkout_failed",
-      payment_status: "failed",
-    });
+    await markCheckoutFailed(requestId, lemonResponse.status >= 500);
     sendJson(res, 502, {
       error: getLemonSqueezyCheckoutError(lemonResponse.status, lemonPayload),
     });
@@ -467,6 +657,7 @@ async function handleCreateLemonSqueezyCheckout(req, res) {
 
   if (!checkoutUrl) {
     console.error("Lemon Squeezy checkout response did not include a URL", getLemonSqueezyErrorSummary(lemonPayload, responseText));
+    await markCheckoutFailed(requestId, false);
     sendJson(res, 502, { error: "Lemon Squeezy did not return a checkout URL." });
     return;
   }
@@ -507,18 +698,25 @@ async function handleDodoWebhook(req, res) {
   }
 
   const rawBody = await readRawBody(req);
+  let event;
 
   try {
     const webhook = new Webhook(webhookSecret);
-    const event = webhook.verify(rawBody.toString("utf8"), {
+    event = webhook.verify(rawBody.toString("utf8"), {
       "webhook-id": firstHeader(req.headers["webhook-id"]),
       "webhook-signature": firstHeader(req.headers["webhook-signature"]),
       "webhook-timestamp": firstHeader(req.headers["webhook-timestamp"]),
     });
+  } catch (error) {
+    console.error("Invalid Dodo webhook signature", error);
+    sendJson(res, 400, { error: "Invalid webhook signature." });
+    return;
+  }
 
+  try {
     const eventType = getDodoEventType(event);
     const eventData = getDodoEventData(event);
-    await syncDodoEventToRequest(eventType, eventData, event);
+    await syncDodoEventToRequest(eventType, eventData, event, req);
     console.log("Verified Dodo webhook", {
       type: eventType,
       paymentId: eventData.payment_id,
@@ -527,8 +725,9 @@ async function handleDodoWebhook(req, res) {
 
     sendJson(res, 200, { received: true });
   } catch (error) {
-    console.error("Invalid Dodo webhook signature", error);
-    sendJson(res, 400, { error: "Invalid webhook signature." });
+    const status = error instanceof WebhookValidationError ? error.statusCode : 500;
+    console.error("Could not process Dodo webhook", error);
+    sendJson(res, status, { error: error instanceof Error ? error.message : "Could not process webhook." });
   }
 }
 
@@ -563,13 +762,20 @@ async function handleLemonSqueezyWebhook(req, res) {
 
   const eventType = getLemonSqueezyEventType(event);
   const eventData = isRecord(event.data) ? event.data : {};
-  await syncLemonSqueezyEventToRequest(eventType, eventData, event);
-  console.log("Verified Lemon Squeezy webhook", {
-    type: eventType,
-    orderId: eventData.id,
-  });
 
-  sendJson(res, 200, { received: true });
+  try {
+    await syncLemonSqueezyEventToRequest(eventType, eventData, event);
+    console.log("Verified Lemon Squeezy webhook", {
+      type: eventType,
+      orderId: eventData.id,
+    });
+
+    sendJson(res, 200, { received: true });
+  } catch (error) {
+    const status = error instanceof WebhookValidationError ? error.statusCode : 500;
+    console.error("Could not process Lemon Squeezy webhook", error);
+    sendJson(res, status, { error: error instanceof Error ? error.message : "Could not process webhook." });
+  }
 }
 
 function getEscrowBreakdown(reward) {
@@ -653,9 +859,17 @@ function getLemonSqueezyErrorSummary(payload, responseText) {
   return payload;
 }
 
-async function syncDodoEventToRequest(eventType, eventData, rawEvent) {
+class WebhookValidationError extends Error {
+  constructor(message, statusCode = 400) {
+    super(message);
+    this.name = "WebhookValidationError";
+    this.statusCode = statusCode;
+  }
+}
+
+async function syncDodoEventToRequest(eventType, eventData, rawEvent, req) {
   if (!supabaseAdmin) {
-    return;
+    throw new Error("Supabase admin client is not configured.");
   }
 
   const metadata = isRecord(eventData.metadata) ? eventData.metadata : {};
@@ -665,31 +879,43 @@ async function syncDodoEventToRequest(eventType, eventData, rawEvent) {
     return;
   }
 
-  await supabaseAdmin.from("request_payment_events").insert({
+  const request = await loadPaymentRequest(requestId);
+  const providerEventId = getDodoProviderEventId(rawEvent, req, eventType, eventData, requestId);
+  const providerEnvironment = getDodoWebhookEnvironment(eventData, rawEvent);
+  const paymentId = parseString(eventData.payment_id, 160) || parseString(eventData.id, 160);
+  const sessionId = parseString(eventData.session_id, 160) || parseString(eventData.checkout_session_id, 160);
+
+  validateWebhookEnvironment("dodo", providerEnvironment);
+  validateRequestProviderState("dodo", request, { paymentId, sessionId });
+
+  if (eventType === "payment.succeeded") {
+    validatePaidWebhookAmount("dodo", request, eventData, rawEvent);
+    validateDodoProduct(eventData);
+  }
+
+  await recordPaymentEvent({
     provider: "dodo",
     request_id: requestId,
     event_type: eventType,
-    dodo_payment_id: parseString(eventData.payment_id, 160) || null,
-    checkout_session_id: parseString(eventData.session_id, 160) || null,
+    provider_event_id: providerEventId,
+    provider_environment: providerEnvironment,
+    dodo_payment_id: paymentId || null,
+    checkout_session_id: sessionId || null,
     payload: rawEvent,
   });
 
-  const paymentUpdate = getPaymentUpdateForEvent(eventType, eventData);
+  const paymentUpdate = getPaymentUpdateForEvent(eventType, eventData, request);
 
   if (!paymentUpdate) {
     return;
   }
 
-  const { error } = await supabaseAdmin.from("requests").update(paymentUpdate).eq("id", requestId);
-
-  if (error) {
-    console.error("Could not sync Dodo webhook to request", { requestId, eventType, error });
-  }
+  await updateRequestPaymentState(requestId, paymentUpdate);
 }
 
 async function syncLemonSqueezyEventToRequest(eventType, eventData, rawEvent) {
   if (!supabaseAdmin) {
-    return;
+    throw new Error("Supabase admin client is not configured.");
   }
 
   const meta = isRecord(rawEvent.meta) ? rawEvent.meta : {};
@@ -700,27 +926,82 @@ async function syncLemonSqueezyEventToRequest(eventType, eventData, rawEvent) {
     return;
   }
 
+  const request = await loadPaymentRequest(requestId);
+  const attributes = isRecord(eventData.attributes) ? eventData.attributes : {};
   const checkoutId = parseString(customData.checkout_id, 160);
   const orderId = parseString(eventData.id, 160);
-  await supabaseAdmin.from("request_payment_events").insert({
+  const providerEventId = getLemonSqueezyProviderEventId(rawEvent, eventType, eventData, requestId);
+  const providerEnvironment = getLemonSqueezyWebhookEnvironment(rawEvent, attributes);
+
+  validateWebhookEnvironment("lemonsqueezy", providerEnvironment);
+  validateRequestProviderState("lemonsqueezy", request, { orderId, checkoutId });
+
+  if (eventType === "order_created") {
+    validatePaidWebhookAmount("lemonsqueezy", request, eventData, rawEvent);
+    validateLemonSqueezyProduct(attributes);
+  }
+
+  await recordPaymentEvent({
     provider: "lemonsqueezy",
     request_id: requestId,
     event_type: eventType,
+    provider_event_id: providerEventId,
+    provider_environment: providerEnvironment,
     lemon_squeezy_order_id: orderId || null,
     checkout_session_id: checkoutId || null,
     payload: rawEvent,
   });
 
-  const paymentUpdate = getLemonSqueezyPaymentUpdateForEvent(eventType, eventData, customData);
+  const paymentUpdate = getLemonSqueezyPaymentUpdateForEvent(eventType, eventData, customData, request);
 
   if (!paymentUpdate) {
     return;
   }
 
-  const { error } = await supabaseAdmin.from("requests").update(paymentUpdate).eq("id", requestId);
+  await updateRequestPaymentState(requestId, paymentUpdate);
+}
 
-  if (error) {
-    console.error("Could not sync Lemon Squeezy webhook to request", { requestId, eventType, error });
+async function loadPaymentRequest(requestId) {
+  const { data, error } = await supabaseAdmin
+    .from("requests")
+    .select("id,total_due,currency,status,payment_status,payout_status,platform_fee_status,payment_provider,checkout_session_id,checkout_url,dodo_payment_id,lemon_squeezy_order_id,paid_at,customer_email")
+    .eq("id", requestId)
+    .single();
+
+  if (error || !data) {
+    throw new WebhookValidationError("Request referenced by webhook was not found.", 404);
+  }
+
+  return data;
+}
+
+async function recordPaymentEvent(eventRow) {
+  const { error } = await supabaseAdmin.from("request_payment_events").insert(eventRow);
+
+  if (!error) {
+    return;
+  }
+
+  if (error.code === "23505") {
+    return;
+  }
+
+  const missingNewColumns =
+    error.code === "PGRST204" ||
+    error.code === "42703" ||
+    /provider_event_id|provider_environment/.test(error.message ?? "");
+
+  if (!missingNewColumns) {
+    throw new Error(`Could not record payment event: ${error.message}`);
+  }
+
+  const fallbackRow = { ...eventRow };
+  delete fallbackRow.provider_event_id;
+  delete fallbackRow.provider_environment;
+  const { error: fallbackError } = await supabaseAdmin.from("request_payment_events").insert(fallbackRow);
+
+  if (fallbackError && fallbackError.code !== "23505") {
+    throw new Error(`Could not record payment event: ${fallbackError.message}`);
   }
 }
 
@@ -733,12 +1014,259 @@ async function updateRequestPaymentState(requestId, updates) {
 
   if (error) {
     console.error("Could not update request payment state", { requestId, updates, error });
+    throw new Error("Could not update request payment state.");
   }
 }
 
-function getPaymentUpdateForEvent(eventType, eventData) {
-  const paymentId = parseString(eventData.payment_id, 160);
-  const sessionId = parseString(eventData.session_id, 160);
+async function claimCheckoutRequest(requestId, provider) {
+  if (!supabaseAdmin || !requestId) {
+    return false;
+  }
+
+  const { data, error } = await supabaseAdmin
+    .from("requests")
+    .update({
+      status: "checkout_started",
+      payment_status: "checkout_started",
+      payment_provider: provider,
+    })
+    .eq("id", requestId)
+    .eq("status", "checkout_pending")
+    .eq("payment_status", "unpaid")
+    .eq("payment_provider", "pending")
+    .is("checkout_session_id", null)
+    .is("checkout_url", null)
+    .select("id")
+    .maybeSingle();
+
+  if (error) {
+    console.error("Could not claim checkout request", { requestId, provider, error });
+    throw new Error("Could not prepare this request for checkout.");
+  }
+
+  return Boolean(data?.id);
+}
+
+async function markCheckoutFailed(requestId, retryable) {
+  if (!supabaseAdmin || !requestId) {
+    return;
+  }
+
+  const updates = retryable
+    ? {
+        status: "checkout_pending",
+        payment_status: "unpaid",
+        payment_provider: "pending",
+      }
+    : {
+        status: "checkout_failed",
+        payment_status: "failed",
+      };
+
+  try {
+    await updateRequestPaymentState(requestId, updates);
+  } catch (error) {
+    console.error("Could not mark checkout failure", { requestId, retryable, error });
+  }
+}
+
+function validateWebhookEnvironment(provider, providerEnvironment) {
+  if (!isProduction) {
+    return;
+  }
+
+  if (provider === "dodo" && !isDodoLiveMode()) {
+    throw new WebhookValidationError("Dodo production webhooks are disabled until DODO_PAYMENTS_ENVIRONMENT is live.", 409);
+  }
+
+  if (provider === "lemonsqueezy" && parseBooleanEnv("LEMONSQUEEZY_TEST_MODE", false)) {
+    throw new WebhookValidationError("Lemon Squeezy production webhooks are disabled while test mode is enabled.", 409);
+  }
+
+  if (providerEnvironment === "test") {
+    throw new WebhookValidationError("Test-mode payment webhooks cannot update production marketplace state.", 409);
+  }
+}
+
+function validateRequestProviderState(provider, request, ids) {
+  if (request.payment_provider !== provider && request.payment_provider !== "pending") {
+    throw new WebhookValidationError("Webhook provider does not match the request payment provider.", 409);
+  }
+
+  if (provider === "dodo") {
+    if (request.dodo_payment_id && ids.paymentId && request.dodo_payment_id !== ids.paymentId) {
+      throw new WebhookValidationError("Webhook payment id does not match the request.", 409);
+    }
+
+    if (request.checkout_session_id && ids.sessionId && request.checkout_session_id !== ids.sessionId) {
+      throw new WebhookValidationError("Webhook checkout session does not match the request.", 409);
+    }
+  }
+
+  if (provider === "lemonsqueezy") {
+    if (request.lemon_squeezy_order_id && ids.orderId && request.lemon_squeezy_order_id !== ids.orderId) {
+      throw new WebhookValidationError("Webhook order id does not match the request.", 409);
+    }
+
+    if (request.checkout_session_id && ids.checkoutId && request.checkout_session_id !== ids.checkoutId) {
+      throw new WebhookValidationError("Webhook checkout session does not match the request.", 409);
+    }
+  }
+}
+
+function validatePaidWebhookAmount(provider, request, eventData, rawEvent) {
+  const currency = getPaymentCurrency(provider, eventData, rawEvent);
+  const amountCents = getPaymentAmountCents(provider, eventData, rawEvent);
+
+  if (currency !== "USD") {
+    throw new WebhookValidationError("Webhook currency does not match the request currency.", 409);
+  }
+
+  if (amountCents !== Number(request.total_due) * 100) {
+    throw new WebhookValidationError("Webhook amount does not match the saved request total.", 409);
+  }
+}
+
+function validateDodoProduct(eventData) {
+  const expectedProductId = parseString(process.env.DODO_PRODUCT_ID, 160);
+  const eventProductId =
+    parseString(eventData.product_id, 160) ||
+    parseString(eventData.productId, 160) ||
+    parseString(isRecord(eventData.product) ? eventData.product.id : "", 160);
+
+  if (eventProductId && expectedProductId && eventProductId !== expectedProductId) {
+    throw new WebhookValidationError("Dodo product id does not match this app.", 409);
+  }
+}
+
+function validateLemonSqueezyProduct(attributes) {
+  const expectedVariantId = parseString(process.env.LEMONSQUEEZY_VARIANT_ID, 160);
+  const eventVariantId =
+    parseString(attributes.variant_id, 160) ||
+    parseString(attributes.variantId, 160) ||
+    parseString(isRecord(attributes.first_order_item) ? attributes.first_order_item.variant_id : "", 160);
+
+  if (eventVariantId && expectedVariantId && eventVariantId !== expectedVariantId) {
+    throw new WebhookValidationError("Lemon Squeezy variant id does not match this app.", 409);
+  }
+}
+
+function getPaymentCurrency(provider, eventData, rawEvent) {
+  if (provider === "lemonsqueezy") {
+    const attributes = isRecord(eventData.attributes) ? eventData.attributes : {};
+    return (
+      parseString(attributes.currency, 10) ||
+      parseString(attributes.currency_code, 10) ||
+      parseString(rawEvent?.meta?.currency, 10)
+    ).toUpperCase();
+  }
+
+  return (
+    parseString(eventData.currency, 10) ||
+    parseString(eventData.billing_currency, 10) ||
+    parseString(eventData.payment_currency, 10)
+  ).toUpperCase();
+}
+
+function getPaymentAmountCents(provider, eventData, rawEvent) {
+  if (provider === "lemonsqueezy") {
+    const attributes = isRecord(eventData.attributes) ? eventData.attributes : {};
+    return parseAmountCents(
+      attributes.total_usd ??
+        attributes.total ??
+        attributes.subtotal ??
+        attributes.total_formatted ??
+        rawEvent?.meta?.total,
+    );
+  }
+
+  return parseAmountCents(eventData.total_amount ?? eventData.amount ?? eventData.payment_amount ?? eventData.total);
+}
+
+function parseAmountCents(value) {
+  if (typeof value === "number" && Number.isFinite(value)) {
+    return Math.round(value);
+  }
+
+  if (typeof value !== "string") {
+    return NaN;
+  }
+
+  const normalized = value.replace(/[^0-9.]/g, "");
+  const numeric = Number(normalized);
+
+  if (!Number.isFinite(numeric)) {
+    return NaN;
+  }
+
+  return value.includes(".") ? Math.round(numeric * 100) : Math.round(numeric);
+}
+
+function getDodoProviderEventId(rawEvent, req, eventType, eventData, requestId) {
+  return (
+    firstHeader(req.headers["webhook-id"]) ||
+    parseString(rawEvent?.id, 160) ||
+    parseString(rawEvent?.event_id, 160) ||
+    `${eventType}:${requestId}:${parseString(eventData.payment_id, 160) || parseString(eventData.session_id, 160) || "unknown"}`
+  );
+}
+
+function getLemonSqueezyProviderEventId(rawEvent, eventType, eventData, requestId) {
+  const meta = isRecord(rawEvent.meta) ? rawEvent.meta : {};
+  return (
+    parseString(meta.event_id, 160) ||
+    parseString(rawEvent.id, 160) ||
+    `${eventType}:${requestId}:${parseString(eventData.id, 160) || "unknown"}`
+  );
+}
+
+function getDodoWebhookEnvironment(eventData, rawEvent) {
+  const metadata = isRecord(eventData.metadata) ? eventData.metadata : {};
+  const value =
+    parseString(metadata.payment_environment, 20) ||
+    parseString(eventData.environment, 20) ||
+    parseString(rawEvent?.environment, 20) ||
+    getDodoEnvironment();
+
+  return normalizePaymentEnvironment(value);
+}
+
+function getLemonSqueezyWebhookEnvironment(rawEvent, attributes) {
+  const meta = isRecord(rawEvent.meta) ? rawEvent.meta : {};
+  const customData = isRecord(meta.custom_data) ? meta.custom_data : {};
+
+  if (customData.payment_environment) {
+    return normalizePaymentEnvironment(customData.payment_environment);
+  }
+
+  if (typeof meta.test_mode === "boolean") {
+    return meta.test_mode ? "test" : "live";
+  }
+
+  if (typeof attributes.test_mode === "boolean") {
+    return attributes.test_mode ? "test" : "live";
+  }
+
+  return parseBooleanEnv("LEMONSQUEEZY_TEST_MODE", false) ? "test" : "live";
+}
+
+function normalizePaymentEnvironment(value) {
+  const normalized = parseString(value, 40).toLowerCase();
+
+  if (["live", "live_mode", "production", "prod"].includes(normalized)) {
+    return "live";
+  }
+
+  return "test";
+}
+
+function isTerminalPaymentState(paymentStatus) {
+  return ["paid", "refunded", "disputed"].includes(paymentStatus);
+}
+
+function getPaymentUpdateForEvent(eventType, eventData, request) {
+  const paymentId = parseString(eventData.payment_id, 160) || parseString(eventData.id, 160);
+  const sessionId = parseString(eventData.session_id, 160) || parseString(eventData.checkout_session_id, 160);
   const paymentFields = {
     payment_provider: "dodo",
     ...(paymentId ? { dodo_payment_id: paymentId } : {}),
@@ -746,17 +1274,25 @@ function getPaymentUpdateForEvent(eventType, eventData) {
   };
 
   if (eventType === "payment.succeeded") {
+    if (isTerminalPaymentState(request.payment_status)) {
+      return null;
+    }
+
     return {
       ...paymentFields,
       status: "paid",
       payment_status: "paid",
-      payout_status: "pending_acceptance",
-      platform_fee_status: "earned",
-      paid_at: new Date().toISOString(),
+      payout_status: request.payout_status === "not_ready" ? "pending_acceptance" : request.payout_status,
+      platform_fee_status: request.platform_fee_status === "unearned" ? "earned" : request.platform_fee_status,
+      paid_at: request.paid_at ?? new Date().toISOString(),
     };
   }
 
   if (eventType === "payment.failed") {
+    if (request.payment_status !== "unpaid" && request.payment_status !== "checkout_started") {
+      return null;
+    }
+
     return {
       ...paymentFields,
       status: "checkout_failed",
@@ -765,6 +1301,10 @@ function getPaymentUpdateForEvent(eventType, eventData) {
   }
 
   if (eventType === "payment.cancelled") {
+    if (request.payment_status !== "unpaid" && request.payment_status !== "checkout_started") {
+      return null;
+    }
+
     return {
       ...paymentFields,
       status: "cancelled",
@@ -797,7 +1337,7 @@ function getPaymentUpdateForEvent(eventType, eventData) {
   return null;
 }
 
-function getLemonSqueezyPaymentUpdateForEvent(eventType, eventData, customData) {
+function getLemonSqueezyPaymentUpdateForEvent(eventType, eventData, customData, request) {
   const orderId = parseString(eventData.id, 160);
   const checkoutId = parseString(customData.checkout_id, 160);
   const paymentFields = {
@@ -807,13 +1347,17 @@ function getLemonSqueezyPaymentUpdateForEvent(eventType, eventData, customData) 
   };
 
   if (eventType === "order_created") {
+    if (isTerminalPaymentState(request.payment_status)) {
+      return null;
+    }
+
     return {
       ...paymentFields,
       status: "paid",
       payment_status: "paid",
-      payout_status: "pending_acceptance",
-      platform_fee_status: "earned",
-      paid_at: new Date().toISOString(),
+      payout_status: request.payout_status === "not_ready" ? "pending_acceptance" : request.payout_status,
+      platform_fee_status: request.platform_fee_status === "unearned" ? "earned" : request.platform_fee_status,
+      paid_at: request.paid_at ?? new Date().toISOString(),
     };
   }
 
@@ -858,38 +1402,104 @@ async function readCheckoutRequest(req, res) {
 
   const draft = isRecord(body.draft) ? body.draft : {};
   const customer = isRecord(body.customer) ? body.customer : {};
-  const email = parseString(customer.email, 160);
-  const name = parseString(customer.name, 100);
-  const itemName = parseString(draft.itemName, 120) || "Hard-to-find item";
   const requestId = parseString(draft.requestId, 64);
-  const category = parseString(draft.category, 80) || "General";
-  const details = parseString(draft.details, 500) || "No additional details provided.";
-  const durationDays = parseDuration(draft.durationDays);
-  let reward;
 
-  try {
-    reward = parseReward(draft.reward);
-  } catch (error) {
-    sendJson(res, 400, { error: error instanceof Error ? error.message : "Invalid reward amount." });
+  if (!requestId) {
+    sendJson(res, 400, { error: "A saved request id is required before checkout." });
     return null;
   }
+
+  if (!supabaseAdmin) {
+    sendJson(res, 503, { error: "Checkout requires Supabase server configuration before payments can be created." });
+    return null;
+  }
+
+  const token = getBearerToken(req);
+
+  if (!token) {
+    sendJson(res, 401, { error: "Sign in again before starting checkout." });
+    return null;
+  }
+
+  const {
+    data: { user },
+    error: authError,
+  } = await supabaseAdmin.auth.getUser(token);
+
+  if (authError || !user) {
+    sendJson(res, 401, { error: "Your session could not be verified for checkout." });
+    return null;
+  }
+
+  const { data: savedRequest, error: requestError } = await supabaseAdmin
+    .from("requests")
+    .select("id,user_id,item_name,category,details,reward,service_fee,protection_reserve,total_due,duration_days,status,payment_status,payment_provider,customer_email,customer_name,checkout_session_id,checkout_url")
+    .eq("id", requestId)
+    .single();
+
+  if (requestError || !savedRequest) {
+    sendJson(res, 404, { error: "The saved request could not be found for checkout." });
+    return null;
+  }
+
+  if (savedRequest.user_id !== user.id) {
+    sendJson(res, 403, { error: "You can only start checkout for your own request." });
+    return null;
+  }
+
+  if (
+    savedRequest.status !== "checkout_pending" ||
+    savedRequest.payment_status !== "unpaid" ||
+    savedRequest.payment_provider !== "pending" ||
+    savedRequest.checkout_session_id ||
+    savedRequest.checkout_url
+  ) {
+    sendJson(res, 409, { error: "This request is not ready for a new checkout session." });
+    return null;
+  }
+
+  const email = parseString(savedRequest.customer_email, 160) || parseString(customer.email, 160);
+  const name = parseString(savedRequest.customer_name, 100) || parseString(customer.name, 100);
 
   if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
     sendJson(res, 400, { error: "A valid customer email is required before checkout." });
     return null;
   }
 
+  const reward = parseReward(savedRequest.reward);
+  const breakdown = getEscrowBreakdown(reward);
+
+  if (
+    savedRequest.service_fee !== breakdown.platformFee ||
+    savedRequest.protection_reserve !== breakdown.protection ||
+    savedRequest.total_due !== breakdown.total
+  ) {
+    sendJson(res, 409, { error: "The saved request total does not match the current fee model. Please recreate the request." });
+    return null;
+  }
+
   return {
-    breakdown: getEscrowBreakdown(reward),
-    category,
-    details,
-    durationDays,
+    breakdown,
+    category: parseString(savedRequest.category, 80) || "General",
+    details: parseString(savedRequest.details, 500) || "No additional details provided.",
+    durationDays: parseDuration(savedRequest.duration_days),
     email,
-    itemName,
+    itemName: parseString(savedRequest.item_name, 120) || "Hard-to-find item",
     name,
     requestId,
     reward,
   };
+}
+
+function getBearerToken(req) {
+  const authorization = firstHeader(req.headers.authorization);
+
+  if (!authorization) {
+    return "";
+  }
+
+  const match = authorization.match(/^Bearer\s+(.+)$/i);
+  return match ? match[1].trim() : "";
 }
 
 function getPaymentProvider() {
@@ -914,9 +1524,26 @@ function getAllowedPaymentMethodTypes() {
   return ["credit", "debit", "apple_pay", "google_pay", "paypal"];
 }
 
+function isConfiguredPaymentProviderLive() {
+  const provider = getPaymentProvider();
+
+  if (provider === "lemonsqueezy") {
+    return !parseBooleanEnv("LEMONSQUEEZY_TEST_MODE", false);
+  }
+
+  return isDodoLiveMode();
+}
+
 function getDodoApiBase() {
-  const environment = process.env.DODO_PAYMENTS_ENVIRONMENT ?? process.env.DODO_ENVIRONMENT ?? "test";
-  return environment === "live" || environment === "live_mode" ? "https://live.dodopayments.com" : "https://test.dodopayments.com";
+  return isDodoLiveMode() ? "https://live.dodopayments.com" : "https://test.dodopayments.com";
+}
+
+function getDodoEnvironment() {
+  return normalizePaymentEnvironment(process.env.DODO_PAYMENTS_ENVIRONMENT ?? process.env.DODO_ENVIRONMENT ?? "test");
+}
+
+function isDodoLiveMode() {
+  return getDodoEnvironment() === "live";
 }
 
 function parseLemonSqueezyVariantId(variantId) {
@@ -973,6 +1600,26 @@ function parseDuration(value) {
 
 function parseString(value, maxLength) {
   return typeof value === "string" ? value.trim().slice(0, maxLength) : "";
+}
+
+function normalizeAppUrl(value) {
+  const url = parseString(value, 300).replace(/\/+$/, "");
+
+  if (!url) {
+    return "";
+  }
+
+  try {
+    const parsed = new URL(url);
+
+    if (parsed.protocol !== "https:" && parsed.hostname !== "localhost" && parsed.hostname !== "127.0.0.1") {
+      return "";
+    }
+
+    return parsed.origin;
+  } catch {
+    return "";
+  }
 }
 
 function parseJson(value) {
@@ -1085,6 +1732,10 @@ async function serveStaticAsset(pathname, res) {
 }
 
 function getRequestOrigin(req) {
+  if (publicAppUrl) {
+    return publicAppUrl;
+  }
+
   const forwardedProto = firstHeader(req.headers["x-forwarded-proto"]);
   const forwardedHost = firstHeader(req.headers["x-forwarded-host"]);
   const protocol = forwardedProto || (req.socket.encrypted ? "https" : "http");

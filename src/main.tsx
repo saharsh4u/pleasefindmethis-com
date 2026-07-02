@@ -26,20 +26,16 @@ import {
   Menu,
   MessageSquare,
   PackageCheck,
-  Play,
   Scale,
   Search,
   Send,
   ShieldAlert,
   ShieldCheck,
-  ShieldX,
-  Sparkles,
   Star,
   Store,
   TimerReset,
   Trophy,
   Upload,
-  UserRoundCheck,
   X,
 } from "lucide-react";
 import { hasSupabaseEnv, supabase } from "./lib/supabase";
@@ -59,7 +55,16 @@ type Page =
   | "finder-dashboard"
   | "dispute"
   | "profile"
-  | "faq";
+  | "faq"
+  | "privacy"
+  | "terms"
+  | "refunds"
+  | "rules"
+  | "support"
+  | "report"
+  | "account-settings"
+  | "admin-review"
+  | "not-found";
 
 type AuthMode = "signup" | "login";
 type AuthBusyAction = "email" | "google" | null;
@@ -114,19 +119,104 @@ type BountyListing = {
   description: string;
   mustHaves: string[];
   timeline: string[];
+  live?: boolean;
+  createdAt?: string;
+  closesAt?: string;
 };
 
-type FeedItem = {
-  bounty: string;
-  reward: string;
-  rewardValue: number;
-  finder: string;
-  rating: string;
-  location: string;
+type PublicRequestCardRow = {
+  id: string;
+  item_name: string;
+  category: string;
+  details: string | null;
+  reward: number;
+  duration_days: number;
   status: string;
+  payment_status: string;
+  created_at: string;
+  paid_at: string | null;
+  closes_at: string | null;
+  days_remaining: number | null;
+  primary_image_url: string | null;
+  submission_count: number | null;
+};
+
+type RequestRow = {
+  id: string;
+  user_id: string;
+  item_name: string;
+  category: string;
+  details: string | null;
+  reward: number;
+  total_due: number;
+  finder_payout: number;
+  duration_days: number;
+  status: string;
+  payment_status: string;
+  payout_status: string;
+  customer_email: string | null;
+  reference_images: Array<{ url?: string; name?: string }> | null;
+  created_at: string;
+  paid_at: string | null;
+  payout_release_after: string | null;
+};
+
+type SourceProofFile = {
+  name: string;
+  path: string;
+  type: string | null;
+  size: number;
+};
+
+type SourceSubmissionRow = {
+  id: string;
+  request_id: string;
+  finder_id: string;
+  source_type: FindSourceType;
+  price_or_terms: string | null;
+  match_notes: string;
+  proof?: SourceProofFile[] | null;
+  status: string;
+  first_valid_rank: number | null;
+  revealed_at: string | null;
+  accepted_at: string | null;
+  rejected_at: string | null;
+  awarded_at: string | null;
+  created_at: string;
+  updated_at: string;
+};
+
+type RevealedSourceDetailRow = SourceSubmissionRow & {
+  source_url: string | null;
+  source_contact: string | null;
+  contact_email: string | null;
+  poster_id?: string;
+  revealed_log_created_at?: string;
+};
+
+type SourceReviewRow = {
+  id: string;
+  submission_id: string;
+  request_id: string;
+  reviewer_id: string;
+  decision: "accepted" | "rejected" | "sent_to_review";
+  reason_code: string | null;
   note: string;
-  updated: string;
-  image: string;
+  created_at: string;
+};
+
+type SourceDisputeRow = {
+  id: string;
+  submission_id: string;
+  request_id: string;
+  opened_by: string;
+  opened_by_role: "poster" | "finder";
+  reason_code: string;
+  evidence_summary: string;
+  status: string;
+  resolution_note: string;
+  created_at: string;
+  updated_at: string;
 };
 
 type RequestCategory = "home" | "audio" | "camera" | "watch" | "gaming" | "parts";
@@ -227,13 +317,15 @@ const protectedPages = new Set<Page>([
   "poster-dashboard",
   "finder-dashboard",
   "dispute",
+  "account-settings",
+  "admin-review",
 ]);
 
 const pageLabels: Record<Page, string> = {
   landing: "Landing page",
   auth: "Sign up / Log in",
   "post-describe": "Post Request - Describe",
-  "post-reward": "Post Request - Set reward",
+  "post-reward": "Post Request - Set offer",
   "post-pay": "Post Request - Pay",
   browse: "Browse feed",
   "browse-all": "Browse all",
@@ -244,6 +336,15 @@ const pageLabels: Record<Page, string> = {
   dispute: "Dispute",
   profile: "Public profile / Trust",
   faq: "FAQ",
+  privacy: "Privacy Policy",
+  terms: "Terms",
+  refunds: "Refunds",
+  rules: "Marketplace Rules",
+  support: "Support",
+  report: "Report",
+  "account-settings": "Account settings",
+  "admin-review": "Admin review",
+  "not-found": "Not found",
 };
 
 const routeMap: Record<string, Page> = {
@@ -252,6 +353,7 @@ const routeMap: Record<string, Page> = {
   landing: "landing",
   auth: "auth",
   "post/describe": "post-describe",
+  "post/offer": "post-reward",
   "post/reward": "post-reward",
   "post/pay": "post-pay",
   browse: "browse",
@@ -263,13 +365,21 @@ const routeMap: Record<string, Page> = {
   dispute: "dispute",
   profile: "profile",
   faq: "faq",
+  privacy: "privacy",
+  terms: "terms",
+  refunds: "refunds",
+  rules: "rules",
+  support: "support",
+  report: "report",
+  "account/settings": "account-settings",
+  "admin/review": "admin-review",
 };
 
 const pageRoutes: Record<Page, string> = {
   landing: "/",
   auth: "auth",
   "post-describe": "post/describe",
-  "post-reward": "post/reward",
+  "post-reward": "post/offer",
   "post-pay": "post/pay",
   browse: "browse",
   "browse-all": "browse/all",
@@ -280,6 +390,15 @@ const pageRoutes: Record<Page, string> = {
   dispute: "dispute",
   profile: "profile",
   faq: "faq",
+  privacy: "privacy",
+  terms: "terms",
+  refunds: "refunds",
+  rules: "rules",
+  support: "support",
+  report: "report",
+  "account-settings": "account/settings",
+  "admin-review": "admin/review",
+  "not-found": "not-found",
 };
 
 const signedInStorageKey = "pleasefindmethis-signed-in";
@@ -288,8 +407,10 @@ const authProviderStorageKey = "pleasefindmethis-auth-provider";
 const authEmailStorageKey = "pleasefindmethis-auth-email";
 const checkoutSnapshotStorageKey = "pleasefindmethis-last-checkout";
 const requestReferenceImagesBucket = "request-reference-images";
+const sourceSubmissionProofBucket = "source-submission-proof";
 const googleClientId = import.meta.env.VITE_GOOGLE_CLIENT_ID;
 const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+const uuidPattern = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 type CurrencySource = "locale" | "timezone" | "geolocation" | "fallback";
 
 type CurrencyPreference = {
@@ -507,7 +628,7 @@ const coordinateRegions: CoordinateRegion[] = [
 const heroPlaceholderExamples = [
   "Help me find this cat mug",
   "Find this old wallet",
-  "I can add a reward",
+  "I can add an offer",
   "Help me find this pillow",
   "Find this exact wall art",
 ];
@@ -791,6 +912,279 @@ function formatBountyDetail(bounty: BountyListing, preference: CurrencyPreferenc
   return bounty.detail.replace(/(?:US\$|\$|£|€)\s?[\d,]+/g, rewardText);
 }
 
+function isUuid(value: string) {
+  return uuidPattern.test(value);
+}
+
+function getRelativeTimeLabel(value?: string | null) {
+  if (!value) {
+    return "Recently";
+  }
+
+  const date = new Date(value);
+
+  if (Number.isNaN(date.getTime())) {
+    return "Recently";
+  }
+
+  const diffMs = Date.now() - date.getTime();
+  const absMs = Math.abs(diffMs);
+  const units: Array<[Intl.RelativeTimeFormatUnit, number]> = [
+    ["day", 86_400_000],
+    ["hour", 3_600_000],
+    ["minute", 60_000],
+  ];
+  const formatter = new Intl.RelativeTimeFormat(undefined, { numeric: "auto" });
+
+  for (const [unit, unitMs] of units) {
+    if (absMs >= unitMs || unit === "minute") {
+      return formatter.format(Math.round(-diffMs / unitMs), unit);
+    }
+  }
+
+  return "Recently";
+}
+
+function getStatusLabel(status: string, paymentStatus?: string) {
+  if (status === "disputed" || paymentStatus === "disputed") {
+    return "In review";
+  }
+
+  if (status === "paid" || paymentStatus === "paid") {
+    return "Open";
+  }
+
+  if (status === "refunded") {
+    return "Refunded";
+  }
+
+  return status.replace(/_/g, " ").replace(/^\w/, (letter) => letter.toUpperCase());
+}
+
+function getClosesLabel(daysRemaining?: number | null) {
+  if (typeof daysRemaining !== "number" || !Number.isFinite(daysRemaining)) {
+    return "30 days";
+  }
+
+  if (daysRemaining <= 0) {
+    return "Today";
+  }
+
+  return `${daysRemaining} day${daysRemaining === 1 ? "" : "s"}`;
+}
+
+function getReferenceImage(referenceImages?: RequestRow["reference_images"]) {
+  const firstImage = Array.isArray(referenceImages) ? referenceImages.find((image) => image?.url) : null;
+  return firstImage?.url || "/find-requests/duck-wall-art.jpg";
+}
+
+function getMustHaves(details?: string | null) {
+  const parts = (details ?? "")
+    .split(/\n|\.|;/)
+    .map((part) => part.trim())
+    .filter(Boolean)
+    .slice(0, 4);
+
+  return parts.length
+    ? parts
+    : ["Exact match preferred", "Clear source or contact path", "Availability should be current", "Proof helps review faster"];
+}
+
+function publicRequestRowToBounty(row: PublicRequestCardRow): BountyListing {
+  const details = row.details?.trim() || "Finder can submit a public listing, shop contact, private lead, or direct handoff option.";
+  const rewardText = `US$${row.reward.toLocaleString("en-US")}`;
+
+  return {
+    id: row.id,
+    name: row.item_name || "Hard-to-find item",
+    detail: `Finder payout ${rewardText}`,
+    reward: rewardText,
+    rewardValue: row.reward,
+    closes: getClosesLabel(row.days_remaining),
+    image: row.primary_image_url || "/find-requests/duck-wall-art.jpg",
+    category: row.category || "General",
+    status: getStatusLabel(row.status, row.payment_status),
+    location: "Open to submitted sources",
+    poster: "Verified poster",
+    posted: getRelativeTimeLabel(row.created_at),
+    submissions: row.submission_count ?? 0,
+    description: details,
+    mustHaves: getMustHaves(details),
+    timeline: ["Offer funded", `${row.submission_count ?? 0} protected source${row.submission_count === 1 ? "" : "s"}`, "Finders can submit leads"],
+    live: true,
+    createdAt: row.created_at,
+    closesAt: row.closes_at ?? undefined,
+  };
+}
+
+function requestRowToBounty(row: RequestRow, submissionCount = 0): BountyListing {
+  const rewardText = `US$${row.reward.toLocaleString("en-US")}`;
+  const createdAt = row.created_at;
+  const paidAt = row.paid_at;
+
+  return {
+    id: row.id,
+    name: row.item_name || "Hard-to-find item",
+    detail: `Finder payout ${rewardText}`,
+    reward: rewardText,
+    rewardValue: row.reward,
+    closes: `${row.duration_days} days`,
+    image: getReferenceImage(row.reference_images),
+    category: row.category || "General",
+    status: getStatusLabel(row.status, row.payment_status),
+    location: "Open to submitted sources",
+    poster: "You",
+    posted: getRelativeTimeLabel(paidAt ?? createdAt),
+    submissions: submissionCount,
+    description: row.details?.trim() || "No additional details provided.",
+    mustHaves: getMustHaves(row.details),
+    timeline: [
+      row.payment_status === "paid" ? "Payment confirmed" : "Checkout pending",
+      `${submissionCount} protected source${submissionCount === 1 ? "" : "s"}`,
+      row.payout_status === "payable" ? "Finder payout is payable" : "Awaiting accepted source",
+    ],
+    live: row.payment_status === "paid",
+    createdAt,
+  };
+}
+
+function mergeBounties(primary: BountyListing[], fallback: BountyListing[]) {
+  const seen = new Set<string>();
+  const merged: BountyListing[] = [];
+
+  for (const bounty of [...primary, ...fallback]) {
+    if (seen.has(bounty.id)) {
+      continue;
+    }
+
+    seen.add(bounty.id);
+    merged.push(bounty);
+  }
+
+  return merged;
+}
+
+function usePublicRequestListings() {
+  const [listings, setListings] = useState<BountyListing[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
+
+  useEffect(() => {
+    let mounted = true;
+
+    const loadRequests = async () => {
+      setLoading(true);
+      setError("");
+
+      try {
+        const response = await fetch("/api/requests/public", {
+          headers: {
+            Accept: "application/json",
+          },
+        });
+        const payload = (await response.json()) as { requests?: PublicRequestCardRow[]; error?: string };
+
+        if (!mounted) {
+          return;
+        }
+
+        if (!response.ok || !Array.isArray(payload.requests)) {
+          throw new Error(payload.error || "Live request feed is not ready yet.");
+        }
+
+        setListings(payload.requests.map(publicRequestRowToBounty));
+      } catch {
+        if (!mounted) {
+          return;
+        }
+
+        setError("Live request feed is not ready yet.");
+        setListings([]);
+      }
+
+      setLoading(false);
+    };
+
+    loadRequests();
+
+    return () => {
+      mounted = false;
+    };
+  }, []);
+
+  return { listings, loading, error };
+}
+
+async function getCurrentSupabaseUser() {
+  if (!supabase) {
+    throw new Error("Supabase is not configured.");
+  }
+
+  const {
+    data: { user },
+    error,
+  } = await supabase.auth.getUser();
+
+  if (error || !user) {
+    throw error ?? new Error("Sign in again to continue.");
+  }
+
+  return user;
+}
+
+async function createSourceFingerprint(...parts: string[]) {
+  const normalized = parts.join("|").trim().toLowerCase().replace(/\s+/g, " ");
+
+  if (!normalized) {
+    return crypto.randomUUID();
+  }
+
+  if (!crypto.subtle) {
+    return btoa(normalized).replace(/[^a-z0-9]/gi, "").slice(0, 80) || crypto.randomUUID();
+  }
+
+  const digest = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(normalized));
+  return Array.from(new Uint8Array(digest))
+    .map((byte) => byte.toString(16).padStart(2, "0"))
+    .join("");
+}
+
+function sanitizeFileName(name: string) {
+  return name.replace(/[^a-zA-Z0-9._-]/g, "-").slice(0, 120) || "proof-file";
+}
+
+async function uploadSourceProofFiles(userId: string, submissionId: string, files: File[]) {
+  const proof: SourceProofFile[] = [];
+  const uploadedPaths: string[] = [];
+
+  if (!supabase || !files.length) {
+    return { proof, uploadedPaths };
+  }
+
+  for (const [index, file] of files.entries()) {
+    const filePath = `${userId}/${submissionId}/${index + 1}-${crypto.randomUUID()}-${sanitizeFileName(file.name)}`;
+    const { error } = await supabase.storage.from(sourceSubmissionProofBucket).upload(filePath, file, {
+      cacheControl: "3600",
+      contentType: file.type || undefined,
+      upsert: false,
+    });
+
+    if (error) {
+      throw error;
+    }
+
+    uploadedPaths.push(filePath);
+    proof.push({
+      name: file.name,
+      path: filePath,
+      type: file.type || null,
+      size: file.size,
+    });
+  }
+
+  return { proof, uploadedPaths };
+}
+
 function readStoredPendingRoute(): Page {
   const storedRoute = window.sessionStorage.getItem(pendingRouteStorageKey);
   return storedRoute && storedRoute in pageRoutes ? (storedRoute as Page) : "post-describe";
@@ -880,7 +1274,7 @@ const bountyListings: BountyListing[] = [
     description:
       "Help me find a replacement for this pink rose childhood blanket. It does not have to be new, just the same print.",
     mustHaves: ["Pink rose print", "Same soft blanket style", "Good photo of the match", "Seller or source link"],
-    timeline: ["Reward funded", "Four people helping", "Latest lead received today"],
+    timeline: ["Offer funded", "Four people helping", "Latest lead received today"],
   },
   {
     id: "seiko-wired-w543",
@@ -899,7 +1293,7 @@ const bountyListings: BountyListing[] = [
     description:
       "Looking for this Seiko Wired W543-0AA0 or a close dupe. A shop link, model number, or used listing would help.",
     mustHaves: ["Digital Seiko Wired style", "Silver bracelet", "Clear listing photos", "Working condition preferred"],
-    timeline: ["Reward funded", "Two leads received", "Model number being checked"],
+    timeline: ["Offer funded", "Two leads received", "Model number being checked"],
   },
   {
     id: "yellow-stay-home-pillow",
@@ -918,7 +1312,7 @@ const bountyListings: BountyListing[] = [
     description:
       "Trying to find the yellow Threshold pillow that says Let's Stay Home. A Target resale link is perfect.",
     mustHaves: ["Yellow lumbar pillow", "Let's Stay Home text", "Threshold or close match", "Seller can ship"],
-    timeline: ["Reward funded", "Three people searching", "One similar listing reviewed"],
+    timeline: ["Offer funded", "Three people searching", "One similar listing reviewed"],
   },
   {
     id: "living-and-co-cat-mug",
@@ -937,7 +1331,7 @@ const bountyListings: BountyListing[] = [
     description:
       "My mum gave me this Living & Co cat mug and I want another one. Please share any shop or resale listing.",
     mustHaves: ["Living & Co mug", "Black cat line art", "Same shape if possible", "Uncracked condition"],
-    timeline: ["Reward funded", "New request", "Finders can submit links"],
+    timeline: ["Offer funded", "New request", "Finders can submit links"],
   },
   {
     id: "duck-wall-art",
@@ -956,7 +1350,7 @@ const bountyListings: BountyListing[] = [
     description:
       "Looking for this silly framed duck art because we want one for our home. Any artist name or buying link helps.",
     mustHaves: ["Same duck artwork", "Artist or print source", "Framed or unframed is fine", "Clear buying link"],
-    timeline: ["Reward funded", "Finder shared a source", "Source marked found"],
+    timeline: ["Offer funded", "Finder shared a source", "Source marked found"],
   },
   {
     id: "walkman-wmd6c",
@@ -976,7 +1370,7 @@ const bountyListings: BountyListing[] = [
     description:
       "Need a serviced WM-D6C with reliable playback and recording. Must include a recent test video.",
     mustHaves: ["Recent service preferred", "Records cleanly", "Test video", "No battery leakage"],
-    timeline: ["Reward funded", "New request", "Finders can submit leads"],
+    timeline: ["Offer funded", "New request", "Finders can submit leads"],
   },
   {
     id: "canon-eos-80d-kit",
@@ -996,7 +1390,7 @@ const bountyListings: BountyListing[] = [
     description:
       "Looking for a clean Canon EOS 80D body with a working lens and recent test photos.",
     mustHaves: ["EOS 80D body", "Lens glass is clean", "Shutter count disclosed", "Recent test photo required"],
-    timeline: ["Reward funded", "Finder shared two local options", "Shutter count requested"],
+    timeline: ["Offer funded", "Finder shared two local options", "Shutter count requested"],
   },
   {
     id: "omega-speedmaster-125",
@@ -1016,7 +1410,7 @@ const bountyListings: BountyListing[] = [
     description:
       "Looking for an Omega Speedmaster 125 with original bracelet and clear movement documentation.",
     mustHaves: ["Original bracelet", "Movement photos", "Service details", "No polished case preferred"],
-    timeline: ["Reward funded", "Local source found in London", "Authenticity check underway"],
+    timeline: ["Offer funded", "Local source found in London", "Authenticity check underway"],
   },
   {
     id: "roland-juno-106",
@@ -1036,7 +1430,7 @@ const bountyListings: BountyListing[] = [
     description:
       "Need a tested Juno-106 voice board set for a studio restoration.",
     mustHaves: ["Tested chips", "No corrosion", "Clear board photos", "Ships insured"],
-    timeline: ["Reward funded", "Synth forums contacted", "Awaiting test clips"],
+    timeline: ["Offer funded", "Synth forums contacted", "Awaiting test clips"],
   },
   {
     id: "cartier-tank-must",
@@ -1056,7 +1450,7 @@ const bountyListings: BountyListing[] = [
     description:
       "Looking for a Tank Must large black dial with box or papers preferred.",
     mustHaves: ["Large case", "Black dial", "Serial proof", "Seller or source is reachable"],
-    timeline: ["Reward funded", "Three dealers contacted", "Waiting on papers"],
+    timeline: ["Offer funded", "Three dealers contacted", "Waiting on papers"],
   },
   {
     id: "contax-t2-silver",
@@ -1076,7 +1470,7 @@ const bountyListings: BountyListing[] = [
     description:
       "Need a working Contax T2 silver body with clean lens and reliable flash.",
     mustHaves: ["Clean Zeiss lens", "Flash works", "LCD visible", "Test roll preferred"],
-    timeline: ["Reward funded", "Two leads rejected", "New photos requested"],
+    timeline: ["Offer funded", "Two leads rejected", "New photos requested"],
   },
   {
     id: "gameboy-micro-famicom",
@@ -1096,7 +1490,7 @@ const bountyListings: BountyListing[] = [
     description:
       "Wanted: clean Game Boy Micro Famicom edition with bright screen and good buttons.",
     mustHaves: ["Famicom faceplate", "Bright screen", "No dead pixels", "Original charger preferred"],
-    timeline: ["Reward funded", "Japan sellers contacted", "First lead under review"],
+    timeline: ["Offer funded", "Japan sellers contacted", "First lead under review"],
   },
   {
     id: "nakamichi-dragon-door",
@@ -1116,7 +1510,7 @@ const bountyListings: BountyListing[] = [
     description:
       "Need a clean Nakamichi Dragon cassette door assembly for a repair bench.",
     mustHaves: ["Door assembly", "No cracked tabs", "Original finish", "Macro photos"],
-    timeline: ["Reward funded", "New request", "Finders can submit parts"],
+    timeline: ["Offer funded", "New request", "Finders can submit parts"],
   },
   {
     id: "polaroid-sx70-brown",
@@ -1136,7 +1530,7 @@ const bountyListings: BountyListing[] = [
     description:
       "Searching for an SX-70 brown leather model with working rollers and clean mirror.",
     mustHaves: ["Brown leather", "Clean mirror", "Rollers work", "Sample exposure"],
-    timeline: ["Reward funded", "Two leads received", "Waiting on sample photo"],
+    timeline: ["Offer funded", "Two leads received", "Waiting on sample photo"],
   },
   {
     id: "ipod-classic-7th",
@@ -1156,7 +1550,7 @@ const bountyListings: BountyListing[] = [
     description:
       "Looking for a clean 7th gen iPod Classic 160GB silver with healthy battery.",
     mustHaves: ["160GB model", "Silver face", "Battery holds charge", "No swollen case"],
-    timeline: ["Reward funded", "Five submissions", "Battery photos requested"],
+    timeline: ["Offer funded", "Five submissions", "Battery photos requested"],
   },
   {
     id: "canon-f1-new",
@@ -1176,7 +1570,7 @@ const bountyListings: BountyListing[] = [
     description:
       "Need a Canon New F-1 with AE finder, working meter, and clean prism.",
     mustHaves: ["AE finder", "Meter works", "Clean prism", "No shutter capping"],
-    timeline: ["Reward funded", "Collector groups contacted", "Awaiting meter video"],
+    timeline: ["Offer funded", "Collector groups contacted", "Awaiting meter video"],
   },
   {
     id: "minidisc-mz-rh1",
@@ -1196,7 +1590,7 @@ const bountyListings: BountyListing[] = [
     description:
       "Looking for a Sony MZ-RH1 Hi-MD recorder with working display and USB connection.",
     mustHaves: ["Display works", "USB recognized", "Battery door clean", "Includes dock if possible"],
-    timeline: ["Reward funded", "First lead received", "USB proof requested"],
+    timeline: ["Offer funded", "First lead received", "USB proof requested"],
   },
   {
     id: "dreamcast-seaman-mic",
@@ -1216,7 +1610,7 @@ const bountyListings: BountyListing[] = [
     description:
       "Need the Dreamcast Seaman game with microphone bundle and complete inserts.",
     mustHaves: ["Mic included", "Disc tested", "Manual present", "Case art clean"],
-    timeline: ["Reward funded", "Two local stores checked", "One complete copy under review"],
+    timeline: ["Offer funded", "Two local stores checked", "One complete copy under review"],
   },
   {
     id: "technics-sl1200-dustcover",
@@ -1236,7 +1630,7 @@ const bountyListings: BountyListing[] = [
     description:
       "Searching for an original SL-1200 dust cover without hinge cracks.",
     mustHaves: ["Original cover", "No hinge cracks", "Clear acrylic", "Ships protected"],
-    timeline: ["Reward funded", "DJ repair shops contacted", "Waiting on photos"],
+    timeline: ["Offer funded", "DJ repair shops contacted", "Waiting on photos"],
   },
   {
     id: "pentax-67-wood-grip",
@@ -1256,7 +1650,7 @@ const bountyListings: BountyListing[] = [
     description:
       "Need a Pentax 67 wood grip in clean condition for a field kit.",
     mustHaves: ["Original wood grip", "Mount screw intact", "No split wood", "Clear side photos"],
-    timeline: ["Reward funded", "Three leads received", "Best lead missing screw"],
+    timeline: ["Offer funded", "Three leads received", "Best lead missing screw"],
   },
   {
     id: "n64-funtastic-ice-blue",
@@ -1276,7 +1670,7 @@ const bountyListings: BountyListing[] = [
     description:
       "Wanted: ice blue Funtastic Nintendo 64 with matching controller.",
     mustHaves: ["Ice blue shell", "Matching controller", "No yellowed plastic", "Video output proof"],
-    timeline: ["Reward funded", "Four sellers found", "Controller match pending"],
+    timeline: ["Offer funded", "Four sellers found", "Controller match pending"],
   },
   {
     id: "bose-aviation-a20",
@@ -1296,7 +1690,7 @@ const bountyListings: BountyListing[] = [
     description:
       "Looking for a Bose A20 Bluetooth aviation headset in clean working condition.",
     mustHaves: ["Bluetooth model", "Clean ear cups", "ANR works", "Case preferred"],
-    timeline: ["Reward funded", "Pilot group posted", "Two leads being checked"],
+    timeline: ["Offer funded", "Pilot group posted", "Two leads being checked"],
   },
   {
     id: "hasselblad-a12-back",
@@ -1316,7 +1710,7 @@ const bountyListings: BountyListing[] = [
     description:
       "Need a chrome Hasselblad A12 film back with matching insert and fresh seals.",
     mustHaves: ["Matching insert", "Chrome finish", "Light seals clean", "Frame spacing proof"],
-    timeline: ["Reward funded", "Five backs located", "Best one awaiting test roll"],
+    timeline: ["Offer funded", "Five backs located", "Best one awaiting test roll"],
   },
   {
     id: "akg-k1000",
@@ -1336,7 +1730,7 @@ const bountyListings: BountyListing[] = [
     description:
       "Searching for AKG K1000 ear speakers with balanced drivers and original cable.",
     mustHaves: ["Balanced channels", "Original cable", "No driver buzz", "Pad condition photos"],
-    timeline: ["Reward funded", "Audiophile forum posted", "One lead needs channel test"],
+    timeline: ["Offer funded", "Audiophile forum posted", "One lead needs channel test"],
   },
   {
     id: "neo-geo-pocket-color",
@@ -1356,7 +1750,7 @@ const bountyListings: BountyListing[] = [
     description:
       "Looking for a clean anthracite Neo Geo Pocket Color with responsive stick.",
     mustHaves: ["Anthracite shell", "Responsive stick", "No screen burn", "Battery terminals clean"],
-    timeline: ["Reward funded", "New request", "Finders can submit handhelds"],
+    timeline: ["Offer funded", "New request", "Finders can submit handhelds"],
   },
   {
     id: "aiwa-hs-px1000",
@@ -1376,7 +1770,7 @@ const bountyListings: BountyListing[] = [
     description:
       "Need an Aiwa HS-PX1000 cassette player with clean playback and intact controls.",
     mustHaves: ["Playback works", "Controls intact", "No corrosion", "Demo audio clip"],
-    timeline: ["Reward funded", "One collector contacted", "Awaiting demo clip"],
+    timeline: ["Offer funded", "One collector contacted", "Awaiting demo clip"],
   },
   {
     id: "voigtlander-40mm-nokton",
@@ -1396,7 +1790,7 @@ const bountyListings: BountyListing[] = [
     description:
       "Searching for a Voigtlander 40mm f/1.2 VM lens with smooth focus and clean glass.",
     mustHaves: ["VM mount", "Clean glass", "Smooth focus", "Caps included"],
-    timeline: ["Reward funded", "Two listings reviewed", "Best lead awaiting glass photos"],
+    timeline: ["Offer funded", "Two listings reviewed", "Best lead awaiting glass photos"],
   },
 ];
 
@@ -1413,100 +1807,54 @@ const rewardSortedBounties = [...bountyListings].sort((left, right) => right.rew
 const browseFeaturedBounties = rewardSortedBounties.slice(0, 4);
 const browseRemainingBounties = rewardSortedBounties.slice(4);
 
-const feedItems: FeedItem[] = [
-  {
-    bounty: "Help me find this art",
-    reward: "US$50",
-    rewardValue: 50,
-    finder: "Maya L.",
-    rating: "4.9",
-    location: "New York",
-    status: "Found",
-    note: "Print source shared",
-    updated: "2 hours ago",
-    image: "/find-requests/duck-wall-art-reddit.jpg",
-  },
-  {
-    bounty: "Help me find this blanket",
-    reward: "US$50",
-    rewardValue: 50,
-    finder: "Jonas K.",
-    rating: "4.8",
-    location: "London",
-    status: "Open",
-    note: "Two similar leads",
-    updated: "5 hours ago",
-    image: "/find-requests/childhood-blanket.jpg",
-  },
-  {
-    bounty: "Help me find this pillow",
-    reward: "US$35",
-    rewardValue: 35,
-    finder: "Lina M.",
-    rating: "4.7",
-    location: "Berlin",
-    status: "Open",
-    note: "Target resale checked",
-    updated: "7 hours ago",
-    image: "/find-requests/yellow-home-pillow.jpg",
-  },
-  {
-    bounty: "Does anyone know this watch?",
-    reward: "US$20",
-    rewardValue: 20,
-    finder: "Noah R.",
-    rating: "4.9",
-    location: "Singapore",
-    status: "Open",
-    note: "Model number matched",
-    updated: "1 day ago",
-    image: "/find-requests/seiko-wired-watch.jpg",
-  },
-];
-
 const problemItems = [
   {
     icon: Store,
+    tag: "Discontinued",
     title: "Discontinued products",
-    copy: "The model you loved is no longer made.",
+    copy: "That exact model is gone from normal stores.",
   },
   {
     icon: Globe2,
+    tag: "Location locked",
     title: "Not shipped to your country",
-    copy: "Official stores do not deliver to you.",
+    copy: "Someone else may know a seller who will ship.",
   },
   {
-    icon: TimerReset,
+    icon: Search,
+    tag: "Sold out",
     title: "Out of stock everywhere",
-    copy: "Every site says the same thing.",
+    copy: "Finders keep checking resale, shops, and local leads.",
   },
   {
-    icon: ShieldX,
+    icon: ShieldAlert,
+    tag: "Risky listings",
     title: "Scammers and risky deals",
-    copy: "Hard to trust random sellers and ads.",
+    copy: "A second set of eyes can spot safer sources.",
   },
   {
     icon: Clock3,
+    tag: "Time drain",
     title: "Too much time wasted",
-    copy: "Hours gone with no real result.",
+    copy: "Post once and let people who love searching help.",
   },
 ];
 
 const workSteps = [
   {
     icon: Search,
-    title: "1. Poster requests it",
-    copy: "Describe what you need, why it is hard to find, the must-have details, and the reward amount.",
+    title: "1. Post what you need",
+    copy: "Add photos, describe the exact item, and choose the offer you are willing to pay for the right source.",
   },
   {
-    icon: UserRoundCheck,
-    title: "2. Finder submits a source",
-    copy: "Finders can share a link, a friend or shop contact, or say they personally have the item.",
+    icon: LockKeyhole,
+    title: "2. Finders send protected sources",
+    copy: "A finder can send a store link, seller contact, local lead, or handoff option. The full source is recorded before you see it.",
   },
   {
-    icon: MessageSquare,
-    title: "3. You discuss next steps",
-    copy: "The poster reviews the source and contacts the finder by email to work out delivery, pickup, or purchase details.",
+    icon: BadgeCheck,
+    title: "3. Reveal, review, and accept",
+    copy: "You reveal the source, check if it matches, and accept it when it works. If there is a problem, the case can be reviewed.",
   },
 ];
 
@@ -1516,7 +1864,7 @@ const leftFindRequests = [
     image: "/find-requests/wallet.jpg",
   },
   {
-    copy: "Reward if you find these black shoes.",
+    copy: "Offer if you find these black shoes.",
     image: "/find-requests/black-shoes.jpg",
   },
   {
@@ -1532,11 +1880,11 @@ const leftFindRequests = [
     image: "/find-requests/bunny-plush.jpg",
   },
   {
-    copy: "Reward to help me find this rubber band.",
+    copy: "Offer to help me find this rubber band.",
     image: "/find-requests/purple-rubber-band.jpg",
   },
   {
-    copy: "Reward if you find this red taillight piece.",
+    copy: "Offer if you find this red taillight piece.",
     image: "/find-requests/red-taillight.jpg",
   },
   {
@@ -1555,7 +1903,7 @@ const rightFindRequests = [
     image: "/find-requests/toddler-plush.jpg",
   },
   {
-    copy: "Reward if you find this orange fox plush.",
+    copy: "Offer if you find this orange fox plush.",
     image: "/find-requests/fox-plush.jpg",
   },
   {
@@ -1582,28 +1930,51 @@ const reversedMobileFindRequests = [...mobileFindRequests].reverse();
 const safetySteps = [
   {
     icon: LockKeyhole,
-    title: "You fund the reward",
-    copy: "Your reward is held in escrow. The finder does not see your money.",
+    title: "You fund the offer first",
+    copy: "The request only goes live after payment, so finders know the offer is real.",
   },
   {
     icon: Search,
-    title: "Finder shares the source",
-    copy: "They add the link if one exists, or explain who has it and leave their contact email.",
+    title: "Finder shares a protected source",
+    copy: "The link, contact, notes, and proof are saved before the poster can reveal them.",
   },
   {
-    icon: MessageSquare,
-    title: "You review and connect",
-    copy: "You decide whether the source matches, then contact the finder to arrange the next step.",
+    icon: ShieldCheck,
+    title: "Reveal is recorded",
+    copy: "When the poster opens the full source, the system records that moment for both sides.",
   },
   {
     icon: CheckCircle2,
-    title: "You release payment",
-    copy: "If the source is valid and the handoff works, payment is released to the finder.",
+    title: "Accept or explain",
+    copy: "A poster can accept the source or reject it with a clear reason, not a vague no.",
   },
   {
-    icon: Banknote,
-    title: "30-day protection",
-    copy: "No accepted source in 30 days? The funded finder reward comes back to you.",
+    icon: Headphones,
+    title: "Review protects both sides",
+    copy: "If there is a dispute, the saved proof helps decide whether the finder should be paid.",
+  },
+];
+
+const reviewProtectionSteps = [
+  {
+    icon: ShieldCheck,
+    title: "The source is saved before reveal",
+    copy: "We keep the lead, notes, proof, and time submitted so the story cannot change later.",
+  },
+  {
+    icon: BadgeCheck,
+    title: "First valid source matters",
+    copy: "If two finders send the same lead, the earlier valid submission gets priority.",
+  },
+  {
+    icon: ShieldAlert,
+    title: "Rejecting needs a real reason",
+    copy: "Wrong item, unavailable, fake seller, bad condition, or price mismatch are examples of review reasons.",
+  },
+  {
+    icon: Scale,
+    title: "A used valid source can still be paid",
+    copy: "If a poster reveals and uses a correct source, review can still release the payout to the finder.",
   },
 ];
 
@@ -1611,15 +1982,9 @@ const comparisonRows = [
   ["Finds hard-to-source items", "Yes", "Limited", "Rare", "Not always"],
   ["Community of expert finders", "Yes", "No", "No", "No"],
   ["Source link or contact handoff", "Yes", "Maybe", "Maybe", "No"],
-  ["Money held in escrow", "Yes", "No", "No", "No"],
-  ["30-day protection or refund", "Yes", "No", "No", "No"],
+  ["Protected payment before work starts", "Yes", "No", "No", "No"],
+  ["Reveal tracking and review", "Yes", "No", "No", "No"],
   ["Saves your time", "Yes", "Maybe", "No", "No"],
-];
-
-const topFinders = [
-  ["1", "Maya L.", "4.9", "18 accepted sources"],
-  ["2", "Jonas K.", "4.8", "14 accepted sources"],
-  ["3", "Lina M.", "4.9", "12 accepted sources"],
 ];
 
 const finderReviews = [
@@ -1632,12 +1997,12 @@ const faqItems = [
   {
     question: "When do I pay?",
     answer:
-      "You fund the request before it goes live. Checkout shows the finder reward plus transparent poster-paid service and trust fees before you pay.",
+      "You fund the request before it goes live. Checkout shows your offer, the finder payout, and transparent poster-paid service and trust fees before you pay.",
   },
   {
     question: "What happens if nobody finds it?",
     answer:
-      "If the request is not fulfilled within 30 days, the funded finder reward is returned to you. Service and protection fees cover the live request, payment handling, review tools, and support.",
+      "If the request is not fulfilled within 30 days, the funded offer is returned to you. Service and protection fees cover the live request, payment handling, review tools, and support.",
   },
   {
     question: "Can I reject a find?",
@@ -1647,12 +2012,12 @@ const faqItems = [
   {
     question: "How do finders get paid?",
     answer:
-      "Finders earn the posted reward after the poster accepts the source or confirms that the direct handoff worked. We do not take a cut from the posted finder reward.",
+      "Finders earn the posted payout after the poster accepts the source or confirms that the direct handoff worked. We do not take a cut from the finder payout.",
   },
   {
     question: "How does pleasefindmethis make money?",
     answer:
-      "Posters pay a 12% platform service fee plus 3% trust and payment protection at checkout. The posted reward remains the finder payout.",
+      "Posters pay a 12% platform service fee plus 3% trust and payment protection at checkout. The offer amount remains the finder payout.",
   },
   {
     question: "Is the browse feed public?",
@@ -1663,7 +2028,7 @@ const faqItems = [
 
 function parseRoute(): Page {
   const raw = window.location.hash.replace(/^#\/?/, "").split("?")[0];
-  return routeMap[raw] ?? "landing";
+  return routeMap[raw] ?? "not-found";
 }
 
 function parseCheckoutReturnStatus(): CheckoutReturnStatus {
@@ -1801,9 +2166,13 @@ function App() {
   const [authMessage, setAuthMessage] = useState("");
   const [emailOtpSentTo, setEmailOtpSentTo] = useState("");
   const [postDraft, setPostDraft] = useState<PostDraft>(initialPostDraft);
-  const [selectedFeedBounty, setSelectedFeedBounty] = useState(feedItems[0].bounty);
   const [activeBountyId, setActiveBountyId] = useState(bountyListings[0].id);
-  const [videoPlaying, setVideoPlaying] = useState(false);
+  const {
+    listings: liveBounties,
+    loading: publicRequestsLoading,
+    error: publicRequestsError,
+  } = usePublicRequestListings();
+  const marketplaceBounties = useMemo(() => mergeBounties(liveBounties, bountyListings), [liveBounties]);
 
   useEffect(() => {
     const syncRoute = () => {
@@ -1818,8 +2187,8 @@ function App() {
   }, []);
 
   const activeBounty = useMemo(
-    () => bountyListings.find((bounty) => bounty.id === activeBountyId) ?? bountyListings[0],
-    [activeBountyId],
+    () => marketplaceBounties.find((bounty) => bounty.id === activeBountyId) ?? marketplaceBounties[0] ?? bountyListings[0],
+    [activeBountyId, marketplaceBounties],
   );
 
   const navigate = (page: Page) => {
@@ -2133,6 +2502,7 @@ function App() {
       {visibleRoute === "landing" ? (
         <LandingPage
           menuOpen={menuOpen}
+          bounties={marketplaceBounties}
           onBrowse={() => navigate("browse")}
           onBrowseAll={() => navigate("browse-all")}
           onDetail={goToDetail}
@@ -2142,16 +2512,13 @@ function App() {
             changeAuthMode("login");
             navigate("auth");
           }}
+          onNavigate={navigate}
           onAccount={() => navigate("poster-dashboard")}
           onLogOut={logOut}
           onPost={() => requireAuth("post-describe")}
           onSection={scrollToLandingSection}
-          selectedFeedBounty={selectedFeedBounty}
           setMenuOpen={setMenuOpen}
-          setSelectedFeedBounty={setSelectedFeedBounty}
           signedIn={signedIn}
-          setVideoPlaying={setVideoPlaying}
-          videoPlaying={videoPlaying}
         />
       ) : (
         <PageChrome {...pageProps}>
@@ -2180,9 +2547,24 @@ function App() {
           ) : null}
           {visibleRoute === "post-pay" ? <PostPayPage checkoutReturnStatus={checkoutReturnStatus} draft={postDraft} onBack={() => navigate("post-reward")} /> : null}
           {visibleRoute === "browse" ? (
-            <BrowsePage onBrowseAll={() => navigate("browse-all")} onDetail={goToDetail} onPost={() => requireAuth("post-describe")} />
+            <BrowsePage
+              bounties={marketplaceBounties}
+              dataError={publicRequestsError}
+              dataLoading={publicRequestsLoading}
+              onBrowseAll={() => navigate("browse-all")}
+              onDetail={goToDetail}
+              onPost={() => requireAuth("post-describe")}
+            />
           ) : null}
-          {visibleRoute === "browse-all" ? <BrowseAllPage onDetail={goToDetail} onPost={() => requireAuth("post-describe")} /> : null}
+          {visibleRoute === "browse-all" ? (
+            <BrowseAllPage
+              bounties={marketplaceBounties}
+              dataError={publicRequestsError}
+              dataLoading={publicRequestsLoading}
+              onDetail={goToDetail}
+              onPost={() => requireAuth("post-describe")}
+            />
+          ) : null}
           {visibleRoute === "bounty-detail" ? (
             <BountyDetailPage
               bounty={activeBounty}
@@ -2195,14 +2577,33 @@ function App() {
             <SubmitFindPage bounty={activeBounty} onBack={() => navigate("bounty-detail")} onDashboard={() => navigate("finder-dashboard")} />
           ) : null}
           {visibleRoute === "poster-dashboard" ? (
-            <PosterDashboardPage checkoutReturnStatus={checkoutReturnStatus} onBounty={() => navigate("bounty-detail")} onDispute={() => navigate("dispute")} onProfile={() => navigate("profile")} />
+            <PosterDashboardPage checkoutReturnStatus={checkoutReturnStatus} onDispute={() => navigate("dispute")} onProfile={() => navigate("profile")} />
           ) : null}
           {visibleRoute === "finder-dashboard" ? (
-            <FinderDashboardPage onBrowse={() => navigate("browse")} onSubmit={() => navigate("submit-find")} onProfile={() => navigate("profile")} />
+            <FinderDashboardPage
+              bounties={marketplaceBounties}
+              onBrowse={() => navigate("browse")}
+              onSubmit={(bountyId?: string) => {
+                if (bountyId) {
+                  setActiveBountyId(bountyId);
+                }
+                navigate("submit-find");
+              }}
+              onProfile={() => navigate("profile")}
+            />
           ) : null}
           {visibleRoute === "dispute" ? <DisputePage onBack={() => navigate("poster-dashboard")} /> : null}
           {visibleRoute === "profile" ? <TrustProfilePage onBrowse={() => navigate("browse")} onFinder={() => requireAuth("finder-dashboard")} /> : null}
           {visibleRoute === "faq" ? <FaqPage onBrowse={() => navigate("browse")} onPost={() => requireAuth("post-describe")} /> : null}
+          {visibleRoute === "privacy" ? <PrivacyPage /> : null}
+          {visibleRoute === "terms" ? <TermsPage /> : null}
+          {visibleRoute === "refunds" ? <RefundPolicyPage /> : null}
+          {visibleRoute === "rules" ? <MarketplaceRulesPage /> : null}
+          {visibleRoute === "support" ? <SupportPage onReport={() => navigate("report")} /> : null}
+          {visibleRoute === "report" ? <ReportPage /> : null}
+          {visibleRoute === "account-settings" ? <AccountSettingsPage /> : null}
+          {visibleRoute === "admin-review" ? <AdminReviewPage /> : null}
+          {visibleRoute === "not-found" ? <NotFoundPage onBrowse={() => navigate("browse")} onHome={() => navigate("landing")} /> : null}
         </PageChrome>
       )}
     </CurrencyContext.Provider>
@@ -2300,7 +2701,44 @@ function PageChrome({
         ) : null}
       </header>
       {children}
+      <SiteFooter navigate={navigate} requireAuth={requireAuth} />
     </div>
+  );
+}
+
+function SiteFooter({
+  navigate,
+  requireAuth,
+}: {
+  navigate: (page: Page) => void;
+  requireAuth?: (page: Page, mode?: AuthMode) => void;
+}) {
+  const publicLinks: Array<[string, Page]> = [
+    ["Terms", "terms"],
+    ["Privacy", "privacy"],
+    ["Refunds", "refunds"],
+    ["Rules", "rules"],
+    ["Support", "support"],
+    ["Report", "report"],
+  ];
+
+  return (
+    <footer className="site-footer">
+      <div>
+        <strong>{siteName}</strong>
+        <span>Protected requests, source review, and support policies for posters and finders.</span>
+      </div>
+      <nav aria-label="Policy and support links">
+        {publicLinks.map(([label, page]) => (
+          <button key={page} type="button" onClick={() => navigate(page)}>
+            {label}
+          </button>
+        ))}
+        <button type="button" onClick={() => (requireAuth ? requireAuth("account-settings", "login") : navigate("account-settings"))}>
+          Account
+        </button>
+      </nav>
+    </footer>
   );
 }
 
@@ -2346,9 +2784,9 @@ function BoardRequestCard({
           <strong>{bounty.name}</strong>
           <em>{formatBountyDetail(bounty, currencyPreference)}</em>
         </span>
-        <span className="board-card-stats" aria-label={`${fullReward} reward, closes in ${bounty.closes}, ${bounty.submissions} leads`}>
+        <span className="board-card-stats" aria-label={`${fullReward} offer, closes in ${bounty.closes}, ${bounty.submissions} leads`}>
           <span>
-            <small>Reward</small>
+            <small>Offer</small>
             <b>{compactReward}</b>
           </span>
           <span>
@@ -2389,7 +2827,7 @@ function FeaturedBountyCard({
       <p>{formatBountyDetail(bounty, currencyPreference)}</p>
       <div className="bounty-meta">
         <span>
-          Reward<strong>{rewardText}</strong>
+          Offer<strong>{rewardText}</strong>
         </span>
         <span>
           Closes in<strong>{bounty.closes}</strong>
@@ -2400,6 +2838,7 @@ function FeaturedBountyCard({
 }
 
 function LandingPage({
+  bounties,
   menuOpen,
   onAccount,
   onBrowse,
@@ -2408,15 +2847,13 @@ function LandingPage({
   onFinders,
   onLogin,
   onLogOut,
+  onNavigate,
   onPost,
   onSection,
-  selectedFeedBounty,
   setMenuOpen,
-  setSelectedFeedBounty,
   signedIn,
-  setVideoPlaying,
-  videoPlaying,
 }: {
+  bounties: BountyListing[];
   menuOpen: boolean;
   onAccount: () => void;
   onBrowse: () => void;
@@ -2425,20 +2862,18 @@ function LandingPage({
   onFinders: () => void;
   onLogin: () => void;
   onLogOut: () => void;
+  onNavigate: (page: Page) => void;
   onPost: () => void;
   onSection: (sectionId: string) => void;
-  selectedFeedBounty: string;
   setMenuOpen: React.Dispatch<React.SetStateAction<boolean>>;
-  setSelectedFeedBounty: React.Dispatch<React.SetStateAction<string>>;
   signedIn: boolean;
-  setVideoPlaying: React.Dispatch<React.SetStateAction<boolean>>;
-  videoPlaying: boolean;
 }) {
   const currencyPreference = useCurrencyPreference();
   const [heroSearch, setHeroSearch] = useState("");
   const [heroPlaceholder, setHeroPlaceholder] = useState(heroPlaceholderExamples[0]);
   const [activeFeaturedBountyIndex, setActiveFeaturedBountyIndex] = useState(0);
-  const recentBoardBounties = bountyListings.slice(0, 4);
+  const recentBoardBounties = bounties.slice(0, 4);
+  const landingFeaturedBounties = bounties.slice(0, 4);
 
   useEffect(() => {
     const reduceMotionQuery = window.matchMedia("(prefers-reduced-motion: reduce)");
@@ -2487,17 +2922,17 @@ function LandingPage({
   useEffect(() => {
     const reduceMotionQuery = window.matchMedia("(prefers-reduced-motion: reduce)");
 
-    if (reduceMotionQuery.matches || featuredBounties.length < 2) {
+    if (reduceMotionQuery.matches || landingFeaturedBounties.length < 2) {
       setActiveFeaturedBountyIndex(0);
       return undefined;
     }
 
     const intervalId = window.setInterval(() => {
-      setActiveFeaturedBountyIndex((index) => (index + 1) % featuredBounties.length);
+      setActiveFeaturedBountyIndex((index) => (index + 1) % landingFeaturedBounties.length);
     }, 3600);
 
     return () => window.clearInterval(intervalId);
-  }, []);
+  }, [landingFeaturedBounties.length]);
 
   const submitHeroSearch = (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -2508,7 +2943,7 @@ function LandingPage({
       return;
     }
 
-    const match = bountyListings.find((bounty) => `${bounty.name} ${bounty.detail}`.toLowerCase().includes(normalizedQuery));
+    const match = bounties.find((bounty) => `${bounty.name} ${bounty.detail} ${bounty.category}`.toLowerCase().includes(normalizedQuery));
 
     if (match) {
       onDetail(match.id);
@@ -2653,23 +3088,25 @@ function LandingPage({
 
         <aside className="market-preview" aria-label="Featured request preview">
           <span className="floating-tag cyan">Rare finds</span>
-          <span className="floating-tag orange">Escrow held</span>
+          <span className="floating-tag orange">Payment protected</span>
           <div className="featured-grid featured-grid-desktop">
-            {featuredBounties.map((bounty, index) => {
+            {landingFeaturedBounties.map((bounty, index) => {
               return (
                 <FeaturedBountyCard bounty={bounty} index={index} key={bounty.name} onDetail={onDetail} />
               );
             })}
           </div>
-          <div className="featured-mobile-carousel" aria-label="Featured request carousel">
-            <FeaturedBountyCard
-              bounty={featuredBounties[activeFeaturedBountyIndex]}
-              className="featured-mobile-card"
-              index={activeFeaturedBountyIndex}
-              key={featuredBounties[activeFeaturedBountyIndex].id}
-              onDetail={onDetail}
-            />
-          </div>
+          {landingFeaturedBounties.length ? (
+            <div className="featured-mobile-carousel" aria-label="Featured request carousel">
+              <FeaturedBountyCard
+                bounty={landingFeaturedBounties[activeFeaturedBountyIndex] ?? landingFeaturedBounties[0]}
+                className="featured-mobile-card"
+                index={activeFeaturedBountyIndex}
+                key={(landingFeaturedBounties[activeFeaturedBountyIndex] ?? landingFeaturedBounties[0]).id}
+                onDetail={onDetail}
+              />
+            </div>
+          ) : null}
         </aside>
 
         <div className="hero-lower">
@@ -2684,7 +3121,7 @@ function LandingPage({
           </button>
           <p className="trust-line">
             <LockKeyhole size={18} />
-            Your finder reward is held safely. No accepted source in 30 days? The funded reward comes back to you.
+            Your offer is protected. No accepted source in 30 days? The funded offer comes back to you.
           </p>
         </div>
 
@@ -2706,15 +3143,26 @@ function LandingPage({
       </section>
 
       <section className="problem-section" aria-labelledby="problem-title">
-        <h2 id="problem-title">You're not alone. Hard-to-find things are hiding all over the world.</h2>
+        <div className="problem-section-head">
+          <p className="route-kicker">Why people post here</p>
+          <h2 id="problem-title">The thing you want is probably not gone. It is just hard to reach.</h2>
+          <p>
+            Stores sell out, listings vanish, and local sellers hide in places search engines miss. A real person can often find the path you could not.
+          </p>
+        </div>
         <div className="problem-grid">
-          {problemItems.map((item) => {
+          {problemItems.map((item, index) => {
             const ItemIcon = item.icon;
             return (
-              <article className="problem-item" key={item.title}>
-                <ItemIcon size={30} />
-                <h3>{item.title}</h3>
-                <p>{item.copy}</p>
+              <article className={`problem-item problem-tone-${index + 1}`} key={item.title}>
+                <div className="problem-item-top">
+                  <span className="problem-tag">{item.tag}</span>
+                  <ItemIcon size={20} />
+                </div>
+                <div>
+                  <h3>{item.title}</h3>
+                  <p>{item.copy}</p>
+                </div>
               </article>
             );
           })}
@@ -2722,7 +3170,10 @@ function LandingPage({
       </section>
 
       <section className="how-section" id="how" aria-labelledby="how-title">
-        <h2 id="how-title">How {siteName} works</h2>
+        <h2 id="how-title">How it works</h2>
+        <p className="how-intro">
+          Post the thing you cannot find. Fund an offer. Finders send protected leads. You only move forward when the source actually helps.
+        </p>
         <div className="how-steps">
           {workSteps.map((step, index) => {
             const StepIcon = step.icon;
@@ -2740,52 +3191,29 @@ function LandingPage({
             );
           })}
         </div>
-      </section>
-
-      <section className="feed-section" id="feed" aria-labelledby="feed-title">
-        <div className="section-head split-head">
-          <div>
-            <h2 id="feed-title">Live feed: simple requests, real rewards</h2>
-            <p>Short posts with clear photos, simple captions, and a small reward for anyone who finds the right source.</p>
+        <div className="review-protection-panel" aria-label="How source review protects posters and finders">
+          <div className="review-protection-copy">
+            <p className="route-kicker">Protected source review</p>
+            <h3>The full source is not treated like a casual message.</h3>
+            <p>
+              When a finder submits a lead, the platform saves what they sent and when they sent it. If the poster reveals the source,
+              that reveal is recorded too. This helps stop people from using a lead and then falsely saying it was wrong.
+            </p>
           </div>
-          <button className="section-link section-button" type="button" onClick={onBrowse}>
-            View all requests <ArrowRight size={17} />
-          </button>
-        </div>
-        <div className="feed-table" role="table" aria-label="Live request feed">
-          <div className="feed-row feed-header" role="row">
-            <span>Request</span>
-            <span>Reward</span>
-            <span>Finder</span>
-            <span>Location</span>
-            <span>Status</span>
-            <span>Updated</span>
+          <div className="review-protection-grid">
+            {reviewProtectionSteps.map((step) => {
+              const StepIcon = step.icon;
+              return (
+                <article className="review-protection-step" key={step.title}>
+                  <StepIcon size={22} />
+                  <span>
+                    <strong>{step.title}</strong>
+                    {step.copy}
+                  </span>
+                </article>
+              );
+            })}
           </div>
-          {feedItems.map((item) => (
-            <button
-              className={`feed-row ${selectedFeedBounty === item.bounty ? "selected" : ""}`}
-              key={item.bounty}
-              role="row"
-              type="button"
-              onClick={() => setSelectedFeedBounty(item.bounty)}
-            >
-              <span className="feed-bounty">
-                <img src={item.image} alt="" />
-                <strong>{item.bounty}</strong>
-              </span>
-              <span className="reward-cell">{formatUsdMoney(item.rewardValue, currencyPreference, { compact: true })}</span>
-              <span>
-                {item.finder}
-                <small>{item.rating} ★ verified</small>
-              </span>
-              <span>{item.location}</span>
-              <span>
-                <strong className="status-text">{item.status}</strong>
-                <small>{item.note}</small>
-              </span>
-              <span>{item.updated}</span>
-            </button>
-          ))}
         </div>
       </section>
 
@@ -2849,31 +3277,11 @@ function LandingPage({
               <CheckCircle2 size={18} /> Use your network and sourcing skills
             </li>
             <li>
-              <CheckCircle2 size={18} /> Earn securely when your source is accepted
+              <CheckCircle2 size={18} /> Earn when your valid source is accepted or wins review
             </li>
           </ul>
           <button className="finder-link finder-button large-link" type="button" onClick={onFinders}>
             Join as a finder <ArrowRight size={18} />
-          </button>
-        </div>
-        <div className="leaderboard">
-          <div className="panel-header">
-            <h3>Top finders this month</h3>
-            <Trophy size={20} />
-          </div>
-          {topFinders.map((finder) => (
-            <div className="finder-row" key={finder[1]}>
-              <strong>{finder[0]}</strong>
-              <span className="avatar">{finder[1][0]}</span>
-              <span>
-                {finder[1]}
-                <small>★ {finder[2]}</small>
-              </span>
-              <em>{finder[3]}</em>
-            </div>
-          ))}
-          <button className="section-link section-button" type="button" onClick={onFinders}>
-            See full leaderboard <ArrowRight size={17} />
           </button>
         </div>
         <div className="finder-protection">
@@ -2881,8 +3289,8 @@ function LandingPage({
           <div>
             <ShieldCheck size={28} />
             <span>
-              <strong>Your payouts are secure</strong>
-              We release payment fast once a valid source or handoff is accepted.
+              <strong>Your source is protected</strong>
+              Reveal logs and saved proof help protect you from unfair rejection.
             </span>
           </div>
           <div>
@@ -2906,25 +3314,13 @@ function LandingPage({
         <div className="founder-copy">
           <h2 id="founder-title">From the founder</h2>
           <p>
-            We built {siteName} because we were tired of not finding the things we loved. This is the simplest, safest way to get help from people who know where to look.
+            Hi, I am Saharsh. I started {siteName} after going through the same frustration this platform is built to solve. There were times I needed something urgently, searched for hours, asked around, opened every listing I could find, and still ended the day with dead links, wrong products, and sellers I could not trust.
           </p>
-          <strong>- Karthik R., Founder</strong>
+          <p>
+            I realized the problem was not that these things were impossible to find. The problem was that the right person, shop, collector, or local lead was usually outside my own reach. This is why {siteName} exists: you post what you need, set an offer, and real people who know where to look can help you find a safer path forward.
+          </p>
+          <strong>- Saharsh, Founder</strong>
         </div>
-        <button
-          className={`video-frame ${videoPlaying ? "playing" : ""}`}
-          type="button"
-          aria-label={videoPlaying ? "Pause founder video preview" : "Play founder video preview"}
-          onClick={() => setVideoPlaying((value) => !value)}
-        >
-          <img src="https://images.unsplash.com/photo-1500648767791-00dcc994a43e?auto=format&fit=crop&w=1280&q=80" alt="" />
-          <span className="play-button">{videoPlaying ? <Sparkles size={32} /> : <Play size={34} fill="currentColor" />}</span>
-          <span className="video-controls">
-            <span className="progress">
-              <span style={{ width: videoPlaying ? "68%" : "18%" }} />
-            </span>
-            <span>{videoPlaying ? "0:47" : "0:00"} / 1:32</span>
-          </span>
-        </button>
       </section>
 
       <section className="closing-section" id="faq" aria-labelledby="closing-title">
@@ -2936,6 +3332,7 @@ function LandingPage({
           Post what you're looking for
         </button>
       </section>
+      <SiteFooter navigate={onNavigate} />
     </main>
   );
 }
@@ -2993,7 +3390,7 @@ function AuthPage({
           <p className="route-kicker">Account required for this action</p>
           <h1 id="auth-title">{mode === "signup" ? "Create your account to continue." : "Log in to continue."}</h1>
           <p>
-            Public browsing is open. Posting a request, submitting a source, dashboards, payments, and disputes need a verified account so rewards and reputation stay trustworthy.
+            Public browsing is open. Posting a request, submitting a source, dashboards, payments, and disputes need a verified account so offers, payouts, and reputation stay trustworthy.
           </p>
         </div>
         <div className="auth-panel">
@@ -3095,7 +3492,7 @@ function AuthPage({
 function PostProgress({ current }: { current: 1 | 2 | 3 }) {
   const steps = [
     ["Describe", "post-describe"],
-    ["Set reward", "post-reward"],
+    ["Set offer", "post-reward"],
     ["Pay", "post-pay"],
   ] as const;
 
@@ -3205,7 +3602,7 @@ function PostDescribePage({
             </div>
           ) : null}
           <button className="primary-button" type="button" onClick={onNext}>
-            Continue to reward <ArrowRight size={18} />
+            Continue to offer <ArrowRight size={18} />
           </button>
         </div>
         <aside className="side-panel">
@@ -3263,10 +3660,10 @@ function PostRewardPage({
           <button className="back-button" type="button" onClick={onBack}>
             <ArrowLeft size={17} /> Describe
           </button>
-          <h1 id="reward-title">Set a reward that gets attention.</h1>
-          <p>The reward is what the finder earns after you accept their source or complete the handoff. Platform fees are paid by the poster at checkout.</p>
+          <h1 id="reward-title">Set an offer that gets attention.</h1>
+          <p>Your offer is the amount a finder can earn as a payout after you accept their source or complete the handoff. Platform fees are paid by the poster at checkout.</p>
           <label>
-            Reward amount
+            Offer amount
             <input type="number" min={minimumReward} value={draft.reward} onChange={(event) => setReward(event.target.value)} />
           </label>
           <div className="reward-slider">
@@ -3298,7 +3695,7 @@ function PostRewardPage({
           <h2>Payment summary</h2>
           <dl>
             <div>
-              <dt>Finder reward</dt>
+              <dt>Finder payout</dt>
               <dd>{formatUsdMoney(breakdown.reward, currencyPreference)}</dd>
             </div>
             <div>
@@ -3316,17 +3713,17 @@ function PostRewardPage({
           </dl>
           <ul className="check-list">
             <li>
-              <Banknote size={18} /> Finder sees and earns the full reward
+              <Banknote size={18} /> Finder sees the offer and earns it as payout
             </li>
             <li>
               <Search size={18} /> 12% service fee funds matching, review, and support
             </li>
             <li>
-              <ShieldCheck size={18} /> 3% protection covers escrow, payment risk, and disputes
+              <ShieldCheck size={18} /> 3% protection covers payment risk, source review, and disputes
             </li>
           </ul>
           <p>
-            <LockKeyhole size={18} /> The finder reward is held safely until a source or handoff is approved.
+            <LockKeyhole size={18} /> The offer stays protected until a source or handoff is approved.
           </p>
         </aside>
       </section>
@@ -3389,6 +3786,7 @@ function PostPayPage({
       const requestId = crypto.randomUUID();
       const uploadedImages = [];
       let user = null;
+      let accessToken = "";
 
       if (supabase) {
         const {
@@ -3401,10 +3799,20 @@ function PostPayPage({
         }
 
         user = currentUser;
+        const {
+          data: { session },
+          error: sessionError,
+        } = await supabase.auth.getSession();
+
+        if (sessionError) {
+          throw sessionError;
+        }
+
+        accessToken = session?.access_token ?? "";
       }
 
-      if (!user && draft.referenceImages.length) {
-        throw new Error("Sign in again to save reference photos before checkout.");
+      if (!user || !accessToken) {
+        throw new Error("Sign in again before starting checkout.");
       }
 
       window.sessionStorage.setItem(authEmailStorageKey, normalizedEmail);
@@ -3493,6 +3901,7 @@ function PostPayPage({
           method: "POST",
           headers: {
             "Content-Type": "application/json",
+            Authorization: `Bearer ${accessToken}`,
           },
           signal: checkoutController.signal,
           body: JSON.stringify({
@@ -3537,15 +3946,15 @@ function PostPayPage({
       <section className="two-column-page pay-layout">
         <div className="form-panel payment-form-panel">
           <button className="back-button" type="button" onClick={onBack}>
-            <ArrowLeft size={17} /> Reward
+            <ArrowLeft size={17} /> Offer
           </button>
-          <h1 id="pay-title">Fund the reward with secure checkout.</h1>
+          <h1 id="pay-title">Fund the offer with secure checkout.</h1>
           <p>
-            Pay once through secure checkout. The reward stays protected until the source is approved or the handoff is complete.
+            Pay once through secure checkout. Your offer stays protected until the source is approved or the handoff is complete.
           </p>
           {checkoutReturnStatus === "cancelled" ? (
             <p className="dialog-error" role="status">
-              Checkout was cancelled. Your request is still in draft, so you can adjust the reward or try again.
+              Checkout was cancelled. Your request is still in draft, so you can adjust the offer or try again.
             </p>
           ) : null}
           {checkoutReturnStatus === "success" ? (
@@ -3565,7 +3974,7 @@ function PostPayPage({
             <ExternalLink size={19} />
             <span>
               <strong>Secure Checkout</strong>
-              Your payment is processed securely. We never store your card details. The finder reward is held safely until a source or handoff is approved.
+              Your payment is processed securely. We never store your card details. The finder payout stays protected until a source or handoff is approved.
             </span>
           </div>
           <button className="primary-button" type="button" disabled={checkoutStatus === "loading"} onClick={startCheckout}>
@@ -3587,11 +3996,11 @@ function PostPayPage({
           <div className="summary-card">
             <Banknote size={28} />
             <strong>{formatUsdMoney(breakdown.total, currencyPreference)} due today</strong>
-            <span>Total for {itemName}, including the finder reward, platform service, and trust protection.</span>
+            <span>Total for {itemName}, including the finder payout, platform service, and trust protection.</span>
           </div>
           <dl>
             <div>
-              <dt>Finder reward</dt>
+              <dt>Finder payout</dt>
               <dd>{formatUsdMoney(breakdown.reward, currencyPreference)}</dd>
             </div>
             <div>
@@ -3629,19 +4038,31 @@ function PostPayPage({
 }
 
 function BrowsePage({
+  bounties,
+  dataError,
+  dataLoading,
   onBrowseAll,
   onDetail,
   onPost,
 }: {
+  bounties: BountyListing[];
+  dataError: string;
+  dataLoading: boolean;
   onBrowseAll: () => void;
   onDetail: (bountyId: string) => void;
   onPost: () => void;
 }) {
+  const rewardSorted = useMemo(() => [...bounties].sort((left, right) => right.rewardValue - left.rewardValue), [bounties]);
+  const featured = rewardSorted.slice(0, 4);
+  const remaining = rewardSorted.slice(4);
+
   return (
     <main className="route-page bounty-gallery-page" aria-labelledby="browse-title">
       <section className="gallery-hero">
         <h1 id="browse-title">Featured requests</h1>
-        <p>Simple posts with clear photos and small rewards, shown first so finders can quickly spot what they recognize.</p>
+        <p>Simple posts with clear photos and small offers, shown first so finders can quickly spot what they recognize.</p>
+        {dataLoading ? <p className="dialog-note">Loading live paid requests...</p> : null}
+        {dataError ? <p className="dialog-error">Live request feed is unavailable, so demo requests are shown.</p> : null}
         <div className="gallery-hero-actions">
           <button className="primary-button" type="button" onClick={onPost}>
             Post a request <ArrowRight size={18} />
@@ -3653,7 +4074,7 @@ function BrowsePage({
       </section>
 
       <section className="top-bounty-grid" aria-label="Featured requests">
-        {browseFeaturedBounties.map((bounty, index) => (
+        {featured.map((bounty, index) => (
           <BountySquareCard bounty={bounty} featured={index === 0} key={bounty.id} onDetail={onDetail} rank={index + 1} />
         ))}
       </section>
@@ -3662,14 +4083,14 @@ function BrowsePage({
         <div className="gallery-section-head">
           <div>
             <h2 id="more-bounties-title">More requests closing soon</h2>
-            <p>Active requests with real rewards, live source submissions, and a 30-day protection window.</p>
+            <p>Active requests with real offers, live source submissions, and a 30-day protection window.</p>
           </div>
           <button className="section-link section-button" type="button" onClick={onBrowseAll}>
             Browse all <ArrowRight size={17} />
           </button>
         </div>
         <div className="bounty-square-grid">
-          {browseRemainingBounties.map((bounty, index) => (
+          {remaining.map((bounty, index) => (
             <BountySquareCard bounty={bounty} compact key={bounty.id} onDetail={onDetail} rank={index + 5} />
           ))}
         </div>
@@ -3678,23 +4099,35 @@ function BrowsePage({
   );
 }
 
-function BrowseAllPage({ onDetail, onPost }: { onDetail: (bountyId: string) => void; onPost: () => void }) {
+function BrowseAllPage({
+  bounties,
+  dataError,
+  dataLoading,
+  onDetail,
+  onPost,
+}: {
+  bounties: BountyListing[];
+  dataError: string;
+  dataLoading: boolean;
+  onDetail: (bountyId: string) => void;
+  onPost: () => void;
+}) {
   const [filter, setFilter] = useState("All");
   const [query, setQuery] = useState("");
   const [visibleCount, setVisibleCount] = useState(16);
-  const categories = ["All", "Home goods", "Art & decor", "Kitchen", "Watches", "Camera gear", "Vintage audio", "Gaming", "Portable audio"];
+  const categories = useMemo(() => ["All", ...Array.from(new Set(bounties.map((bounty) => bounty.category))).sort()], [bounties]);
   const filteredBounties = useMemo(() => {
     const normalizedQuery = query.trim().toLowerCase();
-    return rewardSortedBounties.filter((bounty) => {
+    return [...bounties].sort((left, right) => right.rewardValue - left.rewardValue).filter((bounty) => {
       const matchesCategory = filter === "All" || bounty.category === filter;
       const searchable = `${bounty.name} ${bounty.detail} ${bounty.category} ${bounty.location}`.toLowerCase();
       return matchesCategory && (!normalizedQuery || searchable.includes(normalizedQuery));
     });
-  }, [filter, query]);
+  }, [bounties, filter, query]);
 
   useEffect(() => {
     setVisibleCount(16);
-  }, [filter, query]);
+  }, [bounties.length, filter, query]);
 
   useEffect(() => {
     const loadNearBottom = () => {
@@ -3718,6 +4151,8 @@ function BrowseAllPage({ onDetail, onPost }: { onDetail: (bountyId: string) => v
         <div>
           <h1 id="browse-all-title">Browse all requests</h1>
           <p>Search open requests by item, category, or location.</p>
+          {dataLoading ? <p className="dialog-note">Loading live paid requests...</p> : null}
+          {dataError ? <p className="dialog-error">Live request feed is unavailable, so demo requests are shown.</p> : null}
         </div>
         <button className="primary-button" type="button" onClick={onPost}>
           Post a request <ArrowRight size={18} />
@@ -3798,7 +4233,7 @@ function BountySquareCard({
         {requestVariant ? (
           <span className="square-meta request-card-meta">
             <span>
-              <small>Reward</small>
+              <small>Offer</small>
               <b>{rewardText}</b>
             </span>
             <span>
@@ -3862,7 +4297,7 @@ function BountyDetailPage({
         </article>
         <aside className="side-panel detail-side">
           <strong className="detail-reward">{formatUsdMoney(bounty.rewardValue, currencyPreference)}</strong>
-          <span>Reward for accepted source</span>
+          <span>Payout for accepted source</span>
           <button className="primary-button wide-button" type="button" onClick={onSubmit}>
             Submit a source <Send size={18} />
           </button>
@@ -3901,13 +4336,20 @@ function SubmitFindPage({
   const [itemTerms, setItemTerms] = useState("");
   const [notes, setNotes] = useState("");
   const [submitError, setSubmitError] = useState("");
+  const [submitMessage, setSubmitMessage] = useState("");
+  const [submitStatus, setSubmitStatus] = useState<"idle" | "loading" | "success" | "error">("idle");
+  const [proofFiles, setProofFiles] = useState<File[]>([]);
+  const [sourceTruthConfirmed, setSourceTruthConfirmed] = useState(false);
   const selectedSource = findSourceOptions.find((option) => option.value === sourceType) ?? findSourceOptions[0];
   const linkRequired = sourceType === "source-link";
 
-  const handleSubmit = (event: React.FormEvent<HTMLFormElement>) => {
+  const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
 
     const normalizedEmail = contactEmail.trim();
+    const normalizedSource = sourceLink.trim();
+    const normalizedTerms = itemTerms.trim();
+    const normalizedNotes = notes.trim();
     if (linkRequired && !sourceLink.trim()) {
       setSubmitError("Add the source link, or choose a private/direct source type if there is no public link.");
       setSubmitted(false);
@@ -3920,9 +4362,62 @@ function SubmitFindPage({
       return;
     }
 
+    if (!sourceTruthConfirmed) {
+      setSubmitError("Confirm that your source is real and matches the request before submitting.");
+      setSubmitted(false);
+      return;
+    }
+
     setSubmitError("");
-    setContactEmail(normalizedEmail);
-    setSubmitted(true);
+    setSubmitMessage("");
+    setSubmitStatus("loading");
+
+    const uploadedPaths: string[] = [];
+
+    try {
+      if (supabase && isUuid(bounty.id)) {
+        const user = await getCurrentSupabaseUser();
+        const submissionId = crypto.randomUUID();
+        const uploadResult = await uploadSourceProofFiles(user.id, submissionId, proofFiles);
+
+        uploadedPaths.push(...uploadResult.uploadedPaths);
+
+        const fingerprint = await createSourceFingerprint(bounty.id, sourceType, normalizedSource, normalizedNotes, normalizedEmail);
+        const { error } = await supabase.from("source_submissions").insert({
+          id: submissionId,
+          request_id: bounty.id,
+          finder_id: user.id,
+          source_type: sourceType,
+          source_url: sourceType === "source-link" ? normalizedSource : normalizedSource || null,
+          source_contact: sourceType === "source-link" ? null : normalizedNotes.slice(0, 500) || normalizedSource || null,
+          contact_email: normalizedEmail,
+          price_or_terms: normalizedTerms || null,
+          match_notes: normalizedNotes || "Finder submitted a source for review.",
+          proof: uploadResult.proof,
+          source_fingerprint: fingerprint,
+        });
+
+        if (error) {
+          throw error;
+        }
+
+        setSubmitMessage("Protected source saved to Supabase. The poster can preview the lead, reveal it under terms, and review it from their dashboard.");
+      } else {
+        setSubmitMessage("Demo request recorded locally. Live paid requests save protected source records to Supabase.");
+      }
+
+      setContactEmail(normalizedEmail);
+      setSubmitted(true);
+      setSubmitStatus("success");
+    } catch (error) {
+      if (supabase && uploadedPaths.length) {
+        await supabase.storage.from(sourceSubmissionProofBucket).remove(uploadedPaths);
+      }
+
+      setSubmitted(false);
+      setSubmitStatus("error");
+      setSubmitError(error instanceof Error ? error.message : "Could not submit this source.");
+    }
   };
 
   return (
@@ -3934,6 +4429,12 @@ function SubmitFindPage({
           </button>
           <h1 id="submit-title">Submit a source for {bounty.name}.</h1>
           <p>Tell the poster where it is, who has it, or whether you have it yourself. A link is helpful, but your email is required for next steps.</p>
+          <div className="source-protection-note" role="note">
+            <ShieldCheck size={21} />
+            <span>
+              Your full source is saved as a protected record. If the poster reveals it and later rejects it unfairly, your proof can be reviewed.
+            </span>
+          </div>
           <label>
             How did you find it?
             <select
@@ -4001,25 +4502,48 @@ function SubmitFindPage({
             <Upload size={24} />
             <span>
               <strong>Add context</strong>
-              Screenshots, photos, messages, or proof are optional but help the poster review faster.
+              {proofFiles.length
+                ? `${proofFiles.length} file${proofFiles.length === 1 ? "" : "s"} selected for protected proof.`
+                : "Screenshots, photos, messages, or proof are optional but help the poster review faster."}
             </span>
+            <input
+              type="file"
+              accept="image/*,application/pdf"
+              multiple
+              onChange={(event) => {
+                setProofFiles(Array.from(event.target.files ?? []).slice(0, 6));
+                setSubmitted(false);
+              }}
+            />
           </div>
+          <label className="check-confirmation">
+            <input
+              type="checkbox"
+              checked={sourceTruthConfirmed}
+              onChange={(event) => {
+                setSourceTruthConfirmed(event.target.checked);
+                setSubmitted(false);
+              }}
+            />
+            <span>I confirm this source is real, relevant, and submitted in good faith.</span>
+          </label>
           {submitError ? (
             <p className="dialog-error" role="alert">
               {submitError}
             </p>
           ) : null}
-          <button className="primary-button" type="submit">
-            Submit source for review
+          <button className="primary-button" type="submit" disabled={submitStatus === "loading"}>
+            {submitStatus === "loading" ? "Saving protected source..." : "Submit source for review"}
           </button>
           {submitted ? (
             <>
               <div className="summary-card submission-success" role="status">
                 <CheckCircle2 size={24} />
-                <strong>Source submitted for poster review</strong>
-                <span>{sourceLink.trim() ? `Link shared: ${sourceLink.trim()}` : "No public link shared. The poster will use your email to discuss the source or handoff."}</span>
+                <strong>Protected source submitted</strong>
+                <span>{sourceLink.trim() ? `Source recorded: ${sourceLink.trim()}` : "No public link shared. Your contact path and notes are recorded for review."}</span>
                 <span>Contact: {contactEmail}</span>
                 {itemTerms.trim() ? <span>Terms: {itemTerms.trim()}</span> : null}
+                <span>{submitMessage || "The poster can preview the lead first. If they reveal it, that reveal is saved."}</span>
               </div>
               <button className="section-link section-button" type="button" onClick={onDashboard}>
                 Go to finder dashboard <ArrowRight size={17} />
@@ -4042,12 +4566,15 @@ function SubmitFindPage({
             <li>
               <CheckCircle2 size={18} /> Delivery or handoff path is clear
             </li>
+            <li>
+              <CheckCircle2 size={18} /> Proof is saved before the source is revealed
+            </li>
           </ul>
           <div className="mini-bounty-card">
             <img src={bounty.image} alt="" />
             <div>
               <strong>{bounty.name}</strong>
-              <span>{formatUsdMoney(bounty.rewardValue, currencyPreference, { compact: true })} reward · {bounty.closes} left</span>
+              <span>{formatUsdMoney(bounty.rewardValue, currencyPreference, { compact: true })} payout · {bounty.closes} left</span>
             </div>
           </div>
         </aside>
@@ -4058,17 +4585,212 @@ function SubmitFindPage({
 
 function PosterDashboardPage({
   checkoutReturnStatus,
-  onBounty,
   onDispute,
   onProfile,
 }: {
   checkoutReturnStatus: CheckoutReturnStatus;
-  onBounty: () => void;
   onDispute: () => void;
   onProfile: () => void;
 }) {
   const currencyPreference = useCurrencyPreference();
   const checkoutSnapshot = readStoredCheckoutSnapshot();
+  const [requests, setRequests] = useState<RequestRow[]>([]);
+  const [submissions, setSubmissions] = useState<SourceSubmissionRow[]>([]);
+  const [revealedSources, setRevealedSources] = useState<RevealedSourceDetailRow[]>([]);
+  const [reviews, setReviews] = useState<SourceReviewRow[]>([]);
+  const [loading, setLoading] = useState(Boolean(supabase));
+  const [dashboardError, setDashboardError] = useState("");
+  const [actionMessage, setActionMessage] = useState("");
+  const [selectedSubmissionId, setSelectedSubmissionId] = useState("");
+  const [reviewMode, setReviewMode] = useState(false);
+  const [rejectionReason, setRejectionReason] = useState("wrong-item");
+  const [reviewNote, setReviewNote] = useState("");
+
+  const [refreshKey, setRefreshKey] = useState(0);
+
+  useEffect(() => {
+    if (!supabase) {
+      setLoading(false);
+      return undefined;
+    }
+
+    const client = supabase;
+    let mounted = true;
+
+    const loadDashboard = async () => {
+      setLoading(true);
+      setDashboardError("");
+
+      try {
+        await getCurrentSupabaseUser();
+        const { data: requestData, error: requestError } = await client
+          .from("requests")
+          .select("id,user_id,item_name,category,details,reward,total_due,finder_payout,duration_days,status,payment_status,payout_status,customer_email,reference_images,created_at,paid_at,payout_release_after")
+          .order("created_at", { ascending: false });
+
+        if (requestError) {
+          throw requestError;
+        }
+
+        const nextRequests = (requestData ?? []) as RequestRow[];
+        const requestIds = nextRequests.map((request) => request.id);
+        let nextSubmissions: SourceSubmissionRow[] = [];
+        let nextRevealedSources: RevealedSourceDetailRow[] = [];
+        let nextReviews: SourceReviewRow[] = [];
+
+        if (requestIds.length) {
+          const [submissionResult, revealedResult, reviewResult] = await Promise.all([
+            client
+              .from("source_submissions")
+              .select("id,request_id,finder_id,source_type,price_or_terms,match_notes,status,first_valid_rank,revealed_at,accepted_at,rejected_at,awarded_at,created_at,updated_at")
+              .in("request_id", requestIds)
+              .order("created_at", { ascending: true }),
+            client
+              .rpc("get_revealed_source_details")
+              .select("id,request_id,finder_id,source_type,source_url,source_contact,contact_email,price_or_terms,match_notes,proof,status,revealed_at,accepted_at,rejected_at,awarded_at,poster_id,revealed_log_created_at,created_at,updated_at")
+              .in("request_id", requestIds),
+            client
+              .from("source_reviews")
+              .select("id,submission_id,request_id,reviewer_id,decision,reason_code,note,created_at")
+              .in("request_id", requestIds)
+              .order("created_at", { ascending: false }),
+          ]);
+
+          if (submissionResult.error) {
+            throw submissionResult.error;
+          }
+
+          if (revealedResult.error) {
+            throw revealedResult.error;
+          }
+
+          if (reviewResult.error) {
+            throw reviewResult.error;
+          }
+
+          nextSubmissions = (submissionResult.data ?? []) as SourceSubmissionRow[];
+          nextRevealedSources = (revealedResult.data ?? []) as RevealedSourceDetailRow[];
+          nextReviews = (reviewResult.data ?? []) as SourceReviewRow[];
+        }
+
+        if (!mounted) {
+          return;
+        }
+
+        setRequests(nextRequests);
+        setSubmissions(nextSubmissions);
+        setRevealedSources(nextRevealedSources);
+        setReviews(nextReviews);
+        setSelectedSubmissionId((current) => (current && nextSubmissions.some((submission) => submission.id === current) ? current : nextSubmissions[0]?.id ?? ""));
+      } catch (error) {
+        if (mounted) {
+          setDashboardError(error instanceof Error ? error.message : "Could not load poster dashboard.");
+        }
+      } finally {
+        if (mounted) {
+          setLoading(false);
+        }
+      }
+    };
+
+    loadDashboard();
+
+    return () => {
+      mounted = false;
+    };
+  }, [refreshKey]);
+
+  const submissionsByRequest = useMemo(() => {
+    const counts = new Map<string, number>();
+    submissions.forEach((submission) => counts.set(submission.request_id, (counts.get(submission.request_id) ?? 0) + 1));
+    return counts;
+  }, [submissions]);
+  const dashboardBounties = requests.length
+    ? requests.map((request) => requestRowToBounty(request, submissionsByRequest.get(request.id) ?? 0))
+    : bountyListings.slice(0, 4);
+  const selectedSubmission = submissions.find((submission) => submission.id === selectedSubmissionId) ?? submissions[0] ?? null;
+  const selectedRequest = selectedSubmission ? requests.find((request) => request.id === selectedSubmission.request_id) ?? null : null;
+  const selectedReveal = selectedSubmission ? revealedSources.find((source) => source.id === selectedSubmission.id) ?? null : null;
+  const selectedReview = selectedSubmission ? reviews.find((review) => review.submission_id === selectedSubmission.id) ?? null : null;
+  const protectedOfferTotal = requests.reduce((total, request) => total + (request.payment_status === "paid" ? request.total_due : 0), 0);
+  const acceptedTotal = reviews.reduce((total, review) => {
+    if (review.decision !== "accepted") {
+      return total;
+    }
+
+    const request = requests.find((item) => item.id === review.request_id);
+    return total + (request?.finder_payout ?? 0);
+  }, 0);
+  const awaitingReviewCount = submissions.filter((submission) => ["submitted", "revealed", "in_review"].includes(submission.status)).length;
+
+  const selectRequest = (requestId: string) => {
+    const requestSubmission = submissions.find((submission) => submission.request_id === requestId);
+    if (requestSubmission) {
+      setSelectedSubmissionId(requestSubmission.id);
+      setReviewMode(false);
+      setActionMessage("");
+    }
+  };
+
+  const revealSelectedSource = async () => {
+    if (!selectedSubmission || !supabase) {
+      return;
+    }
+
+    setDashboardError("");
+    setActionMessage("");
+
+    try {
+      const user = await getCurrentSupabaseUser();
+      const { error } = await supabase.from("source_reveals").insert({
+        submission_id: selectedSubmission.id,
+        request_id: selectedSubmission.request_id,
+        poster_id: user.id,
+        reveal_terms_accepted: true,
+      });
+
+      if (error) {
+        throw error;
+      }
+
+      setActionMessage("Source revealed and logged. Full source details are now visible to you and the finder.");
+      setRefreshKey((key) => key + 1);
+    } catch (error) {
+      setDashboardError(error instanceof Error ? error.message : "Could not reveal this source.");
+    }
+  };
+
+  const reviewSelectedSource = async (decision: "accepted" | "sent_to_review") => {
+    if (!selectedSubmission || !supabase) {
+      return;
+    }
+
+    setDashboardError("");
+    setActionMessage("");
+
+    try {
+      const user = await getCurrentSupabaseUser();
+      const { error } = await supabase.from("source_reviews").insert({
+        submission_id: selectedSubmission.id,
+        request_id: selectedSubmission.request_id,
+        reviewer_id: user.id,
+        decision,
+        reason_code: decision === "accepted" ? null : rejectionReason,
+        note: reviewNote.trim(),
+      });
+
+      if (error) {
+        throw error;
+      }
+
+      setReviewMode(false);
+      setReviewNote("");
+      setActionMessage(decision === "accepted" ? "Source accepted. Finder payout is now marked payable after the release window." : "Source sent to review with your reason saved.");
+      setRefreshKey((key) => key + 1);
+    } catch (error) {
+      setDashboardError(error instanceof Error ? error.message : "Could not save this review decision.");
+    }
+  };
 
   return (
     <main className="route-page dashboard-page" aria-labelledby="poster-dashboard-title">
@@ -4084,11 +4806,14 @@ function PosterDashboardPage({
           Public trust page <ArrowRight size={17} />
         </button>
       </section>
+      {loading ? <p className="dialog-note">Loading your saved requests and protected source records...</p> : null}
+      {dashboardError ? <p className="dialog-error" role="alert">{dashboardError}</p> : null}
+      {actionMessage ? <p className="dialog-success" role="status">{actionMessage}</p> : null}
       <section className="metric-grid">
-        <Metric icon={LockKeyhole} label="Escrow funded" value={formatUsdMoney(1280, currencyPreference, { compact: true })} />
-        <Metric icon={MessageSquare} label="Sources awaiting review" value="4" />
-        <Metric icon={PackageCheck} label="Handoffs in discussion" value="2" />
-        <Metric icon={CheckCircle2} label="Accepted this month" value={formatUsdMoney(930, currencyPreference, { compact: true })} />
+        <Metric icon={LockKeyhole} label="Protected offers" value={formatUsdMoney(protectedOfferTotal || 1280, currencyPreference, { compact: true })} />
+        <Metric icon={MessageSquare} label="Sources awaiting review" value={String(awaitingReviewCount || 4)} />
+        <Metric icon={PackageCheck} label="Requests funded" value={String(requests.filter((request) => request.payment_status === "paid").length || 2)} />
+        <Metric icon={CheckCircle2} label="Accepted payouts" value={formatUsdMoney(acceptedTotal || 930, currencyPreference, { compact: true })} />
       </section>
       <section className="dashboard-grid">
         <div className="dashboard-panel">
@@ -4096,8 +4821,8 @@ function PosterDashboardPage({
             <h2>Sources to review</h2>
             <Filter size={18} />
           </div>
-          {bountyListings.slice(0, 4).map((bounty) => (
-            <button className="review-row" key={bounty.id} type="button" onClick={onBounty}>
+          {dashboardBounties.map((bounty) => (
+            <button className="review-row" key={bounty.id} type="button" onClick={() => selectRequest(bounty.id)}>
               <img src={bounty.image} alt="" />
               <span>
                 <strong>{bounty.name}</strong>
@@ -4109,19 +4834,93 @@ function PosterDashboardPage({
         </div>
         <div className="dashboard-panel active-review">
           <div className="panel-header">
-            <h2>Recommended find</h2>
-            <BadgeCheck size={20} />
+            <h2>Protected source review</h2>
+            <LockKeyhole size={20} />
           </div>
-          <h3>Help me find this art</h3>
-          <p>Finder shared a print source, a seller link, and the handoff questions to ask next. The image matches the framed duck art request.</p>
-          <div className="action-row">
-            <button className="primary-button" type="button">
-              Accept source and contact finder
-            </button>
-            <button className="danger-button" type="button" onClick={onDispute}>
-              Open dispute
-            </button>
-          </div>
+          {selectedSubmission ? (
+            <>
+              <h3>{selectedRequest?.item_name ?? "Protected source"}</h3>
+              <p>{selectedSubmission.match_notes || "Finder shared a protected lead. Reveal it only when you are ready to review the full source."}</p>
+              <div className="protected-source-review" aria-label="Protected source review">
+                <div className="source-review-row">
+                  <span>Preview</span>
+                  <strong>{selectedSubmission.price_or_terms || selectedSubmission.match_notes || "Source preview saved"}</strong>
+                </div>
+                <div className="source-review-row">
+                  <span>Source</span>
+                  <strong>{selectedReveal ? selectedReveal.source_url || selectedReveal.source_contact || "Private source details revealed" : "Hidden until reveal"}</strong>
+                </div>
+                <div className="source-review-row">
+                  <span>Finder proof</span>
+                  <strong>{selectedSubmission.proof?.length ? `${selectedSubmission.proof.length} protected file${selectedSubmission.proof.length === 1 ? "" : "s"} saved` : "No files attached; notes are saved"}</strong>
+                </div>
+              </div>
+
+              {selectedReview ? (
+                <div className={selectedReview.decision === "accepted" ? "reveal-log success-log" : "reveal-log"} role="status">
+                  <BadgeCheck size={20} />
+                  <span>Review saved: {selectedReview.decision.replace(/_/g, " ")}{selectedReview.reason_code ? ` (${selectedReview.reason_code})` : ""}.</span>
+                </div>
+              ) : selectedReveal ? (
+                <>
+                  <div className="reveal-log" role="status">
+                    <CheckCircle2 size={20} />
+                    <span>Source revealed and saved to the case timeline. Review it before accepting or sending to review.</span>
+                  </div>
+                  <div className="action-row">
+                    <button className="primary-button" type="button" onClick={() => reviewSelectedSource("accepted")}>
+                      Accept source and contact finder
+                    </button>
+                    <button className="danger-button" type="button" onClick={() => setReviewMode((value) => !value)}>
+                      Reject with reason
+                    </button>
+                  </div>
+                  {reviewMode ? (
+                    <div className="reject-review-panel" role="group" aria-label="Reject source with reason">
+                      <label>
+                        Why is this not right?
+                        <select value={rejectionReason} onChange={(event) => setRejectionReason(event.target.value)}>
+                          <option value="wrong-item">Wrong item</option>
+                          <option value="unavailable">Listing is gone or unavailable</option>
+                          <option value="fake-seller">Seller or source looks fake</option>
+                          <option value="condition">Condition does not match</option>
+                          <option value="price">Price or terms are not what was promised</option>
+                        </select>
+                      </label>
+                      <label>
+                        Review note
+                        <textarea value={reviewNote} placeholder="Explain what did not match. This becomes part of the case record." onChange={(event) => setReviewNote(event.target.value)} />
+                      </label>
+                      <button className="danger-button strong-danger" type="button" onClick={() => reviewSelectedSource("sent_to_review")}>
+                        Save review reason
+                      </button>
+                      <button className="section-link section-button" type="button" onClick={onDispute}>
+                        Open dispute form <ArrowRight size={17} />
+                      </button>
+                    </div>
+                  ) : null}
+                </>
+              ) : (
+                <>
+                  <div className="reveal-rule">
+                    <ShieldCheck size={21} />
+                    <span>
+                      If you reveal this source and it matches your request, the finder may still be paid after review even if you reject it later.
+                    </span>
+                  </div>
+                  <button className="primary-button" type="button" onClick={revealSelectedSource}>
+                    Reveal protected source
+                  </button>
+                </>
+              )}
+            </>
+          ) : (
+            <div className="empty-state">
+              <LockKeyhole size={26} />
+              <strong>No protected sources yet</strong>
+              <span>Once a finder submits to one of your paid requests, the preview appears here before reveal.</span>
+            </div>
+          )}
         </div>
       </section>
     </main>
@@ -4145,7 +4944,7 @@ function PostSuccessConfirmation({
   const rewardText = checkoutSnapshot ? formatUsdMoney(checkoutSnapshot.reward, currencyPreference) : "Held after acceptance";
   const receiptTarget = checkoutSnapshot?.email ? `Receipt sent to ${checkoutSnapshot.email}` : "Receipt saved to your checkout account";
   const platformShareText = checkoutSnapshot
-    ? `Service and protection fees total ${formatUsdMoney(checkoutSnapshot.platformShare, currencyPreference)}, while the finder reward stays reserved for acceptance.`
+    ? `Service and protection fees total ${formatUsdMoney(checkoutSnapshot.platformShare, currencyPreference)}, while the finder payout stays reserved for acceptance.`
     : "The hosted checkout keeps the receipt and payment split attached to this request.";
   const reviewDashboard = () => {
     document.getElementById("poster-dashboard-title")?.scrollIntoView({ behavior: "smooth", block: "start" });
@@ -4164,7 +4963,7 @@ function PostSuccessConfirmation({
           </div>
         </div>
         <p className="confirmation-copy">
-          Your payment is recorded, the finder reward is held for acceptance, and the request is ready for sources. Use this confirmation to track the post while finders start working.
+          Your payment is recorded, the finder payout is held for acceptance, and the request is ready for sources. Use this confirmation to track the post while finders start working.
         </p>
         <div className="confirmation-detail-grid" aria-label="Posted request receipt">
           <div>
@@ -4237,15 +5036,61 @@ function PostSuccessConfirmation({
 }
 
 function FinderDashboardPage({
+  bounties,
   onBrowse,
   onProfile,
   onSubmit,
 }: {
+  bounties: BountyListing[];
   onBrowse: () => void;
   onProfile: () => void;
-  onSubmit: () => void;
+  onSubmit: (bountyId?: string) => void;
 }) {
   const currencyPreference = useCurrencyPreference();
+  const [finderSubmissions, setFinderSubmissions] = useState<RevealedSourceDetailRow[]>([]);
+  const [dashboardError, setDashboardError] = useState("");
+
+  useEffect(() => {
+    if (!supabase) {
+      return undefined;
+    }
+
+    const client = supabase;
+    let mounted = true;
+
+    const loadSubmissions = async () => {
+      try {
+        await getCurrentSupabaseUser();
+        const { data, error } = await client
+          .rpc("get_finder_source_submission_details")
+          .select("id,request_id,finder_id,source_type,source_url,source_contact,contact_email,price_or_terms,match_notes,proof,status,created_at,updated_at")
+          .order("created_at", { ascending: false });
+
+        if (error) {
+          throw error;
+        }
+
+        if (mounted) {
+          setFinderSubmissions((data ?? []) as RevealedSourceDetailRow[]);
+        }
+      } catch (error) {
+        if (mounted) {
+          setDashboardError(error instanceof Error ? error.message : "Could not load finder submissions.");
+        }
+      }
+    };
+
+    loadSubmissions();
+
+    return () => {
+      mounted = false;
+    };
+  }, []);
+
+  const availableBounties = bounties.slice(0, 4);
+  const acceptedCount = finderSubmissions.filter((submission) => submission.status === "accepted" || submission.status === "awarded").length;
+  const pendingCount = finderSubmissions.filter((submission) => ["submitted", "revealed", "in_review"].includes(submission.status)).length;
+  const availablePayout = availableBounties.reduce((total, bounty) => total + bounty.rewardValue, 0);
 
   return (
     <main className="route-page dashboard-page" aria-labelledby="finder-dashboard-title">
@@ -4263,11 +5108,12 @@ function FinderDashboardPage({
           </button>
         </div>
       </section>
+      {dashboardError ? <p className="dialog-error" role="alert">{dashboardError}</p> : null}
       <section className="metric-grid">
-        <Metric icon={Banknote} label="Available reward" value={formatUsdMoney(640, currencyPreference, { compact: true })} />
+        <Metric icon={Banknote} label="Available payout" value={formatUsdMoney(availablePayout || 640, currencyPreference, { compact: true })} />
         <Metric icon={Star} label="Reputation" value="4.9" />
-        <Metric icon={Trophy} label="Accepted sources" value="18" />
-        <Metric icon={Clock3} label="Pending source reviews" value="3" />
+        <Metric icon={Trophy} label="Accepted sources" value={String(acceptedCount || 18)} />
+        <Metric icon={Clock3} label="Pending source reviews" value={String(pendingCount || 3)} />
       </section>
       <section className="dashboard-grid">
         <div className="dashboard-panel">
@@ -4275,8 +5121,8 @@ function FinderDashboardPage({
             <h2>Active opportunities</h2>
             <Search size={18} />
           </div>
-          {bountyListings.slice(0, 4).map((bounty) => (
-            <button className="review-row" key={bounty.id} type="button" onClick={onSubmit}>
+          {availableBounties.map((bounty) => (
+            <button className="review-row" key={bounty.id} type="button" onClick={() => onSubmit(bounty.id)}>
               <img src={bounty.image} alt="" />
               <span>
                 <strong>{bounty.name}</strong>
@@ -4285,6 +5131,16 @@ function FinderDashboardPage({
               <em>{formatUsdMoney(bounty.rewardValue, currencyPreference, { compact: true })}</em>
             </button>
           ))}
+          {finderSubmissions.length ? (
+            <div className="mini-status-list" aria-label="Your submitted sources">
+              {finderSubmissions.slice(0, 3).map((submission) => (
+                <span key={submission.id}>
+                  <ShieldCheck size={15} />
+                  Source {submission.status.replace(/_/g, " ")} · {getRelativeTimeLabel(submission.created_at)}
+                </span>
+              ))}
+            </div>
+          ) : null}
         </div>
         <div className="dashboard-panel reputation-panel">
           <div className="panel-header">
@@ -4310,27 +5166,140 @@ function FinderDashboardPage({
 }
 
 function DisputePage({ onBack }: { onBack: () => void }) {
+  const [submissions, setSubmissions] = useState<SourceSubmissionRow[]>([]);
+  const [selectedSubmissionId, setSelectedSubmissionId] = useState("");
+  const [reasonCode, setReasonCode] = useState("bad-source");
+  const [evidenceSummary, setEvidenceSummary] = useState("");
+  const [message, setMessage] = useState("");
+  const [errorMessage, setErrorMessage] = useState("");
+  const [submitting, setSubmitting] = useState(false);
+
+  useEffect(() => {
+    if (!supabase) {
+      return undefined;
+    }
+
+    const client = supabase;
+    let mounted = true;
+
+    const loadSubmissions = async () => {
+      try {
+        await getCurrentSupabaseUser();
+        const { data, error } = await client
+          .from("source_submissions")
+          .select("id,request_id,finder_id,source_type,price_or_terms,match_notes,proof,status,first_valid_rank,revealed_at,accepted_at,rejected_at,awarded_at,created_at,updated_at")
+          .in("status", ["revealed", "accepted", "rejected", "in_review"]);
+
+        if (error) {
+          throw error;
+        }
+
+        if (mounted) {
+          const nextSubmissions = (data ?? []) as SourceSubmissionRow[];
+          setSubmissions(nextSubmissions);
+          setSelectedSubmissionId(nextSubmissions[0]?.id ?? "");
+        }
+      } catch (error) {
+        if (mounted) {
+          setErrorMessage(error instanceof Error ? error.message : "Could not load dispute-eligible sources.");
+        }
+      }
+    };
+
+    loadSubmissions();
+
+    return () => {
+      mounted = false;
+    };
+  }, []);
+
+  const submitDispute = async (event: React.FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    setErrorMessage("");
+    setMessage("");
+
+    if (!supabase) {
+      setErrorMessage("Dispute submission requires Supabase configuration.");
+      return;
+    }
+
+    const selectedSubmission = submissions.find((submission) => submission.id === selectedSubmissionId);
+
+    if (!selectedSubmission) {
+      setErrorMessage("Choose a revealed or reviewed source first.");
+      return;
+    }
+
+    if (!evidenceSummary.trim()) {
+      setErrorMessage("Add an evidence summary before opening a dispute.");
+      return;
+    }
+
+    setSubmitting(true);
+
+    try {
+      const user = await getCurrentSupabaseUser();
+      const { error } = await supabase.from("source_disputes").insert({
+        submission_id: selectedSubmission.id,
+        request_id: selectedSubmission.request_id,
+        opened_by: user.id,
+        opened_by_role: selectedSubmission.finder_id === user.id ? "finder" : "poster",
+        reason_code: reasonCode,
+        evidence_summary: evidenceSummary.trim(),
+        status: "open",
+        resolution_note: "",
+      });
+
+      if (error) {
+        throw error;
+      }
+
+      setMessage("Dispute opened. The case is now available for review with your evidence summary.");
+      setEvidenceSummary("");
+    } catch (error) {
+      setErrorMessage(error instanceof Error ? error.message : "Could not open dispute.");
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
   return (
     <main className="route-page" aria-labelledby="dispute-title">
       <section className="two-column-page">
-        <div className="form-panel">
+        <form className="form-panel" onSubmit={submitDispute}>
           <button className="back-button" type="button" onClick={onBack}>
             <ArrowLeft size={17} /> Poster dashboard
           </button>
           <h1 id="dispute-title">Open a dispute.</h1>
-          <p>Use this page when a source, contact, handoff, or proof package does not match the funded request.</p>
+          <p>Use this page when a revealed source, contact, handoff, or proof package does not match the funded request.</p>
+          <label>
+            Source case
+            <select value={selectedSubmissionId} onChange={(event) => setSelectedSubmissionId(event.target.value)}>
+              {submissions.length ? (
+                submissions.map((submission) => (
+                  <option value={submission.id} key={submission.id}>
+                    {submission.match_notes.slice(0, 72) || submission.id} · {submission.status}
+                  </option>
+                ))
+              ) : (
+                <option value="">No revealed or reviewed sources yet</option>
+              )}
+            </select>
+          </label>
           <label>
             Dispute reason
-            <select defaultValue="mismatch">
-              <option value="mismatch">Item does not match request</option>
-              <option value="condition">Condition issue</option>
-              <option value="shipping">Shipping or handoff issue</option>
-              <option value="payment">Payment release issue</option>
+            <select value={reasonCode} onChange={(event) => setReasonCode(event.target.value)}>
+              <option value="bad-source">Source does not match request</option>
+              <option value="used-valid-source">Valid source was used after rejection</option>
+              <option value="wrong-rejection">Source was rejected unfairly</option>
+              <option value="handoff-issue">Shipping or handoff issue</option>
+              <option value="payment-release">Payment release issue</option>
+              <option value="other">Other</option>
             </select>
           </label>
           <label>
             Evidence summary
-            <textarea placeholder="Explain what went wrong and include source links, messages, or proof references." />
+            <textarea value={evidenceSummary} placeholder="Explain what went wrong and include source links, messages, or proof references." onChange={(event) => setEvidenceSummary(event.target.value)} />
           </label>
           <div className="upload-box">
             <FileText size={24} />
@@ -4339,13 +5308,15 @@ function DisputePage({ onBack }: { onBack: () => void }) {
               Source links, receipts, photos, messages, and handoff proof.
             </span>
           </div>
-          <button className="danger-button strong-danger" type="button">
-            Submit dispute for review
+          {errorMessage ? <p className="dialog-error" role="alert">{errorMessage}</p> : null}
+          {message ? <p className="dialog-success" role="status">{message}</p> : null}
+          <button className="danger-button strong-danger" type="submit" disabled={submitting || !selectedSubmissionId}>
+            {submitting ? "Submitting dispute..." : "Submit dispute for review"}
           </button>
-        </div>
+        </form>
         <aside className="side-panel dispute-side">
           <h2>Case timeline</h2>
-          {["Reward funded", "Source submitted", "Poster requested review", "Evidence due in 48 hours"].map((event) => (
+          {["Offer funded", "Protected source submitted", "Source revealed", "Review requested", "Evidence due in 48 hours"].map((event) => (
             <div className="timeline-item" key={event}>
               <span />
               <p>{event}</p>
@@ -4353,8 +5324,8 @@ function DisputePage({ onBack }: { onBack: () => void }) {
           ))}
           <div className="summary-card warning-card">
             <AlertTriangle size={26} />
-            <strong>Escrow remains locked</strong>
-            <span>No funds are released while the dispute is under review.</span>
+            <strong>Payment stays protected</strong>
+            <span>No payout is released while the case is under review.</span>
           </div>
         </aside>
       </section>
@@ -4432,7 +5403,7 @@ function FaqPage({ onBrowse, onPost }: { onBrowse: () => void; onPost: () => voi
       <section className="route-hero">
         <div>
           <h1 id="faq-title">FAQ</h1>
-          <p>Clear answers for posters, finders, rewards, refunds, disputes, and public browsing.</p>
+          <p>Clear answers for posters, finders, offers, payouts, refunds, disputes, and public browsing.</p>
         </div>
         <div className="head-actions">
           <button className="primary-button" type="button" onClick={onPost}>
@@ -4457,6 +5428,296 @@ function FaqPage({ onBrowse, onPost }: { onBrowse: () => void; onPost: () => voi
             </article>
           );
         })}
+      </section>
+    </main>
+  );
+}
+
+function PolicyPage({
+  title,
+  intro,
+  sections,
+}: {
+  title: string;
+  intro: string;
+  sections: Array<{ title: string; copy: string[] }>;
+}) {
+  return (
+    <main className="route-page policy-page" aria-labelledby="policy-title">
+      <section className="route-hero">
+        <div>
+          <p className="route-kicker">Policy</p>
+          <h1 id="policy-title">{title}</h1>
+          <p>{intro}</p>
+        </div>
+      </section>
+      <section className="policy-layout">
+        {sections.map((section) => (
+          <article className="dashboard-panel policy-section" key={section.title}>
+            <div className="panel-header">
+              <h2>{section.title}</h2>
+              <FileText size={19} />
+            </div>
+            {section.copy.map((copy) => (
+              <p key={copy}>{copy}</p>
+            ))}
+          </article>
+        ))}
+      </section>
+    </main>
+  );
+}
+
+function PrivacyPage() {
+  return (
+    <PolicyPage
+      title="Privacy Policy"
+      intro="How pleasefindmethis handles account, request, source, image, support, and payment-related data."
+      sections={[
+        {
+          title: "Data we collect",
+          copy: [
+            "We collect account email, authentication provider, request descriptions, reference images, source submissions, proof files, support messages, and dispute evidence needed to run the marketplace.",
+            "Payment processors handle card details. We store payment status, checkout ids, receipt email, and payout state so requests, refunds, and disputes can be reconciled.",
+          ],
+        },
+        {
+          title: "How data is used",
+          copy: [
+            "Request data powers public paid listings after sensitive payment and customer fields are removed.",
+            "Protected source details are stored before reveal and become visible to the poster only after reveal terms are accepted.",
+          ],
+        },
+        {
+          title: "Choices and requests",
+          copy: [
+            "Users can request account deletion, data export, correction, or support review from Account Settings or Support.",
+            "We retain payment, fraud, dispute, and tax-relevant records when needed for legal, financial, or marketplace integrity reasons.",
+          ],
+        },
+      ]}
+    />
+  );
+}
+
+function TermsPage() {
+  return (
+    <PolicyPage
+      title="Terms of Service"
+      intro="The operating rules for posters, finders, funded offers, protected sources, and marketplace review."
+      sections={[
+        {
+          title: "Marketplace role",
+          copy: [
+            "Posters fund an offer and describe what they want. Finders submit sources, contacts, or handoff paths. The platform records the workflow and review trail.",
+            "The platform is not the seller of the requested item and does not guarantee that a third-party source remains available, authentic, or suitable after review.",
+          ],
+        },
+        {
+          title: "Finder payouts",
+          copy: [
+            "The posted offer remains the finder payout. Platform service and trust fees are paid by the poster at checkout.",
+            "A payout can become payable after the poster accepts a source, confirms a handoff worked, or a review resolves in the finder position.",
+          ],
+        },
+        {
+          title: "Account enforcement",
+          copy: [
+            "We may remove requests, block submissions, hold payouts, refund posters, or suspend accounts for fraud, abuse, prohibited goods, duplicate sources, or unsafe conduct.",
+          ],
+        },
+      ]}
+    />
+  );
+}
+
+function RefundPolicyPage() {
+  return (
+    <PolicyPage
+      title="Refund and Cancellation Policy"
+      intro="How funded offers, service fees, failed finds, and disputes are handled."
+      sections={[
+        {
+          title: "Before checkout",
+          copy: ["A request is not live until checkout succeeds. Cancelled checkout sessions can be restarted from the post flow."],
+        },
+        {
+          title: "No accepted source",
+          copy: [
+            "If no valid source or handoff is accepted within the active request window, the funded finder offer can be returned to the poster.",
+            "Service and protection fees cover hosting the request, payment handling, source review tools, support, and fraud monitoring.",
+          ],
+        },
+        {
+          title: "Disputes and holds",
+          copy: [
+            "When a dispute is open, payout release can be held until evidence is reviewed.",
+            "Refunds and payout decisions use the saved request, source, reveal, review, and dispute timeline.",
+          ],
+        },
+      ]}
+    />
+  );
+}
+
+function MarketplaceRulesPage() {
+  return (
+    <PolicyPage
+      title="Marketplace Rules"
+      intro="What can be posted, what finders can submit, and what conduct is not allowed."
+      sections={[
+        {
+          title: "Prohibited requests",
+          copy: [
+            "Do not request illegal goods, weapons, regulated substances, stolen items, counterfeit documents, invasive surveillance tools, personal data, or anything that creates safety risk.",
+            "Do not use the platform to harass people, bypass platform rules elsewhere, or pressure sellers into unsafe transactions.",
+          ],
+        },
+        {
+          title: "Source quality",
+          copy: [
+            "Finders should submit current, good-faith sources with enough detail for the poster to evaluate the match.",
+            "Duplicate, fake, expired, bait-and-switch, or intentionally vague sources can be rejected or marked invalid.",
+          ],
+        },
+        {
+          title: "Review standards",
+          copy: [
+            "Reveal logs, proof files, notes, timestamps, and poster decisions form the review record.",
+            "A poster who reveals and uses a valid source cannot avoid the finder payout by later claiming the source was never used.",
+          ],
+        },
+      ]}
+    />
+  );
+}
+
+function SupportPage({ onReport }: { onReport: () => void }) {
+  return (
+    <main className="route-page policy-page" aria-labelledby="support-title">
+      <section className="route-hero">
+        <div>
+          <p className="route-kicker">Support</p>
+          <h1 id="support-title">Get help with a request, source, payment, or payout.</h1>
+          <p>Use support for account access, checkout issues, source review, disputes, refunds, payout holds, and safety concerns.</p>
+        </div>
+        <div className="head-actions">
+          <a className="primary-button" href="mailto:support@pleasefindmethis.com">
+            Email support
+          </a>
+          <button className="section-link section-button" type="button" onClick={onReport}>
+            Report a problem <ArrowRight size={17} />
+          </button>
+        </div>
+      </section>
+      <section className="dashboard-grid">
+        {[
+          ["Payments", "Include request id, receipt email, checkout provider, and the exact payment/refund problem."],
+          ["Sources", "Include submission id if available, source status, reveal timing, and why the match is disputed."],
+          ["Safety", "Report scams, counterfeit claims, prohibited goods, harassment, or impersonation immediately."],
+          ["Privacy", "Ask for data export, correction, deletion, or account access review."],
+        ].map(([title, copy]) => (
+          <article className="dashboard-panel" key={title}>
+            <div className="panel-header">
+              <h2>{title}</h2>
+              <Headphones size={19} />
+            </div>
+            <p>{copy}</p>
+          </article>
+        ))}
+      </section>
+    </main>
+  );
+}
+
+function ReportPage() {
+  return (
+    <PolicyPage
+      title="Report a Listing, Source, or User"
+      intro="Use reports for fraud, unsafe requests, prohibited goods, stolen images, impersonation, spam, or abusive behavior."
+      sections={[
+        {
+          title: "What to include",
+          copy: [
+            "Send the request link or id, user profile if available, screenshots, messages, source links, and a clear reason for the report.",
+            "For urgent safety issues, include the word URGENT in the subject line when emailing support@pleasefindmethis.com.",
+          ],
+        },
+        {
+          title: "What happens next",
+          copy: [
+            "Reports can lead to request removal, source invalidation, payout hold, refund review, account suspension, or a request for more evidence.",
+          ],
+        },
+      ]}
+    />
+  );
+}
+
+function AccountSettingsPage() {
+  return (
+    <PolicyPage
+      title="Account Settings"
+      intro="Self-service account controls for profile, privacy, notification, and data requests."
+      sections={[
+        {
+          title: "Available now",
+          copy: [
+            "Sign out is available from the main navigation. Email sign-in and Google sign-in are handled through Supabase Auth.",
+            "Contact support@pleasefindmethis.com for data export, deletion, email correction, or account recovery while the full settings service is being built.",
+          ],
+        },
+        {
+          title: "Required before scale",
+          copy: [
+            "Add notification preferences, payout onboarding status, identity verification status, saved support cases, account deletion, and data export automation.",
+          ],
+        },
+      ]}
+    />
+  );
+}
+
+function AdminReviewPage() {
+  return (
+    <PolicyPage
+      title="Admin Review Queue"
+      intro="Operational queue required for disputes, reports, payout holds, refunds, and source moderation."
+      sections={[
+        {
+          title: "Queues to build",
+          copy: [
+            "Open disputes, reported requests, reported users, duplicate-source flags, payout holds, refund cases, failed webhooks, and suspicious checkout attempts.",
+          ],
+        },
+        {
+          title: "Access model",
+          copy: [
+            "This should be backed by server-side admin authorization, service-role-only mutations, audit logs, and staff roles. Do not expose moderation updates directly to normal client sessions.",
+          ],
+        },
+      ]}
+    />
+  );
+}
+
+function NotFoundPage({ onBrowse, onHome }: { onBrowse: () => void; onHome: () => void }) {
+  return (
+    <main className="route-page" aria-labelledby="not-found-title">
+      <section className="route-hero">
+        <div>
+          <p className="route-kicker">404</p>
+          <h1 id="not-found-title">This page does not exist.</h1>
+          <p>The link may be outdated, private, or typed incorrectly.</p>
+        </div>
+        <div className="head-actions">
+          <button className="primary-button" type="button" onClick={onBrowse}>
+            Browse requests
+          </button>
+          <button className="section-link section-button" type="button" onClick={onHome}>
+            Go home <ArrowRight size={17} />
+          </button>
+        </div>
       </section>
     </main>
   );
