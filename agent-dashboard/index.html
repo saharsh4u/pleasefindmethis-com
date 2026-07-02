@@ -39,7 +39,7 @@
           <article class="metric-card">
             <span class="metric-label">Agents</span>
             <strong id="metric-agents">-</strong>
-            <span class="metric-note">people working</span>
+            <span class="metric-note">agents tracked</span>
           </article>
           <article class="metric-card">
             <span class="metric-label">Complete</span>
@@ -68,15 +68,7 @@
               <button id="refresh-button" type="button">Refresh</button>
             </div>
 
-            <div class="agent-table" role="table" aria-label="Agent activity">
-              <div class="table-row table-head" role="row">
-                <span role="columnheader">Agent</span>
-                <span role="columnheader">Focus</span>
-                <span role="columnheader">Now</span>
-                <span role="columnheader">Status</span>
-              </div>
-              <div id="agent-rows"></div>
-            </div>
+            <div id="agent-rows" class="agent-grid" aria-label="Agent activity"></div>
           </section>
 
           <aside class="right-rail">

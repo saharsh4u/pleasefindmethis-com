@@ -14,11 +14,9 @@ function statusClass(status) {
   return "";
 }
 
-function formatTime(value) {
-  if (!value) return "Not loaded yet";
-  const date = new Date(value);
-  if (Number.isNaN(date.getTime())) return value;
-  return `Updated ${date.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", second: "2-digit" })}`;
+function formatTime() {
+  const date = new Date();
+  return `Checked ${date.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", second: "2-digit" })}`;
 }
 
 function renderMetrics(data) {
@@ -28,7 +26,7 @@ function renderMetrics(data) {
   $("#metric-complete").textContent = String(complete);
   $("#metric-posting").textContent = String(data.summary?.postingWithoutApproval ?? 0);
   $("#metric-blockers").textContent = String(data.blockers?.length ?? 0);
-  $("#last-updated").textContent = formatTime(data.updatedAt);
+  $("#last-updated").textContent = formatTime();
 }
 
 function renderAgents(data) {
@@ -37,8 +35,7 @@ function renderAgents(data) {
 
   for (const agent of data.agents ?? []) {
     const row = document.createElement("div");
-    row.className = "table-row";
-    row.setAttribute("role", "row");
+    row.className = "agent-card";
 
     const initials = agent.name
       .split(" ")
@@ -48,21 +45,15 @@ function renderAgents(data) {
       .toUpperCase();
 
     row.innerHTML = `
-      <span class="agent-name" role="cell">
+      <span class="agent-name">
         <span class="avatar" aria-hidden="true">${initials}</span>
         <span>
           <span class="agent-title">${agent.name}</span>
           <span class="agent-id">${agent.shortId}</span>
         </span>
       </span>
-      <span class="focus-text" role="cell">${agent.focus}</span>
-      <span class="now-text" role="cell">
-        <span>${agent.now}</span>
-        <span class="progress-track" aria-label="${agent.progress}% complete">
-          <span class="progress-fill" style="width: ${agent.progress}%"></span>
-        </span>
-      </span>
-      <span role="cell"><span class="status-pill ${statusClass(agent.status)}">${agent.status}</span></span>
+      <span class="status-pill ${statusClass(agent.status)}">${agent.status}</span>
+      <span class="now-text"><span><strong>${agent.focus}</strong> - ${agent.now}</span></span>
     `;
     rows.appendChild(row);
   }

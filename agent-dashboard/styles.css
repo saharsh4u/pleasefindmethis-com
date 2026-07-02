@@ -125,7 +125,7 @@ button {
 .dashboard {
   width: min(1280px, 100%);
   margin: 0 auto;
-  padding: 28px clamp(18px, 3vw, 38px) 44px;
+  padding: 24px clamp(18px, 3vw, 38px) 36px;
 }
 
 .dashboard-header {
@@ -143,7 +143,7 @@ h2 {
 }
 
 h1 {
-  font-size: clamp(2rem, 4vw, 3.4rem);
+  font-size: clamp(2rem, 3.5vw, 3.1rem);
   line-height: 1.02;
   font-weight: 820;
 }
@@ -185,7 +185,7 @@ h2 {
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));
   gap: 12px;
-  margin-bottom: 16px;
+  margin-bottom: 14px;
 }
 
 .metric-card,
@@ -199,12 +199,12 @@ h2 {
 .metric-card {
   display: grid;
   gap: 4px;
-  min-height: 118px;
-  padding: 18px;
+  min-height: 104px;
+  padding: 16px 18px;
 }
 
 .metric-card strong {
-  font-size: 2.4rem;
+  font-size: 2.15rem;
   line-height: 1;
 }
 
@@ -240,7 +240,7 @@ h2 {
   align-items: flex-start;
   justify-content: space-between;
   gap: 16px;
-  padding: 18px;
+  padding: 15px 18px;
   border-bottom: 1px solid var(--line);
 }
 
@@ -269,30 +269,22 @@ h2 {
   background: var(--surface-2);
 }
 
-.agent-table {
-  overflow-x: auto;
-}
-
-.table-row {
+.agent-grid {
   display: grid;
-  grid-template-columns: 1.15fr 1fr minmax(260px, 1.8fr) 132px;
-  gap: 14px;
-  align-items: center;
-  min-width: 760px;
-  padding: 14px 18px;
-  border-bottom: 1px solid var(--line);
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+  padding: 14px 18px 18px;
 }
 
-.table-row:last-child {
-  border-bottom: 0;
-}
-
-.table-head {
-  background: #f8fafc;
-  color: var(--muted);
-  font-size: 0.74rem;
-  font-weight: 850;
-  text-transform: uppercase;
+.agent-card {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 7px 12px;
+  min-height: 70px;
+  padding: 10px 12px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: #fff;
 }
 
 .agent-name {
@@ -305,8 +297,8 @@ h2 {
 .avatar {
   display: grid;
   flex: 0 0 auto;
-  width: 34px;
-  height: 34px;
+  width: 30px;
+  height: 30px;
   place-items: center;
   border-radius: 8px;
   background: var(--blue-soft);
@@ -326,23 +318,27 @@ h2 {
   font-size: 0.76rem;
 }
 
-.focus-text,
 .now-text {
   color: #344054;
-  font-size: 0.9rem;
+  font-size: 0.82rem;
 }
 
 .now-text {
+  grid-column: 1 / -1;
   display: grid;
-  gap: 8px;
+  min-width: 0;
+}
+
+.now-text > span:first-child,
+.agent-title,
+.agent-id {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .progress-track {
-  width: 100%;
-  height: 6px;
-  overflow: hidden;
-  border-radius: 999px;
-  background: #e9eef4;
+  display: none;
 }
 
 .progress-fill {
@@ -357,11 +353,11 @@ h2 {
   justify-content: center;
   width: fit-content;
   min-height: 28px;
-  padding: 0 9px;
+  padding: 0 8px;
   border-radius: 999px;
   background: var(--green-soft);
   color: #08704b;
-  font-size: 0.78rem;
+  font-size: 0.76rem;
   font-weight: 850;
 }
 
@@ -384,13 +380,13 @@ h2 {
 .next-list,
 .outputs-list {
   display: grid;
-  gap: 10px;
-  padding: 14px;
+  gap: 8px;
+  padding: 12px 14px;
 }
 
 .blocker-item,
 .output-item {
-  padding: 13px;
+  padding: 11px 12px;
   border: 1px solid var(--line);
   border-radius: 8px;
   background: #fff;
@@ -426,7 +422,7 @@ h2 {
 }
 
 .next-list li {
-  padding: 8px 10px 8px 0;
+  padding: 6px 10px 6px 0;
   color: #344054;
   font-size: 0.88rem;
 }
@@ -498,11 +494,9 @@ h2 {
 
   .table-row {
     grid-template-columns: 1fr;
-    min-width: 0;
-    gap: 6px;
   }
 
-  .table-head {
-    display: none;
+  .agent-grid {
+    grid-template-columns: 1fr;
   }
 }

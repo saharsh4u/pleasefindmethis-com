@@ -1235,16 +1235,16 @@ function getLemonSqueezyWebhookEnvironment(rawEvent, attributes) {
   const meta = isRecord(rawEvent.meta) ? rawEvent.meta : {};
   const customData = isRecord(meta.custom_data) ? meta.custom_data : {};
 
-  if (customData.payment_environment) {
-    return normalizePaymentEnvironment(customData.payment_environment);
-  }
-
   if (typeof meta.test_mode === "boolean") {
     return meta.test_mode ? "test" : "live";
   }
 
   if (typeof attributes.test_mode === "boolean") {
     return attributes.test_mode ? "test" : "live";
+  }
+
+  if (customData.payment_environment) {
+    return normalizePaymentEnvironment(customData.payment_environment);
   }
 
   return parseBooleanEnv("LEMONSQUEEZY_TEST_MODE", false) ? "test" : "live";

@@ -1,6 +1,7 @@
 {
   "updatedAt": "2026-07-02T13:38:30.687Z",
   "summary": {
+    "domainVerified": 1,
     "postingWithoutApproval": 0
   },
   "agents": [
@@ -8,7 +9,7 @@
       "name": "Goodall",
       "shortId": "Agent 1",
       "focus": "Reddit scout",
-      "now": "Mapped safe communities, rules, and search queries. No posting was done.",
+      "now": "Mapped safe Reddit paths. No posting done.",
       "status": "Complete",
       "progress": 100
     },
@@ -16,7 +17,7 @@
       "name": "Noether",
       "shortId": "Agent 2",
       "focus": "Social content",
-      "now": "Wrote hooks, captions, and short video scripts for bounty stories.",
+      "now": "Wrote hooks, captions, and video scripts.",
       "status": "Complete",
       "progress": 100
     },
@@ -24,7 +25,7 @@
       "name": "Bacon",
       "shortId": "Agent 3",
       "focus": "Finder recruiting",
-      "now": "Built the first 80-prospect finder recruiting plan and outreach copy.",
+      "now": "Built 80-prospect finder outreach plan.",
       "status": "Complete",
       "progress": 100
     },
@@ -32,7 +33,7 @@
       "name": "Poincare",
       "shortId": "Agent 4",
       "focus": "Partner outreach",
-      "now": "Prepared creator, newsletter, and shop partner pitches with disclosure language.",
+      "now": "Prepared creator and shop partner pitches.",
       "status": "Complete",
       "progress": 100
     },
@@ -40,7 +41,7 @@
       "name": "Franklin",
       "shortId": "Agent 5",
       "focus": "SEO pages",
-      "now": "Designed the page-factory plan for requests, solved finds, categories, finders, and images.",
+      "now": "Planned request, solved, category, and image pages.",
       "status": "Complete",
       "progress": 100
     },
@@ -48,7 +49,7 @@
       "name": "Bernoulli",
       "shortId": "Agent 6",
       "focus": "PR launch",
-      "now": "Wrote press, Product Hunt, Show HN, and founder launch copy.",
+      "now": "Wrote press, PH, HN, and founder copy.",
       "status": "Complete",
       "progress": 100
     },
@@ -56,7 +57,7 @@
       "name": "Fermat",
       "shortId": "Agent 7",
       "focus": "Paid ads",
-      "now": "Built a $1,000 paid test plan. Launch waits for DNS, tracking, and product-flow checks.",
+      "now": "Built $1,000 paid test. Waiting on tracking.",
       "status": "Complete",
       "progress": 100
     },
@@ -64,7 +65,7 @@
       "name": "Ohm",
       "shortId": "Agent 8",
       "focus": "Trust safety",
-      "now": "Created claim guardrails for payments, referrals, testimonials, prohibited goods, and Reddit.",
+      "now": "Created payment, referral, and Reddit guardrails.",
       "status": "Complete",
       "progress": 100
     },
@@ -72,7 +73,7 @@
       "name": "Boyle",
       "shortId": "Agent 9",
       "focus": "Community replies",
-      "now": "Prepared 25 helpful-first comment drafts that avoid spam and lead with actual search help.",
+      "now": "Prepared 25 helpful-first community replies.",
       "status": "Complete",
       "progress": 100
     },
@@ -80,16 +81,16 @@
       "name": "Curie",
       "shortId": "Agent 10",
       "focus": "Sprint coordinator",
-      "now": "Prioritized the work: prepare assets, avoid Reddit bypasses, and verify blockers before launch.",
+      "now": "Prioritized assets, blockers, and launch checks.",
       "status": "Complete",
       "progress": 100
     }
   ],
   "blockers": [
     {
-      "title": "DNS is not resolving here",
-      "detail": "pleasefindmethis.com failed from this environment. Public launch pushes should wait.",
-      "level": "high"
+      "title": "Domain and HTTPS verified",
+      "detail": "pleasefindmethis.com and www.pleasefindmethis.com now return 200 on Vercel.",
+      "level": "low"
     },
     {
       "title": "Reddit is blocked here",
