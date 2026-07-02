@@ -276,8 +276,9 @@ type JsonLdNode = Record<string, unknown>;
 const siteName = "pleasefindmethis.com";
 const siteOrigin = "https://pleasefindmethis.com";
 const defaultSeoDescription =
-  "Post a hard-to-find item, fund an offer, and let expert finders submit protected sources for discontinued products, rare goods, replacement parts, and sold-out items.";
-const defaultSeoImage = `${siteOrigin}/magnifying-glass.png`;
+  "Post a hard-to-find item request, pay transparent marketplace fees, and let finders submit protected sources for discontinued products, rare goods, replacement parts, and sold-out items.";
+const organizationLogo = `${siteOrigin}/magnifying-glass.png`;
+const defaultSeoImage = `${siteOrigin}/og/pleasefindmethis-social-card.png`;
 const requestSingular = "request";
 const requestPlural = "requests";
 const checkoutRequestTimeoutMs = 25000;
@@ -2121,7 +2122,7 @@ const faqItems = [
   {
     question: "When do I pay?",
     answer:
-      "You fund the request before it goes live. Checkout shows your offer, the finder payout, and transparent poster-paid service and source review fees before you pay.",
+      "You pay before the request goes live. Checkout shows the finder offer, platform service fee, and source review fee before you pay. The item itself, if any, is bought separately from the third-party source or seller.",
   },
   {
     question: "What happens if nobody finds it?",
@@ -2142,6 +2143,16 @@ const faqItems = [
     question: "How does pleasefindmethis make money?",
     answer:
       "Posters pay a 12% platform service fee plus a 3% payment handling and source review fee at checkout. The offer amount remains the finder payout.",
+  },
+  {
+    question: "Does pleasefindmethis sell the requested item?",
+    answer:
+      "No. pleasefindmethis is not the seller, reseller, shipper, or broker of the requested item. The platform hosts the request, records protected source submissions, and supports source review.",
+  },
+  {
+    question: "What requests are not allowed?",
+    answer:
+      "Requests for illegal goods, regulated or age-restricted goods, weapons, financial products, gift cards, tickets, personal data, stolen items, counterfeit documents, unsafe surveillance tools, or harassment are not allowed.",
   },
   {
     question: "Is the browse feed public?",
@@ -2330,7 +2341,7 @@ function createStructuredData(page: Page, meta: SeoMeta, bounties: BountyListing
       "@id": organizationId,
       name: siteName,
       url: siteOrigin,
-      logo: defaultSeoImage,
+      logo: organizationLogo,
       contactPoint: [
         {
           "@type": "ContactPoint",
@@ -4402,7 +4413,7 @@ function PostPayPage({
           </button>
           <h1 id="pay-title">Fund the offer with secure checkout.</h1>
           <p>
-            Pay once through secure checkout. Your finder offer is recorded until the source is approved or the handoff is complete.
+            Pay once through secure checkout for the finder offer and platform fees. If a source leads to an item purchase, you buy that item directly from the third-party seller or source.
           </p>
           {checkoutReturnStatus === "cancelled" ? (
             <p className="dialog-error" role="status">
@@ -4426,7 +4437,7 @@ function PostPayPage({
             <ExternalLink size={19} />
             <span>
               <strong>Secure Checkout</strong>
-              Your payment is processed securely. We never store your card details. The finder offer is tracked until a source or handoff is approved.
+              Your payment is processed securely. We never store your card details. The finder offer is tracked until a source or handoff is approved; the platform does not sell or ship requested goods.
             </span>
           </div>
           <button className="primary-button" type="button" disabled={checkoutStatus === "loading"} onClick={startCheckout}>
@@ -4448,7 +4459,7 @@ function PostPayPage({
           <div className="summary-card">
             <Banknote size={28} />
             <strong>{formatUsdMoney(breakdown.total, currencyPreference)} due today</strong>
-            <span>Total for {itemName}, including the finder payout, platform service, and source review fee.</span>
+            <span>Total for the {itemName} request workflow, including the finder payout, platform service, and source review fee.</span>
           </div>
           <dl>
             <div>
@@ -5964,14 +5975,22 @@ function TermsPage() {
           title: "Marketplace role",
           copy: [
             "Posters fund an offer and describe what they want. Finders submit sources, contacts, or handoff paths. The platform records the workflow and review trail.",
+            "Payments on the platform cover the request workflow, poster-paid platform fees, and any eligible finder payout. They are not a purchase of the requested item from pleasefindmethis.",
             "The platform is not the seller of the requested item and does not guarantee that a third-party source remains available, authentic, or suitable after review.",
           ],
         },
         {
           title: "Finder payouts",
           copy: [
-            "The posted offer remains the finder payout. Platform service and trust fees are paid by the poster at checkout.",
+            "The posted offer remains the finder payout. Platform service and source review fees are paid by the poster at checkout.",
             "A payout can become payable after the poster accepts a source, confirms a handoff worked, or a review resolves in the finder position.",
+          ],
+        },
+        {
+          title: "Payment processor compatibility",
+          copy: [
+            "Payment processors are enabled only when their acceptance policies support this marketplace and finder-payout model.",
+            "If a processor requires a separate business or product review for a new website, checkout for that processor remains disabled until the review is explicitly approved.",
           ],
         },
         {
@@ -5999,6 +6018,7 @@ function RefundPolicyPage() {
           title: "No accepted source",
           copy: [
             "If no valid source or handoff is accepted within the active request window, the funded finder offer can be returned to the poster.",
+            "Any separate item purchase from a third-party seller is outside the platform checkout and is not refunded by pleasefindmethis.",
             "Service and source review fees cover hosting the request, payment handling, source review tools, support, and fraud monitoring.",
           ],
         },
@@ -6023,7 +6043,8 @@ function MarketplaceRulesPage() {
         {
           title: "Prohibited requests",
           copy: [
-            "Do not request illegal goods, weapons, regulated substances, stolen items, counterfeit documents, invasive surveillance tools, personal data, or anything that creates safety risk.",
+            "Do not request illegal goods, weapons, regulated or age-restricted goods, alcohol, tobacco, vapes, prescription medicines, stolen items, counterfeit documents, invasive surveillance tools, personal data, or anything that creates safety risk.",
+            "Do not request financial products, stored-value products, gift cards, tickets, crypto assets, NFTs, gambling-related items, pirated media, unauthorized software licenses, or items that violate a payment processor or marketplace policy.",
             "Do not use the platform to harass people, bypass platform rules elsewhere, or pressure sellers into unsafe transactions.",
           ],
         },

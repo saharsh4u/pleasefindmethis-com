@@ -9,6 +9,8 @@ This file explains how pleasefindmethis.com fees work in a machine-readable form
 - Posted offer: finder payout
 - Platform fee payer: poster
 - Finder payout deduction: none
+- Item seller: third-party source or seller, not pleasefindmethis.com
+- Platform role: request hosting, protected source records, review workflow, support, and marketplace operations
 - Minimum finder payout: US$10
 - Platform service fee: max(US$6, round(finder payout x 12%))
 - Payment handling and source review fee: max(US$1, round(finder payout x 3%))
@@ -23,6 +25,10 @@ Payment handling and source review fees cover payment processing support, protec
 ## Finder Payout
 
 The posted offer remains the finder payout. Finders can earn the payout when a protected source is accepted, a direct handoff is confirmed, or review resolves in their favor.
+
+## Processor Compatibility
+
+Payment processors are enabled only when their acceptance policies support this marketplace and finder-payout model. Dodo checkout must remain disabled unless Dodo explicitly approves this exact new website and business model in a new business/product review.
 
 ## Refund and Review
 

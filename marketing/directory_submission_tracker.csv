@@ -8,22 +8,22 @@ Microlaunch,1,https://microlaunch.net/submit,High,Draft,Startup launch,Sustained
 OpenHunts,1,https://openhunts.com/submit,High,Draft,Startup launch,Indie-maker fit
 Launching Next,1,https://www.launchingnext.com/submit,Medium,Draft,Startup launch,Needs crisp founder story
 PitchWall,1,https://pitchwall.co/submit,High,Draft,Startup launch,Indie-friendly
-AlternativeTo,2,https://alternativeto.net/software/_/add/,Medium,Draft,SaaS/software,Position against informal alternatives like HelpMeFind and marketplace search, not as direct inventory
-SaaSHub,2,https://www.saashub.com/submit,Medium,Draft,SaaS/software,Useful backlink if category accepted
+AlternativeTo,2,https://alternativeto.net/software/_/add/,Medium,Draft,Marketplace/community,Position against informal alternatives like HelpMeFind and marketplace search, not as direct inventory
+SaaSHub,2,https://www.saashub.com/submit,Low,Skip,Marketplace/community,Skip unless the directory accepts consumer marketplace/community products without SaaS framing
 G2,2,https://my.g2.com/sellers/welcome,Low,Deferred,B2B review,Only useful after enough real users/reviews
 Capterra,2,https://www.capterra.com/vendors,Low,Deferred,B2B review,Only useful after enough real users/reviews
 GetApp,2,https://www.getapp.com/vendors,Low,Deferred,B2B review,Review-driven
-SourceForge,2,https://sourceforge.net/user/register,Medium,Draft,SaaS/software,Company/project profile backlink
-Slashdot,2,https://slashdot.org/submission,Medium,Draft,SaaS/software,Company profile or launch submission
+SourceForge,2,https://sourceforge.net/user/register,Low,Skip,Marketplace/community,Skip unless publishing real open-source tooling or docs
+Slashdot,2,https://slashdot.org/submission,Medium,Draft,Marketplace/community,Company profile or launch submission without SaaS framing
 Startup Stash,2,https://startupstash.com/submit,High,Draft,Startup,Startup/tool discovery
 SideProjectors,2,https://www.sideprojectors.com/project/new,High,Draft,Startup,Good indie project fit
 F6S,2,https://www.f6s.com/company/create,High,Draft,Startup,Company profile and accelerator discovery
 StackShare,2,https://stackshare.io/new-product,Medium,Draft,Dev,Use if tech stack story is public
 TrustRadius,2,https://www.trustradius.com/vendors,Low,Deferred,B2B review,Needs reviews and B2B category fit
-Crozdesk,2,https://crozdesk.com/vendors,Low,Deferred,SaaS/software,Review/listing value later
+Crozdesk,2,https://crozdesk.com/vendors,Low,Skip,Marketplace/community,Skip unless the directory accepts consumer marketplace/community products
 Indie Hackers,2,https://www.indiehackers.com,High,Draft,Startup/community,Build-in-public and product listing
-Slant,2,https://www.slant.co,Medium,Draft,SaaS/software,Can fit as recommendation alternative if accepted
-SaaSWorthy,2,https://www.saasworthy.com,Medium,Draft,SaaS/software,Submit if marketplace category accepted
+Slant,2,https://www.slant.co,Medium,Draft,Marketplace/community,Can fit as recommendation alternative if accepted
+SaaSWorthy,2,https://www.saasworthy.com,Low,Skip,Marketplace/community,Skip unless marketplace category is explicitly accepted without SaaS framing
 Promote Project,2,https://www.promoteproject.com,High,Draft,Startup,Good project promotion surface
 BetaBound,2,https://betabound.com,Medium,Draft,Beta,Useful if recruiting beta users
 Dev.to,8,https://dev.to,High,Draft,Content/profile,Publish technical/community post with canonical link

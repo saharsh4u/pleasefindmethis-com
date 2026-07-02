@@ -1,0 +1,169 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="630" viewBox="0 0 1200 630">
+  <defs>
+    <filter id="card-shadow" x="-10%" y="-10%" width="120%" height="120%">
+      <feDropShadow dx="0" dy="26" stdDeviation="24" flood-color="#000000" flood-opacity="0.32"/>
+    </filter>
+    <filter id="soft-shadow" x="-20%" y="-20%" width="140%" height="140%">
+      <feDropShadow dx="0" dy="14" stdDeviation="16" flood-color="#17221c" flood-opacity="0.18"/>
+    </filter>
+    <filter id="stamp-shadow" x="-20%" y="-20%" width="140%" height="140%">
+      <feDropShadow dx="0" dy="8" stdDeviation="6" flood-color="#000000" flood-opacity="0.15"/>
+    </filter>
+    <linearGradient id="panel-left" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#ffffff"/>
+      <stop offset="100%" stop-color="#fff4f1"/>
+    </linearGradient>
+    <linearGradient id="panel-right" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#ffffff"/>
+      <stop offset="100%" stop-color="#ecfff5"/>
+    </linearGradient>
+    <linearGradient id="green-line" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0%" stop-color="#12a965"/>
+      <stop offset="100%" stop-color="#2aa4bc"/>
+    </linearGradient>
+    <clipPath id="clip-blanket" clipPathUnits="userSpaceOnUse">
+      <rect x="29" y="136" width="132" height="132" rx="22"/>
+    </clipPath>
+    <clipPath id="clip-plush" clipPathUnits="userSpaceOnUse">
+      <rect x="326" y="100" width="150" height="106" rx="18"/>
+    </clipPath>
+    <clipPath id="clip-watch" clipPathUnits="userSpaceOnUse">
+      <rect x="368" y="213" width="92" height="82" rx="16"/>
+    </clipPath>
+    <style>
+      .sans { font-family: Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", Arial, sans-serif; }
+      .mono { font-family: "SFMono-Regular", "Roboto Mono", Consolas, monospace; }
+    </style>
+  </defs>
+
+  <rect width="1200" height="630" fill="#090d0b"/>
+  <path d="M0 0H1200V630H0Z" fill="#090d0b"/>
+  <circle cx="102" cy="92" r="180" fill="#0b6d3b" opacity="0.18"/>
+  <circle cx="1110" cy="510" r="220" fill="#2aa4bc" opacity="0.14"/>
+  <circle cx="890" cy="82" r="130" fill="#d69225" opacity="0.12"/>
+
+  <g filter="url(#card-shadow)">
+    <rect x="50" y="38" width="1100" height="554" rx="34" fill="#fbfcf8"/>
+  </g>
+
+  <g class="sans">
+    <g transform="translate(82 69)">
+      <circle cx="19" cy="19" r="18" fill="#0b6d3b"/>
+      <circle cx="16" cy="16" r="8.5" fill="none" stroke="#ffffff" stroke-width="4"/>
+      <path d="M23 24L32 33" stroke="#ffffff" stroke-width="5" stroke-linecap="round"/>
+      <text x="48" y="26" font-size="25" font-weight="860" fill="#101412">pleasefindmethis.com</text>
+    </g>
+
+    <g transform="translate(911 68)">
+      <rect x="0" y="0" width="206" height="39" rx="19.5" fill="#101412"/>
+      <circle cx="24" cy="19.5" r="6" fill="#23c46b"/>
+      <text x="42" y="26" font-size="14" font-weight="820" letter-spacing="1.8" fill="#ffffff">BOUNTY BOARD</text>
+    </g>
+
+    <text x="82" y="143" font-size="58" font-weight="930" letter-spacing="-1.2" fill="#111513">Help me find this exact item.</text>
+    <text x="86" y="181" font-size="24" font-weight="660" fill="#4f5a54">Fund a request. Save the source before reveal. Reward a valid lead.</text>
+
+    <g transform="translate(82 214)">
+      <rect width="493" height="306" rx="26" fill="url(#panel-left)" stroke="#ead7d2" stroke-width="2"/>
+      <text x="28" y="42" font-size="15" font-weight="900" letter-spacing="2.4" fill="#c23b2b">NORMAL SEARCH</text>
+      <text x="28" y="79" font-size="29" font-weight="900" fill="#181d1a">Near matches.</text>
+      <text x="28" y="113" font-size="29" font-weight="900" fill="#181d1a">Dead links. Risky DMs.</text>
+
+      <g transform="translate(28 139)">
+        <rect x="0" y="0" width="252" height="48" rx="14" fill="#ffffff" stroke="#e7deda"/>
+        <circle cx="25" cy="24" r="10" fill="#f5d3ce"/>
+        <path d="M20 24H30M25 19V29" stroke="#c23b2b" stroke-width="3" stroke-linecap="round"/>
+        <text x="50" y="30" font-size="18" font-weight="790" fill="#383f3a">similar, not exact</text>
+
+        <rect x="0" y="59" width="252" height="48" rx="14" fill="#ffffff" stroke="#e7deda"/>
+        <circle cx="25" cy="83" r="10" fill="#f5d3ce"/>
+        <path d="M19 83H31" stroke="#c23b2b" stroke-width="3" stroke-linecap="round"/>
+        <text x="50" y="89" font-size="18" font-weight="790" fill="#383f3a">listing already gone</text>
+
+        <rect x="0" y="118" width="252" height="48" rx="14" fill="#ffffff" stroke="#e7deda"/>
+        <circle cx="25" cy="142" r="10" fill="#f5d3ce"/>
+        <path d="M21 138L29 146M29 138L21 146" stroke="#c23b2b" stroke-width="3" stroke-linecap="round"/>
+        <text x="50" y="148" font-size="18" font-weight="790" fill="#383f3a">source disappears</text>
+      </g>
+
+      <g opacity="0.72">
+        <path d="M28 270H342" stroke="#e5dcd7" stroke-width="1.5"/>
+        <path d="M28 235H342" stroke="#e5dcd7" stroke-width="1.5"/>
+        <path d="M28 200H342" stroke="#e5dcd7" stroke-width="1.5"/>
+        <path d="M28 270C72 258 112 236 151 242C190 248 219 212 257 221C296 230 314 186 344 171" fill="none" stroke="#8b5cf6" stroke-width="5" stroke-linecap="round" stroke-linejoin="round"/>
+        <text x="28" y="292" font-size="12" font-weight="760" fill="#7c827d">hours lost</text>
+        <text x="284" y="292" font-size="12" font-weight="760" fill="#7c827d">no clear source</text>
+      </g>
+
+      <image href="../find-requests/bunny-plush.jpg" x="326" y="100" width="150" height="106" preserveAspectRatio="xMidYMid slice" clip-path="url(#clip-plush)"/>
+      <rect x="326" y="100" width="150" height="106" rx="18" fill="none" stroke="#ffffff" stroke-width="5"/>
+      <image href="../find-requests/seiko-wired-watch.jpg" x="368" y="213" width="92" height="82" preserveAspectRatio="xMidYMid slice" clip-path="url(#clip-watch)"/>
+      <rect x="368" y="213" width="92" height="82" rx="16" fill="none" stroke="#ffffff" stroke-width="5"/>
+    </g>
+
+    <g transform="translate(432 392) rotate(-10)" filter="url(#stamp-shadow)">
+      <circle cx="0" cy="0" r="70" fill="#fff7f4" opacity="0.9" stroke="#f02f2f" stroke-width="7"/>
+      <circle cx="0" cy="0" r="54" fill="none" stroke="#f02f2f" stroke-width="3.5" stroke-dasharray="8 9"/>
+      <text x="0" y="-6" text-anchor="middle" font-size="25" font-weight="950" letter-spacing="1.2" fill="#f02f2f">DEAD</text>
+      <text x="0" y="25" text-anchor="middle" font-size="25" font-weight="950" letter-spacing="1.2" fill="#f02f2f">END</text>
+      <path d="M-38 -36H38M-38 41H38" stroke="#f02f2f" stroke-width="4" stroke-linecap="round"/>
+    </g>
+
+    <g transform="translate(594 360)">
+      <circle cx="0" cy="0" r="24" fill="#101412"/>
+      <path d="M-8 -1H8M1 -10L11 0L1 10" fill="none" stroke="#ffffff" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/>
+    </g>
+
+    <g transform="translate(625 214)">
+      <rect width="493" height="306" rx="26" fill="url(#panel-right)" stroke="#cfe8dc" stroke-width="2"/>
+      <text x="28" y="42" font-size="15" font-weight="900" letter-spacing="2.4" fill="#0b6d3b">PROTECTED BOUNTY</text>
+      <text x="28" y="79" font-size="29" font-weight="900" fill="#181d1a">Funded request.</text>
+      <text x="28" y="113" font-size="29" font-weight="900" fill="#181d1a">Protected source.</text>
+
+      <g filter="url(#soft-shadow)">
+        <rect x="28" y="135" width="252" height="145" rx="24" fill="#ffffff"/>
+        <image href="../find-requests/childhood-blanket.jpg" x="29" y="136" width="132" height="132" preserveAspectRatio="xMidYMid slice" clip-path="url(#clip-blanket)"/>
+        <rect x="29" y="136" width="132" height="132" rx="22" fill="none" stroke="#ffffff" stroke-width="5"/>
+        <text x="176" y="168" font-size="14" font-weight="850" letter-spacing="1.5" fill="#0b6d3b">EXAMPLE REQUEST</text>
+        <text x="176" y="198" font-size="29" font-weight="930" fill="#111513">US$50</text>
+        <text x="176" y="223" font-size="17" font-weight="780" fill="#39423d">finder offer</text>
+        <text x="176" y="252" font-size="15" font-weight="680" fill="#626b65">Not a dupe.</text>
+      </g>
+
+      <g transform="translate(296 136)">
+        <rect width="172" height="43" rx="14" fill="#0f2118"/>
+        <path d="M27 23V18C27 12.5 31 9 36 9C41 9 45 12.5 45 18V23" fill="none" stroke="#23c46b" stroke-width="3" stroke-linecap="round"/>
+        <rect x="22" y="22" width="28" height="20" rx="6" fill="#23c46b"/>
+        <text x="62" y="28" font-size="17" font-weight="850" fill="#ffffff">Source saved</text>
+
+        <rect y="55" width="172" height="43" rx="14" fill="#ffffff" stroke="#cfe8dc"/>
+        <path d="M25 77L33 85L48 68" fill="none" stroke="#0b6d3b" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/>
+        <text x="62" y="83" font-size="17" font-weight="850" fill="#26302a">Poster reviews</text>
+
+        <rect y="110" width="172" height="43" rx="14" fill="#ffffff" stroke="#cfe8dc"/>
+        <path d="M23 132H48M35.5 119V145" stroke="#0b6d3b" stroke-width="4" stroke-linecap="round"/>
+        <text x="62" y="138" font-size="17" font-weight="850" fill="#26302a">Payout path</text>
+      </g>
+
+      <g opacity="0.74">
+        <path d="M300 267H458" stroke="#d4eadf" stroke-width="1.5"/>
+        <path d="M300 239H458" stroke="#d4eadf" stroke-width="1.5"/>
+        <path d="M300 211H458" stroke="#d4eadf" stroke-width="1.5"/>
+        <path d="M302 267C326 253 344 244 362 221C381 197 408 190 431 177C444 170 452 160 459 146" fill="none" stroke="url(#green-line)" stroke-width="5" stroke-linecap="round" stroke-linejoin="round"/>
+      </g>
+    </g>
+
+    <g transform="translate(1022 300) rotate(8)" filter="url(#stamp-shadow)">
+      <circle cx="0" cy="0" r="70" fill="#f1fff7" opacity="0.9" stroke="#19be64" stroke-width="7"/>
+      <circle cx="0" cy="0" r="54" fill="none" stroke="#19be64" stroke-width="3.5" stroke-dasharray="8 9"/>
+      <text x="0" y="-6" text-anchor="middle" font-size="22" font-weight="950" letter-spacing="0.8" fill="#12a65a">SOURCE</text>
+      <text x="0" y="24" text-anchor="middle" font-size="22" font-weight="950" letter-spacing="0.8" fill="#12a65a">LOCKED</text>
+      <path d="M-39 -36H39M-39 40H39" stroke="#19be64" stroke-width="4" stroke-linecap="round"/>
+    </g>
+
+    <g transform="translate(82 545)">
+      <rect x="0" y="0" width="1036" height="29" rx="14.5" fill="#101412"/>
+      <text x="22" y="21" font-size="15" font-weight="760" fill="#ffffff">Protected source bounties for discontinued, sentimental, and hard-to-search things.</text>
+    </g>
+  </g>
+</svg>

@@ -138,7 +138,7 @@ Day 7:
 
 ### Script 1: Bounty Board Intro
 Visual: scroll of object photos.
-Voice: "This is pleasefindmethis.com. If you cannot find the exact item, you post a photo, fund a reward, and real finders submit protected sources. The finder gets paid when the source works."
+Voice: "This is pleasefindmethis.com. If you cannot find the exact item, you post a photo, fund a reward, and real finders submit protected sources. The finder can earn when the source is accepted or review resolves in their favor."
 CTA: "Post the thing you gave up searching for."
 
 ### Script 2: Childhood Blanket
@@ -188,7 +188,7 @@ CTA: "Let the internet help."
 
 ### Script 11: Solved
 Visual: before/after, source blurred.
-Voice: "Solved. The requester funded a reward, a finder submitted proof, the source was revealed, and the finder got paid."
+Voice: "Solved. The requester funded a reward, a finder submitted proof, the source was revealed, and the finder payout became eligible after acceptance."
 CTA: "What should we find next?"
 
 ### Script 12: Japan Sourcing
@@ -292,7 +292,7 @@ The internet bounty board for impossible-to-find things
 Pitch:
 People already ask strangers to find childhood blankets, sold-out cameras, discontinued parts, and rare watches. The problem is trust: random DMs, dead links, fake listings, and unclear reward promises.
 
-pleasefindmethis.com turns that behavior into a protected bounty workflow. A requester posts the exact item, funds a reward, and finders submit protected sources. The source is recorded before reveal, and the finder gets paid when the source works.
+pleasefindmethis.com turns that behavior into a protected bounty workflow. A requester posts the exact item, funds a reward, and finders submit protected sources. The source is recorded before reveal, and the finder can earn when the source is accepted or review resolves in their favor.
 
 Founder angle:
 I built this after hitting the same wall: hours of searching, wrong products, dead listings, and sellers I could not trust. The thing usually existed somewhere. I just could not reach the person who knew where it was.
@@ -337,4 +337,3 @@ Avoid:
 - "Escrow" unless legal/payment setup supports that claim.
 - "We verify every seller" unless operationally true.
 - "Official source for [brand]."
-

@@ -34,11 +34,15 @@ pleasefindmethis.com is a marketplace for hard-to-find items. Posters describe a
 ## Important Facts
 
 - pleasefindmethis.com is not the seller of requested items.
+- The platform does not sell, ship, resell, or broker physical goods.
 - The posted offer remains the finder payout.
 - Posters pay platform service and source review fees at checkout.
+- The checkout covers the marketplace request workflow, source review, and any eligible finder payout, not a purchase of the requested item.
 - Protected source details are saved before reveal.
 - Finder payouts can become payable after acceptance, confirmed handoff, or review resolution.
 - Public browsing is open. Posting, submitting sources, dashboards, payments, and disputes require sign in.
+- Payment processors are enabled only where their acceptance policies support marketplace and finder-payout transactions.
+- Dodo checkout must remain disabled unless Dodo explicitly approves this exact new website and business model in a new business/product review.
 
 ## Contact
 

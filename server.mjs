@@ -220,6 +220,21 @@ async function handleCreateDodoCheckout(req, res) {
     return;
   }
 
+  if (getPaymentProvider() !== "dodo") {
+    sendJson(res, 409, {
+      error: "Dodo checkout is disabled because PAYMENT_PROVIDER is not set to dodo for this deployment.",
+    });
+    return;
+  }
+
+  if (!isDodoMarketplaceCheckoutAllowed()) {
+    sendJson(res, 409, {
+      error:
+        "Dodo checkout is disabled for this marketplace payment flow until Dodo explicitly approves this new website and business model. Use PAYMENT_PROVIDER=lemonsqueezy or another processor approved for marketplace/finder-payout transactions.",
+    });
+    return;
+  }
+
   const apiKey = process.env.DODO_PAYMENTS_API_KEY;
   const productId = process.env.DODO_PRODUCT_ID;
 
@@ -271,7 +286,7 @@ async function handleCreateDodoCheckout(req, res) {
       details,
       finder_payout_usd: String(breakdown.reward),
       platform_service_fee_usd: String(breakdown.platformFee),
-      refund_protection_reserve_usd: String(breakdown.protection),
+      payment_handling_source_review_fee_usd: String(breakdown.protection),
       platform_share_usd: String(breakdown.platformShare),
       total_usd: String(breakdown.total),
       duration_days: String(durationDays),
@@ -490,8 +505,10 @@ async function handleHealthCheck(req, res) {
     payments: {
       provider: getPaymentProvider(),
       productionLiveMode: !isProduction || isConfiguredPaymentProviderLive(),
+      dodoMarketplaceCheckoutAllowed: isDodoMarketplaceCheckoutAllowed(),
       lemonSqueezyConfigured: Boolean(process.env.LEMONSQUEEZY_API_KEY && process.env.LEMONSQUEEZY_STORE_ID && process.env.LEMONSQUEEZY_VARIANT_ID && process.env.LEMONSQUEEZY_WEBHOOK_SECRET),
       dodoConfigured: Boolean(process.env.DODO_PAYMENTS_API_KEY && process.env.DODO_PRODUCT_ID && process.env.DODO_WEBHOOK_SECRET),
+      dodoPolicyNote: "Dodo checkout must stay disabled for marketplace/finder-payout transactions unless Dodo explicitly approves this new business model.",
     },
   };
 
@@ -510,6 +527,8 @@ async function handleHealthCheck(req, res) {
     checks.supabase.adminEnv &&
     checks.supabase.requestsTable &&
     checks.supabase.publicRequestCardsView &&
+    (!checks.payments.dodoMarketplaceCheckoutAllowed || checks.payments.provider === "dodo") &&
+    (checks.payments.provider !== "dodo" || checks.payments.dodoMarketplaceCheckoutAllowed) &&
     checks.payments.productionLiveMode;
 
   sendJson(res, healthy ? 200 : 503, {
@@ -562,7 +581,7 @@ async function handleCreateLemonSqueezyCheckout(req, res) {
         custom_price: breakdown.total * 100,
         product_options: {
           name: `Fund request: ${itemName}`,
-          description: `Finder reward: US$${breakdown.reward}. Service and protection fees: US$${breakdown.platformShare}. Category: ${category}.`,
+          description: `Finder reward: US$${breakdown.reward}. Platform service and source review fees: US$${breakdown.platformShare}. Category: ${category}.`,
           redirect_url: `${origin}/poster-dashboard?checkout=success`,
           enabled_variants: [parseLemonSqueezyVariantId(variantId)],
           receipt_button_text: "View your request",
@@ -586,7 +605,7 @@ async function handleCreateLemonSqueezyCheckout(req, res) {
             details,
             finder_payout_usd: String(breakdown.reward),
             platform_service_fee_usd: String(breakdown.platformFee),
-            refund_protection_reserve_usd: String(breakdown.protection),
+            payment_handling_source_review_fee_usd: String(breakdown.protection),
             platform_share_usd: String(breakdown.platformShare),
             total_usd: String(breakdown.total),
             duration_days: String(durationDays),
@@ -1517,7 +1536,7 @@ function getPaymentProvider() {
     return "lemonsqueezy";
   }
 
-  return "dodo";
+  return "lemonsqueezy";
 }
 
 function getAllowedPaymentMethodTypes() {
@@ -1544,6 +1563,10 @@ function getDodoEnvironment() {
 
 function isDodoLiveMode() {
   return getDodoEnvironment() === "live";
+}
+
+function isDodoMarketplaceCheckoutAllowed() {
+  return parseBooleanEnv("DODO_MARKETPLACE_CHECKOUT_ENABLED", false);
 }
 
 function parseLemonSqueezyVariantId(variantId) {
