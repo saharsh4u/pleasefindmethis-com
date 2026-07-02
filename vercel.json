@@ -3,5 +3,83 @@
     "api/**/*.mjs": {
       "maxDuration": 30
     }
-  }
+  },
+  "rewrites": [
+    {
+      "source": "/auth",
+      "destination": "/index.html"
+    },
+    {
+      "source": "/post/:path*",
+      "destination": "/index.html"
+    },
+    {
+      "source": "/browse",
+      "destination": "/index.html"
+    },
+    {
+      "source": "/browse/all",
+      "destination": "/index.html"
+    },
+    {
+      "source": "/bounty/detail",
+      "destination": "/index.html"
+    },
+    {
+      "source": "/submit-find",
+      "destination": "/index.html"
+    },
+    {
+      "source": "/poster-dashboard",
+      "destination": "/index.html"
+    },
+    {
+      "source": "/finder-dashboard",
+      "destination": "/index.html"
+    },
+    {
+      "source": "/dispute",
+      "destination": "/index.html"
+    },
+    {
+      "source": "/profile",
+      "destination": "/index.html"
+    },
+    {
+      "source": "/faq",
+      "destination": "/index.html"
+    },
+    {
+      "source": "/privacy",
+      "destination": "/index.html"
+    },
+    {
+      "source": "/terms",
+      "destination": "/index.html"
+    },
+    {
+      "source": "/refunds",
+      "destination": "/index.html"
+    },
+    {
+      "source": "/rules",
+      "destination": "/index.html"
+    },
+    {
+      "source": "/support",
+      "destination": "/index.html"
+    },
+    {
+      "source": "/report",
+      "destination": "/index.html"
+    },
+    {
+      "source": "/account/:path*",
+      "destination": "/index.html"
+    },
+    {
+      "source": "/admin/:path*",
+      "destination": "/index.html"
+    }
+  ]
 }

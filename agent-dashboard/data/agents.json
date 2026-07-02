@@ -1,0 +1,144 @@
+{
+  "updatedAt": "2026-07-02T13:38:30.687Z",
+  "summary": {
+    "postingWithoutApproval": 0
+  },
+  "agents": [
+    {
+      "name": "Goodall",
+      "shortId": "Agent 1",
+      "focus": "Reddit scout",
+      "now": "Mapped safe communities, rules, and search queries. No posting was done.",
+      "status": "Complete",
+      "progress": 100
+    },
+    {
+      "name": "Noether",
+      "shortId": "Agent 2",
+      "focus": "Social content",
+      "now": "Wrote hooks, captions, and short video scripts for bounty stories.",
+      "status": "Complete",
+      "progress": 100
+    },
+    {
+      "name": "Bacon",
+      "shortId": "Agent 3",
+      "focus": "Finder recruiting",
+      "now": "Built the first 80-prospect finder recruiting plan and outreach copy.",
+      "status": "Complete",
+      "progress": 100
+    },
+    {
+      "name": "Poincare",
+      "shortId": "Agent 4",
+      "focus": "Partner outreach",
+      "now": "Prepared creator, newsletter, and shop partner pitches with disclosure language.",
+      "status": "Complete",
+      "progress": 100
+    },
+    {
+      "name": "Franklin",
+      "shortId": "Agent 5",
+      "focus": "SEO pages",
+      "now": "Designed the page-factory plan for requests, solved finds, categories, finders, and images.",
+      "status": "Complete",
+      "progress": 100
+    },
+    {
+      "name": "Bernoulli",
+      "shortId": "Agent 6",
+      "focus": "PR launch",
+      "now": "Wrote press, Product Hunt, Show HN, and founder launch copy.",
+      "status": "Complete",
+      "progress": 100
+    },
+    {
+      "name": "Fermat",
+      "shortId": "Agent 7",
+      "focus": "Paid ads",
+      "now": "Built a $1,000 paid test plan. Launch waits for DNS, tracking, and product-flow checks.",
+      "status": "Complete",
+      "progress": 100
+    },
+    {
+      "name": "Ohm",
+      "shortId": "Agent 8",
+      "focus": "Trust safety",
+      "now": "Created claim guardrails for payments, referrals, testimonials, prohibited goods, and Reddit.",
+      "status": "Complete",
+      "progress": 100
+    },
+    {
+      "name": "Boyle",
+      "shortId": "Agent 9",
+      "focus": "Community replies",
+      "now": "Prepared 25 helpful-first comment drafts that avoid spam and lead with actual search help.",
+      "status": "Complete",
+      "progress": 100
+    },
+    {
+      "name": "Curie",
+      "shortId": "Agent 10",
+      "focus": "Sprint coordinator",
+      "now": "Prioritized the work: prepare assets, avoid Reddit bypasses, and verify blockers before launch.",
+      "status": "Complete",
+      "progress": 100
+    }
+  ],
+  "blockers": [
+    {
+      "title": "DNS is not resolving here",
+      "detail": "pleasefindmethis.com failed from this environment. Public launch pushes should wait.",
+      "level": "high"
+    },
+    {
+      "title": "Reddit is blocked here",
+      "detail": "Browser and public JSON endpoints returned network security blocks. No bypass was attempted.",
+      "level": "medium"
+    },
+    {
+      "title": "Paid ads need tracking first",
+      "detail": "Do not spend until bounty start, checkout, funded, submit source, and accepted source events work.",
+      "level": "medium"
+    }
+  ],
+  "nextActions": [
+    "Fix or verify DNS and HTTPS.",
+    "Verify the full product flow end to end.",
+    "Use the Reddit workflow manually after login/security gate clears.",
+    "Start finder outreach with the 80-prospect list.",
+    "Build the SEO page factory before directory pushes."
+  ],
+  "outputs": [
+    {
+      "title": "Marketing sprint assets",
+      "detail": "Positioning, hooks, video scripts, PR copy, Product Hunt, and Show HN copy.",
+      "path": "../marketing/marketing_sprint_assets.md"
+    },
+    {
+      "title": "Reddit workflow",
+      "detail": "Rules, safe communities, daily search queries, and no-spam templates.",
+      "path": "../marketing/reddit_daily_workflow.md"
+    },
+    {
+      "title": "Community comment bank",
+      "detail": "25 helpful-first drafts for Reddit, Discord, and forums.",
+      "path": "../marketing/community_comment_bank.md"
+    },
+    {
+      "title": "Finder outreach",
+      "detail": "Prospect segments, DMs, email sequence, and finder incentive plan.",
+      "path": "../marketing/finder_partner_outreach.md"
+    },
+    {
+      "title": "SEO roadmap",
+      "detail": "Request pages, solved pages, category hubs, image pages, and sitemaps.",
+      "path": "../marketing/seo_page_factory_roadmap.md"
+    },
+    {
+      "title": "Paid test",
+      "detail": "$1,000 test plan across Google, Reddit, TikTok, Meta, and Pinterest.",
+      "path": "../marketing/paid_acquisition_test.md"
+    }
+  ]
+}

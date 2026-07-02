@@ -1,0 +1,113 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Agent Command Center</title>
+    <link rel="stylesheet" href="./styles.css" />
+  </head>
+  <body>
+    <div class="app-shell">
+      <aside class="side-nav" aria-label="Dashboard sections">
+        <div class="brand-block">
+          <div class="brand-mark" aria-hidden="true">A</div>
+          <div>
+            <p class="brand-title">Agent Desk</p>
+            <p class="brand-subtitle">local monitor</p>
+          </div>
+        </div>
+        <nav class="nav-list">
+          <a class="nav-link active" href="#agents">Agents</a>
+          <a class="nav-link" href="#attention">Needs attention</a>
+          <a class="nav-link" href="#outputs">Outputs</a>
+        </nav>
+      </aside>
+
+      <main class="dashboard">
+        <header class="dashboard-header">
+          <div>
+            <h1>Agent Command Center</h1>
+            <p>Live marketing sprint for pleasefindmethis.com</p>
+          </div>
+          <div class="header-actions">
+            <span class="live-dot" aria-hidden="true"></span>
+            <span id="last-updated">Loading...</span>
+          </div>
+        </header>
+
+        <section class="metrics-grid" aria-label="Sprint summary">
+          <article class="metric-card">
+            <span class="metric-label">Agents</span>
+            <strong id="metric-agents">-</strong>
+            <span class="metric-note">people working</span>
+          </article>
+          <article class="metric-card">
+            <span class="metric-label">Complete</span>
+            <strong id="metric-complete">-</strong>
+            <span class="metric-note">tasks finished</span>
+          </article>
+          <article class="metric-card">
+            <span class="metric-label">Posting</span>
+            <strong id="metric-posting">0</strong>
+            <span class="metric-note">without approval</span>
+          </article>
+          <article class="metric-card warning">
+            <span class="metric-label">Blockers</span>
+            <strong id="metric-blockers">-</strong>
+            <span class="metric-note">need attention</span>
+          </article>
+        </section>
+
+        <div class="content-grid">
+          <section class="panel agent-panel" id="agents">
+            <div class="panel-heading">
+              <div>
+                <h2>Agents</h2>
+                <p>Simple status of who did what.</p>
+              </div>
+              <button id="refresh-button" type="button">Refresh</button>
+            </div>
+
+            <div class="agent-table" role="table" aria-label="Agent activity">
+              <div class="table-row table-head" role="row">
+                <span role="columnheader">Agent</span>
+                <span role="columnheader">Focus</span>
+                <span role="columnheader">Now</span>
+                <span role="columnheader">Status</span>
+              </div>
+              <div id="agent-rows"></div>
+            </div>
+          </section>
+
+          <aside class="right-rail">
+            <section class="panel" id="attention">
+              <div class="panel-heading compact">
+                <h2>Needs Attention</h2>
+              </div>
+              <div id="blocker-list" class="blocker-list"></div>
+            </section>
+
+            <section class="panel">
+              <div class="panel-heading compact">
+                <h2>Next Best Move</h2>
+              </div>
+              <ol id="next-actions" class="next-list"></ol>
+            </section>
+          </aside>
+        </div>
+
+        <section class="panel outputs-panel" id="outputs">
+          <div class="panel-heading">
+            <div>
+              <h2>Latest Outputs</h2>
+              <p>Files and deliverables created by the sprint.</p>
+            </div>
+          </div>
+          <div id="outputs-list" class="outputs-list"></div>
+        </section>
+      </main>
+    </div>
+
+    <script src="./app.js" type="module"></script>
+  </body>
+</html>

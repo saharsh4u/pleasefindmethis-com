@@ -263,7 +263,21 @@ type CheckoutSnapshot = {
   createdAt?: string;
 };
 
+type SeoMeta = {
+  title: string;
+  description: string;
+  path: string;
+  robots: "index,follow" | "noindex,follow";
+  image: string;
+};
+
+type JsonLdNode = Record<string, unknown>;
+
 const siteName = "pleasefindmethis.com";
+const siteOrigin = "https://pleasefindmethis.com";
+const defaultSeoDescription =
+  "Post a hard-to-find item, fund an offer, and let expert finders submit protected sources for discontinued products, rare goods, replacement parts, and sold-out items.";
+const defaultSeoImage = `${siteOrigin}/magnifying-glass.png`;
 const requestSingular = "request";
 const requestPlural = "requests";
 const checkoutRequestTimeoutMs = 25000;
@@ -399,6 +413,115 @@ const pageRoutes: Record<Page, string> = {
   "account-settings": "account/settings",
   "admin-review": "admin/review",
   "not-found": "not-found",
+};
+
+const indexablePages = new Set<Page>([
+  "landing",
+  "browse",
+  "browse-all",
+  "profile",
+  "faq",
+  "privacy",
+  "terms",
+  "refunds",
+  "rules",
+  "support",
+  "report",
+]);
+
+const pageSeoCopy: Record<Page, { title: string; description: string }> = {
+  landing: {
+    title: "Find Hard-to-Find Items With Protected Offers | pleasefindmethis.com",
+    description: defaultSeoDescription,
+  },
+  auth: {
+    title: "Sign In | pleasefindmethis.com",
+    description: "Sign in to post requests, submit sources, manage payouts, and review protected leads on pleasefindmethis.com.",
+  },
+  "post-describe": {
+    title: "Post a Hard-to-Find Item Request | pleasefindmethis.com",
+    description: "Describe the item you cannot find, add reference photos, and prepare a protected offer for expert finders.",
+  },
+  "post-reward": {
+    title: "Set a Finder Offer | pleasefindmethis.com",
+    description: "Choose the payout that a finder can earn after submitting a valid source for your hard-to-find item.",
+  },
+  "post-pay": {
+    title: "Fund a Protected Request | pleasefindmethis.com",
+    description: "Securely fund your request before it goes live so finders know the offer is real.",
+  },
+  browse: {
+    title: "Featured Hard-to-Find Item Requests | pleasefindmethis.com",
+    description: "Browse funded requests for rare, sold-out, discontinued, vintage, and replacement items that expert finders can help source.",
+  },
+  "browse-all": {
+    title: "Browse All Find Requests | pleasefindmethis.com",
+    description: "Search open find requests by item, category, reward, and location, then submit a protected source when you know where to find it.",
+  },
+  "bounty-detail": {
+    title: "Find Request Details | pleasefindmethis.com",
+    description: "Review the item details, must-have criteria, finder payout, and source timeline for this protected find request.",
+  },
+  "submit-find": {
+    title: "Submit a Protected Source | pleasefindmethis.com",
+    description: "Submit a store link, seller contact, local lead, or handoff option for a funded request.",
+  },
+  "poster-dashboard": {
+    title: "Poster Dashboard | pleasefindmethis.com",
+    description: "Review protected sources, reveal leads, accept matches, and manage funded requests.",
+  },
+  "finder-dashboard": {
+    title: "Finder Dashboard | pleasefindmethis.com",
+    description: "Find active opportunities, submit sources, and track protected source reviews.",
+  },
+  dispute: {
+    title: "Open a Source Dispute | pleasefindmethis.com",
+    description: "Open a dispute when a revealed source, contact, proof package, or handoff does not match the funded request.",
+  },
+  profile: {
+    title: "Finder Trust Profile Example | pleasefindmethis.com",
+    description: "See how finder ratings, accepted sources, verification, and review history build trust on pleasefindmethis.com.",
+  },
+  faq: {
+    title: "FAQ for Posters and Finders | pleasefindmethis.com",
+    description: "Answers about payments, refunds, protected sources, finder payouts, public browsing, disputes, and how pleasefindmethis.com works.",
+  },
+  privacy: {
+    title: "Privacy Policy | pleasefindmethis.com",
+    description: "How pleasefindmethis.com handles account, request, source, image, support, and payment-related data.",
+  },
+  terms: {
+    title: "Terms of Service | pleasefindmethis.com",
+    description: "Marketplace terms for posters, finders, funded offers, protected sources, reviews, and payouts.",
+  },
+  refunds: {
+    title: "Refund and Cancellation Policy | pleasefindmethis.com",
+    description: "How funded offers, service fees, failed finds, disputes, and refund reviews work on pleasefindmethis.com.",
+  },
+  rules: {
+    title: "Marketplace Rules | pleasefindmethis.com",
+    description: "Rules for what can be posted, what finders can submit, and what conduct is not allowed.",
+  },
+  support: {
+    title: "Support for Requests, Sources, and Payouts | pleasefindmethis.com",
+    description: "Get help with account access, checkout issues, source review, disputes, refunds, payout holds, and safety concerns.",
+  },
+  report: {
+    title: "Report a Listing, Source, or User | pleasefindmethis.com",
+    description: "Report fraud, unsafe requests, prohibited goods, stolen images, impersonation, spam, or abusive behavior.",
+  },
+  "account-settings": {
+    title: "Account Settings | pleasefindmethis.com",
+    description: "Manage account access, privacy requests, notifications, and data requests.",
+  },
+  "admin-review": {
+    title: "Admin Review Queue | pleasefindmethis.com",
+    description: "Operational review queue for disputes, reports, payout holds, refunds, and source moderation.",
+  },
+  "not-found": {
+    title: "Page Not Found | pleasefindmethis.com",
+    description: "The page may be outdated, private, or typed incorrectly.",
+  },
 };
 
 const signedInStorageKey = "pleasefindmethis-signed-in";
@@ -2026,27 +2149,242 @@ const faqItems = [
   },
 ];
 
+function getRoutePath(page: Page) {
+  if (page === "landing") {
+    return "/";
+  }
+
+  return `/${pageRoutes[page]}`;
+}
+
+function getCanonicalUrl(path: string) {
+  return new URL(path, siteOrigin).toString();
+}
+
+function toAbsoluteUrl(pathOrUrl: string) {
+  try {
+    return new URL(pathOrUrl, siteOrigin).toString();
+  } catch {
+    return defaultSeoImage;
+  }
+}
+
+function parseRoutePath(pathname: string) {
+  const normalized = pathname.replace(/\/+$/, "") || "/";
+  return normalized === "/" ? "/" : normalized.replace(/^\/+/, "");
+}
+
+function getLegacyHashRoute() {
+  if (!window.location.hash.startsWith("#/")) {
+    return "";
+  }
+
+  return window.location.hash.replace(/^#\/?/, "").split("?")[0] || "/";
+}
+
 function parseRoute(): Page {
-  const raw = window.location.hash.replace(/^#\/?/, "").split("?")[0];
+  const legacyHashRoute = getLegacyHashRoute();
+  const raw = legacyHashRoute || parseRoutePath(window.location.pathname);
   return routeMap[raw] ?? "not-found";
 }
 
 function parseCheckoutReturnStatus(): CheckoutReturnStatus {
-  const query = window.location.hash.split("?")[1] ?? "";
-  const status = new URLSearchParams(query).get("checkout");
+  const searchStatus = new URLSearchParams(window.location.search).get("checkout");
+  const hashQuery = window.location.hash.split("?")[1] ?? "";
+  const hashStatus = new URLSearchParams(hashQuery).get("checkout");
+  const status = searchStatus ?? hashStatus;
   return status === "success" || status === "cancelled" ? status : null;
 }
 
 function routeHref(page: Page) {
-  if (page === "landing") {
-    return "#/";
-  }
-
-  return `#/${pageRoutes[page]}`;
+  return getRoutePath(page);
 }
 
 function getInitialRoute(): Page {
   return parseRoute();
+}
+
+function getSeoMeta(page: Page, activeBounty?: BountyListing): SeoMeta {
+  if (page === "bounty-detail" && activeBounty) {
+    const description = `${activeBounty.description} Finder payout: ${activeBounty.reward}. ${activeBounty.category} request, ${activeBounty.closes} left.`;
+
+    return {
+      title: `${activeBounty.name} Find Request | ${siteName}`,
+      description: description.slice(0, 240),
+      path: "/bounty/detail",
+      robots: "noindex,follow",
+      image: toAbsoluteUrl(activeBounty.image),
+    };
+  }
+
+  const copy = pageSeoCopy[page] ?? pageSeoCopy["not-found"];
+
+  return {
+    ...copy,
+    path: getRoutePath(page),
+    robots: indexablePages.has(page) ? "index,follow" : "noindex,follow",
+    image: defaultSeoImage,
+  };
+}
+
+function setMetaTag(attribute: "name" | "property", value: string, content: string) {
+  let meta = document.head.querySelector<HTMLMetaElement>(`meta[${attribute}="${value}"]`);
+
+  if (!meta) {
+    meta = document.createElement("meta");
+    meta.setAttribute(attribute, value);
+    document.head.appendChild(meta);
+  }
+
+  meta.content = content;
+}
+
+function setCanonicalLink(href: string) {
+  let link = document.head.querySelector<HTMLLinkElement>('link[rel="canonical"]');
+
+  if (!link) {
+    link = document.createElement("link");
+    link.rel = "canonical";
+    document.head.appendChild(link);
+  }
+
+  link.href = href;
+}
+
+function createItemListSchema(bounties: BountyListing[], pagePath: string): JsonLdNode {
+  return {
+    "@type": "ItemList",
+    "@id": `${getCanonicalUrl(pagePath)}#request-list`,
+    name: "Hard-to-find item requests",
+    itemListOrder: "https://schema.org/ItemListOrderDescending",
+    numberOfItems: Math.min(bounties.length, 10),
+    itemListElement: bounties.slice(0, 10).map((bounty, index) => ({
+      "@type": "ListItem",
+      position: index + 1,
+      item: {
+        "@type": "Thing",
+        name: bounty.name,
+        description: bounty.description,
+        image: toAbsoluteUrl(bounty.image),
+        url: getCanonicalUrl(pagePath),
+        additionalType: bounty.category,
+      },
+    })),
+  };
+}
+
+function createStructuredData(page: Page, meta: SeoMeta, bounties: BountyListing[], activeBounty?: BountyListing) {
+  const canonicalUrl = getCanonicalUrl(meta.path);
+  const organizationId = `${siteOrigin}/#organization`;
+  const websiteId = `${siteOrigin}/#website`;
+  const webpageId = `${canonicalUrl}#webpage`;
+  const webPageType = page === "support" ? "ContactPage" : page === "faq" ? "FAQPage" : "WebPage";
+  const graph: JsonLdNode[] = [
+    {
+      "@type": "Organization",
+      "@id": organizationId,
+      name: siteName,
+      url: siteOrigin,
+      logo: defaultSeoImage,
+      contactPoint: [
+        {
+          "@type": "ContactPoint",
+          contactType: "customer support",
+          email: "support@pleasefindmethis.com",
+        },
+      ],
+    },
+    {
+      "@type": "WebSite",
+      "@id": websiteId,
+      name: siteName,
+      url: siteOrigin,
+      description: defaultSeoDescription,
+      publisher: { "@id": organizationId },
+    },
+    {
+      "@type": webPageType,
+      "@id": webpageId,
+      url: canonicalUrl,
+      name: meta.title,
+      description: meta.description,
+      isPartOf: { "@id": websiteId },
+      publisher: { "@id": organizationId },
+      primaryImageOfPage: {
+        "@type": "ImageObject",
+        url: meta.image,
+      },
+    },
+  ];
+
+  if (page === "landing" || page === "browse" || page === "browse-all") {
+    graph.push(createItemListSchema(bounties, meta.path));
+  }
+
+  if (page === "faq") {
+    graph.push({
+      "@type": "FAQPage",
+      "@id": `${canonicalUrl}#faq`,
+      mainEntity: faqItems.map((item) => ({
+        "@type": "Question",
+        name: item.question,
+        acceptedAnswer: {
+          "@type": "Answer",
+          text: item.answer,
+        },
+      })),
+    });
+  }
+
+  if (page === "bounty-detail" && activeBounty) {
+    graph.push({
+      "@type": "Thing",
+      "@id": `${canonicalUrl}#request`,
+      name: activeBounty.name,
+      description: activeBounty.description,
+      image: toAbsoluteUrl(activeBounty.image),
+      additionalType: activeBounty.category,
+    });
+  }
+
+  return {
+    "@context": "https://schema.org",
+    "@graph": graph,
+  };
+}
+
+function setStructuredData(data: JsonLdNode) {
+  let script = document.head.querySelector<HTMLScriptElement>('script[type="application/ld+json"][data-seo-schema="site"]');
+
+  if (!script) {
+    script = document.createElement("script");
+    script.type = "application/ld+json";
+    script.dataset.seoSchema = "site";
+    document.head.appendChild(script);
+  }
+
+  script.text = JSON.stringify(data);
+}
+
+function updateDocumentSeo(page: Page, bounties: BountyListing[], activeBounty?: BountyListing) {
+  const meta = getSeoMeta(page, activeBounty);
+  const canonicalUrl = getCanonicalUrl(meta.path);
+
+  document.title = meta.title;
+  setMetaTag("name", "description", meta.description);
+  setMetaTag("name", "robots", meta.robots);
+  setMetaTag("property", "og:type", "website");
+  setMetaTag("property", "og:site_name", siteName);
+  setMetaTag("property", "og:title", meta.title);
+  setMetaTag("property", "og:description", meta.description);
+  setMetaTag("property", "og:url", canonicalUrl);
+  setMetaTag("property", "og:image", meta.image);
+  setMetaTag("name", "twitter:card", "summary_large_image");
+  setMetaTag("name", "twitter:title", meta.title);
+  setMetaTag("name", "twitter:description", meta.description);
+  setMetaTag("name", "twitter:image", meta.image);
+  setCanonicalLink(canonicalUrl);
+  setStructuredData(createStructuredData(page, meta, bounties, activeBounty));
 }
 
 function getCategoryLabel(category: RequestCategory) {
@@ -2182,8 +2520,12 @@ function App() {
       window.scrollTo({ top: 0, behavior: "smooth" });
     };
 
+    window.addEventListener("popstate", syncRoute);
     window.addEventListener("hashchange", syncRoute);
-    return () => window.removeEventListener("hashchange", syncRoute);
+    return () => {
+      window.removeEventListener("popstate", syncRoute);
+      window.removeEventListener("hashchange", syncRoute);
+    };
   }, []);
 
   const activeBounty = useMemo(
@@ -2191,14 +2533,27 @@ function App() {
     [activeBountyId, marketplaceBounties],
   );
 
+  const visibleRoute = !signedIn && protectedPages.has(route) ? "auth" : route;
+
+  useEffect(() => {
+    updateDocumentSeo(visibleRoute, marketplaceBounties, activeBounty);
+  }, [activeBounty, marketplaceBounties, visibleRoute]);
+
   const navigate = (page: Page) => {
+    const targetPath = routeHref(page);
+
     setMenuOpen(false);
-    if (window.location.hash === routeHref(page)) {
+    if (window.location.pathname === targetPath && !window.location.search && !window.location.hash) {
       setRoute(page);
+      setCheckoutReturnStatus(null);
       window.scrollTo({ top: 0, behavior: "smooth" });
       return;
     }
-    window.location.hash = pageRoutes[page];
+
+    window.history.pushState(null, "", targetPath);
+    setRoute(page);
+    setCheckoutReturnStatus(null);
+    window.scrollTo({ top: 0, behavior: "smooth" });
   };
 
   const requireAuth = (target: Page, mode: AuthMode = "signup") => {
@@ -2222,7 +2577,7 @@ function App() {
   const scrollToLandingSection = (sectionId: string) => {
     setMenuOpen(false);
     if (route !== "landing") {
-      window.location.hash = pageRoutes.landing;
+      navigate("landing");
       window.setTimeout(() => {
         document.getElementById(sectionId)?.scrollIntoView({ behavior: "smooth", block: "start" });
       }, 80);
@@ -2372,8 +2727,9 @@ function App() {
     setAuthMode("login");
 
     if (shouldReturnHome) {
-      window.history.replaceState(null, "", `${window.location.pathname}${window.location.search}${routeHref("landing")}`);
+      window.history.replaceState(null, "", routeHref("landing"));
       setRoute("landing");
+      setCheckoutReturnStatus(null);
       window.scrollTo({ top: 0, behavior: "smooth" });
     }
 
@@ -2429,17 +2785,16 @@ function App() {
     setPostDraft((draft) => ({ ...draft, ...updates }));
   };
 
-  const visibleRoute = !signedIn && protectedPages.has(route) ? "auth" : route;
-
   useEffect(() => {
     if (!signedIn && protectedPages.has(route)) {
       setPendingRoute(route);
       setAuthMode("signup");
       window.sessionStorage.setItem(pendingRouteStorageKey, route);
-      if (window.location.hash !== routeHref("auth")) {
+      if (window.location.pathname !== routeHref("auth")) {
         window.history.replaceState(null, "", routeHref("auth"));
       }
       setRoute("auth");
+      setCheckoutReturnStatus(null);
     }
   }, [route, signedIn]);
 
@@ -2752,7 +3107,7 @@ function MobileFindTicker({ placement, requests }: { placement: "top" | "bottom"
       <div className="mobile-find-ticker-track">
         {[...requests, ...requests].map((request, index) => (
           <article className="mobile-find-ticker-card" key={`${placement}-mobile-find-${index}`}>
-            <img src={request.image} alt="" loading="lazy" />
+            <img src={request.image} alt={request.copy} loading="lazy" />
             <span>{request.copy}</span>
           </article>
         ))}
@@ -2779,7 +3134,7 @@ function BoardRequestCard({
     <article className={`board-request-card ${variant === "reward" ? "board-request-card-reward" : ""}`}>
       <button type="button" onClick={() => onDetail(bounty.id)} aria-label={`Open ${bounty.name}`}>
         <span className={`board-status ${activeStatus ? "active" : ""}`}>{formatBoardStatus(bounty.status)}</span>
-        <img src={bounty.image} alt="" />
+        <img src={bounty.image} alt={`${bounty.name} reference`} />
         <span className="board-card-copy">
           <strong>{bounty.name}</strong>
           <em>{formatBountyDetail(bounty, currencyPreference)}</em>
@@ -2819,7 +3174,7 @@ function FeaturedBountyCard({
 
   return (
     <article className={`bounty-card bounty-card-${index + 1} ${className}`.trim()}>
-      <img src={bounty.image} alt="" />
+      <img src={bounty.image} alt={`${bounty.name} reference`} />
       <button className="save-button" type="button" aria-label={`Open ${bounty.name}`} onClick={() => onDetail(bounty.id)}>
         <BadgeCheck size={15} aria-hidden="true" />
       </button>
@@ -3042,7 +3397,7 @@ function LandingPage({
             {[...leftFindRequests, ...leftFindRequests].map((request, index) => (
               <article className="side-find-card" key={`left-find-${index}`}>
                 <p>{request.copy}</p>
-                <img className="side-find-image" src={request.image} alt="" loading="lazy" />
+                <img className="side-find-image" src={request.image} alt={request.copy} loading="lazy" />
               </article>
             ))}
           </div>
@@ -3053,7 +3408,7 @@ function LandingPage({
             {[...rightFindRequests, ...rightFindRequests].map((request, index) => (
               <article className="side-find-card" key={`right-find-${index}`}>
                 <p>{request.copy}</p>
-                <img className="side-find-image" src={request.image} alt="" loading="lazy" />
+                <img className="side-find-image" src={request.image} alt={request.copy} loading="lazy" />
               </article>
             ))}
           </div>
@@ -3062,7 +3417,7 @@ function LandingPage({
         <div className="hero-copy">
           <p className="hero-site-tag">{siteName}</p>
           <h1>Can&apos;t find it anywhere?</h1>
-          <h1 className="mobile-hero-title">Can&apos;t find it anywhere?</h1>
+          <p className="mobile-hero-title" aria-hidden="true">Can&apos;t find it anywhere?</p>
           <p className="micro-line">
             <span>Post what you need</span>
             <ArrowRight size={16} />
@@ -3608,7 +3963,7 @@ function PostDescribePage({
         <aside className="side-panel">
           <h2>What finders see</h2>
           <div className="mini-bounty-card">
-            <img src={bountyListings[5].image} alt="" />
+            <img src={bountyListings[5].image} alt={`${bountyListings[5].name} reference`} />
             <div>
               <strong>{draft.itemName || "Your request"}</strong>
               <span>{getCategoryLabel(draft.category)} · Open to worldwide sources</span>
@@ -4224,7 +4579,7 @@ function BountySquareCard({
           </>
         )}
         <span className="square-image-wrap">
-          <img src={bounty.image} alt="" />
+          <img src={bounty.image} alt={`${bounty.name} reference`} />
         </span>
         <span className="square-copy">
           <strong>{bounty.name}</strong>
@@ -4571,7 +4926,7 @@ function SubmitFindPage({
             </li>
           </ul>
           <div className="mini-bounty-card">
-            <img src={bounty.image} alt="" />
+            <img src={bounty.image} alt={`${bounty.name} reference`} />
             <div>
               <strong>{bounty.name}</strong>
               <span>{formatUsdMoney(bounty.rewardValue, currencyPreference, { compact: true })} payout · {bounty.closes} left</span>
@@ -4823,7 +5178,7 @@ function PosterDashboardPage({
           </div>
           {dashboardBounties.map((bounty) => (
             <button className="review-row" key={bounty.id} type="button" onClick={() => selectRequest(bounty.id)}>
-              <img src={bounty.image} alt="" />
+              <img src={bounty.image} alt={`${bounty.name} reference`} />
               <span>
                 <strong>{bounty.name}</strong>
                 <small>{bounty.submissions} submissions · {bounty.status}</small>
@@ -5123,7 +5478,7 @@ function FinderDashboardPage({
           </div>
           {availableBounties.map((bounty) => (
             <button className="review-row" key={bounty.id} type="button" onClick={() => onSubmit(bounty.id)}>
-              <img src={bounty.image} alt="" />
+              <img src={bounty.image} alt={`${bounty.name} reference`} />
               <span>
                 <strong>{bounty.name}</strong>
                 <small>{bounty.category} · {bounty.closes} left</small>

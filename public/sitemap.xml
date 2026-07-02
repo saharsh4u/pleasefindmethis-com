@@ -2,32 +2,52 @@
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
   <url>
     <loc>https://pleasefindmethis.com/</loc>
+    <changefreq>daily</changefreq>
+    <priority>1.0</priority>
   </url>
   <url>
-    <loc>https://pleasefindmethis.com/#/browse</loc>
+    <loc>https://pleasefindmethis.com/browse</loc>
+    <changefreq>daily</changefreq>
+    <priority>0.9</priority>
   </url>
   <url>
-    <loc>https://pleasefindmethis.com/#/browse/all</loc>
+    <loc>https://pleasefindmethis.com/browse/all</loc>
+    <changefreq>daily</changefreq>
+    <priority>0.8</priority>
   </url>
   <url>
-    <loc>https://pleasefindmethis.com/#/faq</loc>
+    <loc>https://pleasefindmethis.com/faq</loc>
+    <changefreq>monthly</changefreq>
+    <priority>0.7</priority>
   </url>
   <url>
-    <loc>https://pleasefindmethis.com/#/terms</loc>
+    <loc>https://pleasefindmethis.com/terms</loc>
+    <changefreq>monthly</changefreq>
+    <priority>0.4</priority>
   </url>
   <url>
-    <loc>https://pleasefindmethis.com/#/privacy</loc>
+    <loc>https://pleasefindmethis.com/privacy</loc>
+    <changefreq>monthly</changefreq>
+    <priority>0.4</priority>
   </url>
   <url>
-    <loc>https://pleasefindmethis.com/#/refunds</loc>
+    <loc>https://pleasefindmethis.com/refunds</loc>
+    <changefreq>monthly</changefreq>
+    <priority>0.4</priority>
   </url>
   <url>
-    <loc>https://pleasefindmethis.com/#/rules</loc>
+    <loc>https://pleasefindmethis.com/rules</loc>
+    <changefreq>monthly</changefreq>
+    <priority>0.4</priority>
   </url>
   <url>
-    <loc>https://pleasefindmethis.com/#/support</loc>
+    <loc>https://pleasefindmethis.com/support</loc>
+    <changefreq>monthly</changefreq>
+    <priority>0.6</priority>
   </url>
   <url>
-    <loc>https://pleasefindmethis.com/#/report</loc>
+    <loc>https://pleasefindmethis.com/report</loc>
+    <changefreq>monthly</changefreq>
+    <priority>0.3</priority>
   </url>
 </urlset>

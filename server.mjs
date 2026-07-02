@@ -279,8 +279,8 @@ async function handleCreateDodoCheckout(req, res) {
       payment_provider: "dodo",
       payment_environment: getDodoEnvironment(),
     },
-    return_url: `${origin}/#/poster-dashboard?checkout=success`,
-    cancel_url: `${origin}/#/post/pay?checkout=cancelled`,
+    return_url: `${origin}/poster-dashboard?checkout=success`,
+    cancel_url: `${origin}/post/pay?checkout=cancelled`,
   };
 
   let dodoResponse;
@@ -563,10 +563,10 @@ async function handleCreateLemonSqueezyCheckout(req, res) {
         product_options: {
           name: `Fund request: ${itemName}`,
           description: `Finder reward: US$${breakdown.reward}. Service and protection fees: US$${breakdown.platformShare}. Category: ${category}.`,
-          redirect_url: `${origin}/#/poster-dashboard?checkout=success`,
+          redirect_url: `${origin}/poster-dashboard?checkout=success`,
           enabled_variants: [parseLemonSqueezyVariantId(variantId)],
           receipt_button_text: "View your request",
-          receipt_link_url: `${origin}/#/poster-dashboard?checkout=success`,
+          receipt_link_url: `${origin}/poster-dashboard?checkout=success`,
         },
         checkout_options: {
           embed: false,
