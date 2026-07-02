@@ -1,0 +1,49 @@
+# pleasefindmethis.com
+
+pleasefindmethis.com is a marketplace for hard-to-find items. Posters describe an item they cannot find, add reference photos, fund a finder payout, and let finders submit protected source links, seller contacts, local leads, or direct handoff options.
+
+## Who It Serves
+
+- Posters looking for discontinued products, sold-out goods, rare collectibles, replacement parts, vintage electronics, watches, home goods, art, decor, camera gear, or personal replacement items.
+- Finders who know how to locate hard-to-source items and want to earn the posted payout for a valid source.
+
+## Core Workflow
+
+1. A poster creates a request with item details, must-have criteria, images, finder payout, and request duration.
+2. The poster pays the finder payout plus platform and source review fees before the request goes live.
+3. Finders submit source links, contacts, proof, terms, and notes as protected records.
+4. The poster reveals, checks, and accepts a valid source or gives a clear rejection reason.
+5. The saved request, source, reveal, review, and dispute trail is used for payout and refund decisions.
+
+## Public Pages
+
+- Homepage: https://pleasefindmethis.com/
+- Browse featured requests: https://pleasefindmethis.com/browse
+- Browse all requests: https://pleasefindmethis.com/browse/all
+- FAQ: https://pleasefindmethis.com/faq
+- Example trust profile: https://pleasefindmethis.com/profile
+- Marketplace rules: https://pleasefindmethis.com/rules
+- Refund policy: https://pleasefindmethis.com/refunds
+- Terms: https://pleasefindmethis.com/terms
+- Privacy: https://pleasefindmethis.com/privacy
+- Support: https://pleasefindmethis.com/support
+- Report abuse or unsafe activity: https://pleasefindmethis.com/report
+- Pricing and fees: https://pleasefindmethis.com/pricing.md
+- Fee details: https://pleasefindmethis.com/fees.md
+
+## Important Facts
+
+- pleasefindmethis.com is not the seller of requested items.
+- The platform does not sell, ship, resell, or broker physical goods.
+- The posted offer remains the finder payout.
+- Posters pay platform service and source review fees at checkout.
+- The checkout covers the marketplace request workflow, source review, and any eligible finder payout, not a purchase of the requested item.
+- Protected source details are saved before reveal.
+- Finder payouts can become payable after acceptance, confirmed handoff, or review resolution.
+- Public browsing is open. Posting, submitting sources, dashboards, payments, and disputes require sign in.
+- Payment processors are enabled only where their acceptance policies support marketplace and finder-payout transactions.
+- Dodo checkout must remain disabled unless Dodo explicitly approves this exact new website and business model in a new business/product review.
+
+## Contact
+
+Support: support@pleasefindmethis.com

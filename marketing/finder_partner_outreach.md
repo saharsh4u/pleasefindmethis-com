@@ -66,10 +66,8 @@ No commitment - just send anything that matches, and we will tell you quickly if
 
 - Base bounty: posted finder reward.
 - Optional accepted qualified lead bonus during launch: $10-$25 where economics allow.
-- Closed-purchase bounty: 3%-7% of purchase price, minimum $25, capped by category margin if the platform adds a closed-purchase program.
-- Pickup bonus: $15-$75 depending on distance, item size, urgency, and risk.
 - Quality bonus: +$50 after 5 accepted leads with low cancellation rate.
-- Tiers: Bronze 3%, Silver 5% after 5 successful accepted leads, Gold 7% after 15 accepted leads or exclusive first-look access.
+- Tiers: Bronze, Silver after 5 successful accepted leads, Gold after 15 accepted leads or exclusive first-look access.
 - Referral bonus: $25 when a referred finder submits their first accepted lead; $100 after their third accepted lead.
 - Disqualify counterfeit, stolen, misrepresented, unsafe, prohibited, or already-submitted leads.
 
@@ -85,8 +83,6 @@ No commitment - just send anything that matches, and we will tell you quickly if
 - Example past finds
 - Average deal size
 - Can inspect items?
-- Can do local pickup?
-- Can ship?
 - Payment method
 - Payout country/currency
 - Referral source

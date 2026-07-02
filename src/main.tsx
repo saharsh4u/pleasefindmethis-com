@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { createRoot } from "react-dom/client";
 import type { Session } from "@supabase/supabase-js";
+import { Analytics } from "@vercel/analytics/react";
 import {
   AlertTriangle,
   ArrowLeft,
@@ -266,6 +267,7 @@ type CheckoutSnapshot = {
 type SeoMeta = {
   title: string;
   description: string;
+  socialDescription?: string;
   path: string;
   robots: "index,follow" | "noindex,follow";
   image: string;
@@ -276,8 +278,10 @@ type JsonLdNode = Record<string, unknown>;
 const siteName = "pleasefindmethis.com";
 const siteOrigin = "https://pleasefindmethis.com";
 const defaultSeoDescription =
-  "Post a hard-to-find item, fund an offer, and let expert finders submit protected sources for discontinued products, rare goods, replacement parts, and sold-out items.";
-const defaultSeoImage = `${siteOrigin}/magnifying-glass.png`;
+  "pleasefindmethis.com helps people find sold-out, rare, vintage, and hard-to-find items by posting a request and offering a finder reward.";
+const defaultSocialDescription = "Post what you want. Add a reward. Real finders send links and leads to help you buy it.";
+const organizationLogo = `${siteOrigin}/magnifying-glass.png`;
+const defaultSeoImage = `${siteOrigin}/og/pleasefindmethis-vintage-tee-fullscreen-v3.png`;
 const requestSingular = "request";
 const requestPlural = "requests";
 const checkoutRequestTimeoutMs = 25000;
@@ -419,6 +423,7 @@ const indexablePages = new Set<Page>([
   "landing",
   "browse",
   "browse-all",
+  "bounty-detail",
   "profile",
   "faq",
   "privacy",
@@ -429,10 +434,11 @@ const indexablePages = new Set<Page>([
   "report",
 ]);
 
-const pageSeoCopy: Record<Page, { title: string; description: string }> = {
+const pageSeoCopy: Record<Page, { title: string; description: string; socialDescription?: string }> = {
   landing: {
-    title: "Find Hard-to-Find Items With Protected Offers | pleasefindmethis.com",
+    title: "Find Sold-Out, Rare, and Vintage Items",
     description: defaultSeoDescription,
+    socialDescription: defaultSocialDescription,
   },
   auth: {
     title: "Sign In | pleasefindmethis.com",
@@ -2120,7 +2126,7 @@ const faqItems = [
   {
     question: "When do I pay?",
     answer:
-      "You fund the request before it goes live. Checkout shows your offer, the finder payout, and transparent poster-paid service and source review fees before you pay.",
+      "You pay before the request goes live. Checkout shows the finder offer, platform service fee, and source review fee before you pay. The item itself, if any, is bought separately from the third-party source or seller.",
   },
   {
     question: "What happens if nobody finds it?",
@@ -2143,6 +2149,16 @@ const faqItems = [
       "Posters pay a 12% platform service fee plus a 3% payment handling and source review fee at checkout. The offer amount remains the finder payout.",
   },
   {
+    question: "Does pleasefindmethis sell the requested item?",
+    answer:
+      "No. pleasefindmethis is not the seller, reseller, shipper, or broker of the requested item. The platform hosts the request, records protected source submissions, and supports source review.",
+  },
+  {
+    question: "What requests are not allowed?",
+    answer:
+      "Requests for illegal goods, regulated or age-restricted goods, weapons, financial products, gift cards, tickets, personal data, stolen items, counterfeit documents, unsafe surveillance tools, or harassment are not allowed.",
+  },
+  {
     question: "Is the browse feed public?",
     answer:
       "Yes. Anyone can browse public requests and detail pages. Posting, submitting sources, dashboards, payment, and disputes require sign up or log in.",
@@ -2155,6 +2171,21 @@ function getRoutePath(page: Page) {
   }
 
   return `/${pageRoutes[page]}`;
+}
+
+function slugify(value: string) {
+  return value
+    .toLowerCase()
+    .trim()
+    .replace(/&/g, " and ")
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/(^-|-$)/g, "")
+    .slice(0, 80);
+}
+
+function getBountyPath(bountyId: string, bountyName = "") {
+  const slug = slugify(bountyName);
+  return `/requests/${encodeURIComponent(bountyId)}${slug ? `/${slug}` : ""}`;
 }
 
 function getCanonicalUrl(path: string) {
@@ -2182,9 +2213,25 @@ function getLegacyHashRoute() {
   return window.location.hash.replace(/^#\/?/, "").split("?")[0] || "/";
 }
 
+function getCurrentRawRoute() {
+  return getLegacyHashRoute() || parseRoutePath(window.location.pathname);
+}
+
+function getBountyIdFromRawRoute(rawRoute: string) {
+  const match = rawRoute.match(/^requests\/([^/?#]+)(?:\/[^?#]+)?$/);
+  return match ? decodeURIComponent(match[1]) : "";
+}
+
+function getBountyIdFromCurrentRoute() {
+  return getBountyIdFromRawRoute(getCurrentRawRoute());
+}
+
 function parseRoute(): Page {
-  const legacyHashRoute = getLegacyHashRoute();
-  const raw = legacyHashRoute || parseRoutePath(window.location.pathname);
+  const raw = getCurrentRawRoute();
+  if (getBountyIdFromRawRoute(raw)) {
+    return "bounty-detail";
+  }
+
   return routeMap[raw] ?? "not-found";
 }
 
@@ -2196,8 +2243,21 @@ function parseCheckoutReturnStatus(): CheckoutReturnStatus {
   return status === "success" || status === "cancelled" ? status : null;
 }
 
-function routeHref(page: Page) {
+function routeHref(page: Page, bountyId?: string, bountyName?: string) {
+  if (page === "bounty-detail" && bountyId) {
+    return getBountyPath(bountyId, bountyName);
+  }
+
   return getRoutePath(page);
+}
+
+function handleRoutedAnchorClick(event: React.MouseEvent<HTMLAnchorElement>, action: () => void) {
+  if (event.defaultPrevented || event.button !== 0 || event.metaKey || event.altKey || event.ctrlKey || event.shiftKey) {
+    return;
+  }
+
+  event.preventDefault();
+  action();
 }
 
 function getInitialRoute(): Page {
@@ -2211,8 +2271,8 @@ function getSeoMeta(page: Page, activeBounty?: BountyListing): SeoMeta {
     return {
       title: `${activeBounty.name} Find Request | ${siteName}`,
       description: description.slice(0, 240),
-      path: "/bounty/detail",
-      robots: "noindex,follow",
+      path: getBountyPath(activeBounty.id, activeBounty.name),
+      robots: activeBounty.live ? "index,follow" : "noindex,follow",
       image: toAbsoluteUrl(activeBounty.image),
     };
   }
@@ -2266,7 +2326,7 @@ function createItemListSchema(bounties: BountyListing[], pagePath: string): Json
         name: bounty.name,
         description: bounty.description,
         image: toAbsoluteUrl(bounty.image),
-        url: getCanonicalUrl(pagePath),
+        url: getCanonicalUrl(getBountyPath(bounty.id, bounty.name)),
         additionalType: bounty.category,
       },
     })),
@@ -2278,14 +2338,14 @@ function createStructuredData(page: Page, meta: SeoMeta, bounties: BountyListing
   const organizationId = `${siteOrigin}/#organization`;
   const websiteId = `${siteOrigin}/#website`;
   const webpageId = `${canonicalUrl}#webpage`;
-  const webPageType = page === "support" ? "ContactPage" : page === "faq" ? "FAQPage" : "WebPage";
+  const webPageType = page === "support" ? "ContactPage" : "WebPage";
   const graph: JsonLdNode[] = [
     {
       "@type": "Organization",
       "@id": organizationId,
       name: siteName,
       url: siteOrigin,
-      logo: defaultSeoImage,
+      logo: organizationLogo,
       contactPoint: [
         {
           "@type": "ContactPoint",
@@ -2340,6 +2400,7 @@ function createStructuredData(page: Page, meta: SeoMeta, bounties: BountyListing
     graph.push({
       "@type": "Thing",
       "@id": `${canonicalUrl}#request`,
+      url: canonicalUrl,
       name: activeBounty.name,
       description: activeBounty.description,
       image: toAbsoluteUrl(activeBounty.image),
@@ -2369,6 +2430,7 @@ function setStructuredData(data: JsonLdNode) {
 function updateDocumentSeo(page: Page, bounties: BountyListing[], activeBounty?: BountyListing) {
   const meta = getSeoMeta(page, activeBounty);
   const canonicalUrl = getCanonicalUrl(meta.path);
+  const socialDescription = meta.socialDescription ?? meta.description;
 
   document.title = meta.title;
   setMetaTag("name", "description", meta.description);
@@ -2376,13 +2438,19 @@ function updateDocumentSeo(page: Page, bounties: BountyListing[], activeBounty?:
   setMetaTag("property", "og:type", "website");
   setMetaTag("property", "og:site_name", siteName);
   setMetaTag("property", "og:title", meta.title);
-  setMetaTag("property", "og:description", meta.description);
+  setMetaTag("property", "og:description", socialDescription);
   setMetaTag("property", "og:url", canonicalUrl);
   setMetaTag("property", "og:image", meta.image);
+  setMetaTag("property", "og:image:secure_url", meta.image);
+  setMetaTag("property", "og:image:type", "image/png");
+  setMetaTag("property", "og:image:width", "1200");
+  setMetaTag("property", "og:image:height", "675");
+  setMetaTag("property", "og:image:alt", "A reward-style poster asking for help finding a vintage T-shirt with a protected source lead.");
   setMetaTag("name", "twitter:card", "summary_large_image");
   setMetaTag("name", "twitter:title", meta.title);
-  setMetaTag("name", "twitter:description", meta.description);
+  setMetaTag("name", "twitter:description", socialDescription);
   setMetaTag("name", "twitter:image", meta.image);
+  setMetaTag("name", "twitter:image:alt", "A reward-style poster asking for help finding a vintage T-shirt with a protected source lead.");
   setCanonicalLink(canonicalUrl);
   setStructuredData(createStructuredData(page, meta, bounties, activeBounty));
 }
@@ -2504,7 +2572,7 @@ function App() {
   const [authMessage, setAuthMessage] = useState("");
   const [emailOtpSentTo, setEmailOtpSentTo] = useState("");
   const [postDraft, setPostDraft] = useState<PostDraft>(initialPostDraft);
-  const [activeBountyId, setActiveBountyId] = useState(bountyListings[0].id);
+  const [activeBountyId, setActiveBountyId] = useState(() => getBountyIdFromCurrentRoute() || bountyListings[0].id);
   const {
     listings: liveBounties,
     loading: publicRequestsLoading,
@@ -2514,6 +2582,10 @@ function App() {
 
   useEffect(() => {
     const syncRoute = () => {
+      const routeBountyId = getBountyIdFromCurrentRoute();
+      if (routeBountyId) {
+        setActiveBountyId(routeBountyId);
+      }
       setRoute(parseRoute());
       setCheckoutReturnStatus(parseCheckoutReturnStatus());
       setMenuOpen(false);
@@ -2539,8 +2611,8 @@ function App() {
     updateDocumentSeo(visibleRoute, marketplaceBounties, activeBounty);
   }, [activeBounty, marketplaceBounties, visibleRoute]);
 
-  const navigate = (page: Page) => {
-    const targetPath = routeHref(page);
+  const navigate = (page: Page, routeBountyId = activeBountyId, routeBountyName = "") => {
+    const targetPath = routeHref(page, routeBountyId, routeBountyName);
 
     setMenuOpen(false);
     if (window.location.pathname === targetPath && !window.location.search && !window.location.hash) {
@@ -2570,8 +2642,9 @@ function App() {
   };
 
   const goToDetail = (bountyId: string) => {
+    const targetBounty = marketplaceBounties.find((bounty) => bounty.id === bountyId);
     setActiveBountyId(bountyId);
-    navigate("bounty-detail");
+    navigate("bounty-detail", bountyId, targetBounty?.name ?? "");
   };
 
   const scrollToLandingSection = (sectionId: string) => {
@@ -2992,34 +3065,51 @@ function PageChrome({
   return (
     <div className="app-page">
       <header className="app-header">
-        <button className="brand brand-button" type="button" onClick={() => navigate("landing")} aria-label={`${siteName} home`}>
+        <a
+          className="brand brand-button"
+          href={routeHref("landing")}
+          onClick={(event) => handleRoutedAnchorClick(event, () => navigate("landing"))}
+          aria-label={`${siteName} home`}
+        >
           <span className="brand-mark" aria-hidden="true">
             <img className="brand-mark-image" src="/magnifying-glass.png" alt="" />
           </span>
           {siteName}
-        </button>
+        </a>
         <nav className="desktop-nav app-nav" aria-label="Primary navigation">
           {navItems.map(([label, page, gated]) => (
-            <button key={label} type="button" onClick={() => (gated ? requireAuth(page) : navigate(page))}>
+            <a
+              href={routeHref(page)}
+              key={label}
+              onClick={(event) => handleRoutedAnchorClick(event, () => (gated ? requireAuth(page) : navigate(page)))}
+            >
               {label}
-            </button>
+            </a>
           ))}
         </nav>
         <div className="canvas-actions">
           {signedIn ? (
             <>
-              <button className="text-button" type="button" onClick={() => requireAuth("poster-dashboard", "login")}>
+              <a
+                className="text-button"
+                href={routeHref("poster-dashboard")}
+                onClick={(event) => handleRoutedAnchorClick(event, () => requireAuth("poster-dashboard", "login"))}
+              >
                 Account
-              </button>
+              </a>
               <button className="text-button logout-button" type="button" onClick={onLogOut}>
                 <LogOut size={15} aria-hidden="true" />
                 Log out
               </button>
             </>
           ) : (
-            <button className="text-button" type="button" onClick={() => requireAuth("poster-dashboard", "login")}>
+            <a
+              className="text-button"
+              href={routeHref("auth")}
+              onClick={(event) => handleRoutedAnchorClick(event, () => requireAuth("poster-dashboard", "login"))}
+            >
               Log in
-            </button>
+            </a>
           )}
           <button
             className="icon-button mobile-menu-button"
@@ -3034,23 +3124,30 @@ function PageChrome({
         {menuOpen ? (
           <nav className="mobile-nav app-mobile-nav" aria-label="Mobile navigation">
             {navItems.map(([label, page, gated]) => (
-              <button key={label} type="button" onClick={() => (gated ? requireAuth(page) : navigate(page))}>
+              <a
+                href={routeHref(page)}
+                key={label}
+                onClick={(event) => handleRoutedAnchorClick(event, () => (gated ? requireAuth(page) : navigate(page)))}
+              >
                 {label}
-              </button>
+              </a>
             ))}
             {signedIn ? (
               <>
-                <button type="button" onClick={() => requireAuth("poster-dashboard", "login")}>
+                <a
+                  href={routeHref("poster-dashboard")}
+                  onClick={(event) => handleRoutedAnchorClick(event, () => requireAuth("poster-dashboard", "login"))}
+                >
                   Account
-                </button>
+                </a>
                 <button className="logout-menu-button" type="button" onClick={onLogOut}>
                   Log out
                 </button>
               </>
             ) : (
-              <button type="button" onClick={() => requireAuth("poster-dashboard", "login")}>
+              <a href={routeHref("auth")} onClick={(event) => handleRoutedAnchorClick(event, () => requireAuth("poster-dashboard", "login"))}>
                 Log in
-              </button>
+              </a>
             )}
           </nav>
         ) : null}
@@ -3085,13 +3182,16 @@ function SiteFooter({
       </div>
       <nav aria-label="Policy and support links">
         {publicLinks.map(([label, page]) => (
-          <button key={page} type="button" onClick={() => navigate(page)}>
+          <a href={routeHref(page)} key={page} onClick={(event) => handleRoutedAnchorClick(event, () => navigate(page))}>
             {label}
-          </button>
+          </a>
         ))}
-        <button type="button" onClick={() => (requireAuth ? requireAuth("account-settings", "login") : navigate("account-settings"))}>
+        <a
+          href={routeHref("account-settings")}
+          onClick={(event) => handleRoutedAnchorClick(event, () => (requireAuth ? requireAuth("account-settings", "login") : navigate("account-settings")))}
+        >
           Account
-        </button>
+        </a>
       </nav>
     </footer>
   );
@@ -3132,7 +3232,12 @@ function BoardRequestCard({
 
   return (
     <article className={`board-request-card ${variant === "reward" ? "board-request-card-reward" : ""}`}>
-      <button type="button" onClick={() => onDetail(bounty.id)} aria-label={`Open ${bounty.name}`}>
+      <a
+        className="board-card-hit"
+        href={getBountyPath(bounty.id, bounty.name)}
+        onClick={(event) => handleRoutedAnchorClick(event, () => onDetail(bounty.id))}
+        aria-label={`Open ${bounty.name}`}
+      >
         <span className={`board-status ${activeStatus ? "active" : ""}`}>{formatBoardStatus(bounty.status)}</span>
         <img src={bounty.image} alt={`${bounty.name} reference`} />
         <span className="board-card-copy">
@@ -3153,7 +3258,7 @@ function BoardRequestCard({
             <b>{bounty.submissions}</b>
           </span>
         </span>
-      </button>
+      </a>
     </article>
   );
 }
@@ -3175,9 +3280,14 @@ function FeaturedBountyCard({
   return (
     <article className={`bounty-card bounty-card-${index + 1} ${className}`.trim()}>
       <img src={bounty.image} alt={`${bounty.name} reference`} />
-      <button className="save-button" type="button" aria-label={`Open ${bounty.name}`} onClick={() => onDetail(bounty.id)}>
+      <a
+        className="save-button"
+        href={getBountyPath(bounty.id, bounty.name)}
+        aria-label={`Open ${bounty.name}`}
+        onClick={(event) => handleRoutedAnchorClick(event, () => onDetail(bounty.id))}
+      >
         <BadgeCheck size={15} aria-hidden="true" />
-      </button>
+      </a>
       <h3>{bounty.name}</h3>
       <p>{formatBountyDetail(bounty, currencyPreference)}</p>
       <div className="bounty-meta">
@@ -3314,41 +3424,50 @@ function LandingPage({
       <MobileFindTicker placement="bottom" requests={reversedMobileFindRequests} />
       <section className="hero-section">
         <div className="canvas-nav">
-          <button className="brand brand-button" type="button" onClick={() => window.scrollTo({ top: 0, behavior: "smooth" })} aria-label={`${siteName} home`}>
+          <a
+            className="brand brand-button"
+            href={routeHref("landing")}
+            onClick={(event) =>
+              handleRoutedAnchorClick(event, () => {
+                window.scrollTo({ top: 0, behavior: "smooth" });
+              })
+            }
+            aria-label={`${siteName} home`}
+          >
             <span className="brand-mark" aria-hidden="true">
               <img className="brand-mark-image" src="/magnifying-glass.png" alt="" />
             </span>
             {siteName}
-          </button>
+          </a>
           <nav className="desktop-nav" aria-label="Primary navigation">
-            <button type="button" onClick={() => onSection("how")}>
+            <a href="#how" onClick={(event) => handleRoutedAnchorClick(event, () => onSection("how"))}>
               How it works
-            </button>
-            <button type="button" onClick={onBrowse}>
+            </a>
+            <a href={routeHref("browse")} onClick={(event) => handleRoutedAnchorClick(event, onBrowse)}>
               Browse feed
-            </button>
-            <button type="button" onClick={() => onSection("safety")}>
+            </a>
+            <a href="#safety" onClick={(event) => handleRoutedAnchorClick(event, () => onSection("safety"))}>
               Safety
-            </button>
-            <button type="button" onClick={onFinders}>
+            </a>
+            <a href="#finders" onClick={(event) => handleRoutedAnchorClick(event, () => onSection("finders"))}>
               For finders
-            </button>
+            </a>
           </nav>
           <div className="canvas-actions">
             {signedIn ? (
               <>
-                <button className="text-button" type="button" onClick={onAccount}>
+                <a className="text-button" href={routeHref("poster-dashboard")} onClick={(event) => handleRoutedAnchorClick(event, onAccount)}>
                   Account
-                </button>
+                </a>
                 <button className="text-button logout-button" type="button" onClick={onLogOut}>
                   <LogOut size={15} aria-hidden="true" />
                   Log out
                 </button>
               </>
             ) : (
-              <button className="text-button" type="button" onClick={onLogin}>
+              <a className="text-button" href={routeHref("auth")} onClick={(event) => handleRoutedAnchorClick(event, onLogin)}>
                 Log in
-              </button>
+              </a>
             )}
             <button
               className="icon-button mobile-menu-button"
@@ -3362,31 +3481,31 @@ function LandingPage({
           </div>
           {menuOpen ? (
             <nav className="mobile-nav" aria-label="Mobile navigation">
-              <button type="button" onClick={() => onSection("how")}>
+              <a href="#how" onClick={(event) => handleRoutedAnchorClick(event, () => onSection("how"))}>
                 How it works
-              </button>
-              <button type="button" onClick={onBrowse}>
+              </a>
+              <a href={routeHref("browse")} onClick={(event) => handleRoutedAnchorClick(event, onBrowse)}>
                 Browse feed
-              </button>
-              <button type="button" onClick={() => onSection("safety")}>
+              </a>
+              <a href="#safety" onClick={(event) => handleRoutedAnchorClick(event, () => onSection("safety"))}>
                 Safety
-              </button>
-              <button type="button" onClick={onFinders}>
+              </a>
+              <a href="#finders" onClick={(event) => handleRoutedAnchorClick(event, () => onSection("finders"))}>
                 For finders
-              </button>
+              </a>
               {signedIn ? (
                 <>
-                  <button type="button" onClick={onAccount}>
+                  <a href={routeHref("poster-dashboard")} onClick={(event) => handleRoutedAnchorClick(event, onAccount)}>
                     Account
-                  </button>
+                  </a>
                   <button className="logout-menu-button" type="button" onClick={onLogOut}>
                     Log out
                   </button>
                 </>
               ) : (
-                <button type="button" onClick={onLogin}>
+                <a href={routeHref("auth")} onClick={(event) => handleRoutedAnchorClick(event, onLogin)}>
                   Log in
-                </button>
+                </a>
               )}
             </nav>
           ) : null}
@@ -3435,9 +3554,9 @@ function LandingPage({
               <span aria-hidden="true">+</span>
               Post it now
             </button>
-            <button className="mobile-browse-button" type="button" onClick={onBrowseAll}>
+            <a className="mobile-browse-button" href={routeHref("browse-all")} onClick={(event) => handleRoutedAnchorClick(event, onBrowseAll)}>
               Browse all <ArrowRight size={14} />
-            </button>
+            </a>
           </div>
         </div>
 
@@ -3471,9 +3590,9 @@ function LandingPage({
           <button className="primary-button hero-cta" type="button" onClick={onPost}>
             Post what you&apos;re looking for
           </button>
-          <button className="finder-link finder-button hero-secondary-link" type="button" onClick={onFinders}>
+          <a className="finder-link finder-button hero-secondary-link" href={routeHref("finder-dashboard")} onClick={(event) => handleRoutedAnchorClick(event, onFinders)}>
             Good at finding things? Earn by finding <ArrowRight size={18} />
-          </button>
+          </a>
           <p className="trust-line">
             <LockKeyhole size={18} />
             Your funded offer is tracked. If no valid source is accepted during the request window, the finder offer can be returned under the refund policy.
@@ -3635,9 +3754,9 @@ function LandingPage({
               <CheckCircle2 size={18} /> Get paid when your valid source is accepted or wins review
             </li>
           </ul>
-          <button className="finder-link finder-button large-link" type="button" onClick={onFinders}>
+          <a className="finder-link finder-button large-link" href={routeHref("finder-dashboard")} onClick={(event) => handleRoutedAnchorClick(event, onFinders)}>
             Start finding requests <ArrowRight size={18} />
-          </button>
+          </a>
         </div>
         <div className="finder-protection">
           <h3>Finder protection</h3>
@@ -3835,9 +3954,9 @@ function AuthPage({
               </button>
             </div>
           ) : null}
-          <button className="section-link section-button center-link" type="button" onClick={onPublicBrowse}>
+          <a className="section-link section-button center-link" href={routeHref("browse")} onClick={(event) => handleRoutedAnchorClick(event, onPublicBrowse)}>
             Browse public feed instead <ArrowRight size={17} />
-          </button>
+          </a>
         </div>
       </section>
     </main>
@@ -4305,7 +4424,7 @@ function PostPayPage({
           </button>
           <h1 id="pay-title">Fund the offer with secure checkout.</h1>
           <p>
-            Pay once through secure checkout. Your finder offer is recorded until the source is approved or the handoff is complete.
+            Pay once through secure checkout for the finder offer and platform fees. If a source leads to an item purchase, you buy that item directly from the third-party seller or source.
           </p>
           {checkoutReturnStatus === "cancelled" ? (
             <p className="dialog-error" role="status">
@@ -4329,7 +4448,7 @@ function PostPayPage({
             <ExternalLink size={19} />
             <span>
               <strong>Secure Checkout</strong>
-              Your payment is processed securely. We never store your card details. The finder offer is tracked until a source or handoff is approved.
+              Your payment is processed securely. We never store your card details. The finder offer is tracked until a source or handoff is approved; the platform does not sell or ship requested goods.
             </span>
           </div>
           <button className="primary-button" type="button" disabled={checkoutStatus === "loading"} onClick={startCheckout}>
@@ -4351,7 +4470,7 @@ function PostPayPage({
           <div className="summary-card">
             <Banknote size={28} />
             <strong>{formatUsdMoney(breakdown.total, currencyPreference)} due today</strong>
-            <span>Total for {itemName}, including the finder payout, platform service, and source review fee.</span>
+            <span>Total for the {itemName} request workflow, including the finder payout, platform service, and source review fee.</span>
           </div>
           <dl>
             <div>
@@ -4417,14 +4536,13 @@ function BrowsePage({
         <h1 id="browse-title">Featured requests</h1>
         <p>Simple posts with clear photos and small offers, shown first so finders can quickly spot what they recognize.</p>
         {dataLoading ? <p className="dialog-note">Loading live paid requests...</p> : null}
-        {dataError ? <p className="dialog-error">Live request feed is unavailable, so demo requests are shown.</p> : null}
         <div className="gallery-hero-actions">
           <button className="primary-button" type="button" onClick={onPost}>
             Post a request <ArrowRight size={18} />
           </button>
-          <button className="section-link section-button" type="button" onClick={onBrowseAll}>
+          <a className="section-link section-button" href={routeHref("browse-all")} onClick={(event) => handleRoutedAnchorClick(event, onBrowseAll)}>
             Browse all <ArrowRight size={17} />
-          </button>
+          </a>
         </div>
       </section>
 
@@ -4440,9 +4558,9 @@ function BrowsePage({
             <h2 id="more-bounties-title">More requests closing soon</h2>
             <p>Active requests with real offers, live source submissions, and a visible request window.</p>
           </div>
-          <button className="section-link section-button" type="button" onClick={onBrowseAll}>
+          <a className="section-link section-button" href={routeHref("browse-all")} onClick={(event) => handleRoutedAnchorClick(event, onBrowseAll)}>
             Browse all <ArrowRight size={17} />
-          </button>
+          </a>
         </div>
         <div className="bounty-square-grid">
           {remaining.map((bounty, index) => (
@@ -4507,7 +4625,6 @@ function BrowseAllPage({
           <h1 id="browse-all-title">Browse all requests</h1>
           <p>Search open requests by item, category, or location.</p>
           {dataLoading ? <p className="dialog-note">Loading live paid requests...</p> : null}
-          {dataError ? <p className="dialog-error">Live request feed is unavailable, so demo requests are shown.</p> : null}
         </div>
         <button className="primary-button" type="button" onClick={onPost}>
           Post a request <ArrowRight size={18} />
@@ -4567,7 +4684,12 @@ function BountySquareCard({
 
   return (
     <article className={`bounty-square-card tone-${rank ? ((rank - 1) % 5) + 1 : (bounty.rewardValue % 5) + 1} ${compact ? "compact" : ""} ${featured ? "featured" : ""} ${requestVariant ? "request-card" : ""}`}>
-      <button className="square-card-hit" type="button" onClick={() => onDetail(bounty.id)} aria-label={`View ${bounty.name}`}>
+      <a
+        className="square-card-hit"
+        href={getBountyPath(bounty.id, bounty.name)}
+        onClick={(event) => handleRoutedAnchorClick(event, () => onDetail(bounty.id))}
+        aria-label={`View ${bounty.name}`}
+      >
         {requestVariant ? (
           <span className="square-check" aria-hidden="true">
             <BadgeCheck size={15} />
@@ -4606,7 +4728,7 @@ function BountySquareCard({
             </span>
           </span>
         )}
-      </button>
+      </a>
     </article>
   );
 }
@@ -4656,9 +4778,9 @@ function BountyDetailPage({
           <button className="primary-button wide-button" type="button" onClick={onSubmit}>
             Submit a source <Send size={18} />
           </button>
-          <button className="section-link section-button center-link" type="button" onClick={onPosterProfile}>
+          <a className="section-link section-button center-link" href={routeHref("profile")} onClick={(event) => handleRoutedAnchorClick(event, onPosterProfile)}>
             View poster trust page <ArrowRight size={17} />
-          </button>
+          </a>
           <div className="timeline-panel">
             <h2>Source timeline</h2>
             {bounty.timeline.map((event) => (
@@ -4900,9 +5022,9 @@ function SubmitFindPage({
                 {itemTerms.trim() ? <span>Terms: {itemTerms.trim()}</span> : null}
                 <span>{submitMessage || "The poster can preview the lead first. If they reveal it, that reveal is saved."}</span>
               </div>
-              <button className="section-link section-button" type="button" onClick={onDashboard}>
+              <a className="section-link section-button" href={routeHref("finder-dashboard")} onClick={(event) => handleRoutedAnchorClick(event, onDashboard)}>
                 Go to finder dashboard <ArrowRight size={17} />
-              </button>
+              </a>
             </>
           ) : null}
         </form>
@@ -5157,9 +5279,9 @@ function PosterDashboardPage({
           <p className="route-kicker">Poster dashboard</p>
           <h1 id="poster-dashboard-title">Review sources and contact finders.</h1>
         </div>
-        <button className="section-link section-button" type="button" onClick={onProfile}>
+        <a className="section-link section-button" href={routeHref("profile")} onClick={(event) => handleRoutedAnchorClick(event, onProfile)}>
           Public trust page <ArrowRight size={17} />
-        </button>
+        </a>
       </section>
       {loading ? <p className="dialog-note">Loading your saved requests and protected source records...</p> : null}
       {dashboardError ? <p className="dialog-error" role="alert">{dashboardError}</p> : null}
@@ -5249,9 +5371,9 @@ function PosterDashboardPage({
                       <button className="danger-button strong-danger" type="button" onClick={() => reviewSelectedSource("sent_to_review")}>
                         Save review reason
                       </button>
-                      <button className="section-link section-button" type="button" onClick={onDispute}>
+                      <a className="section-link section-button" href={routeHref("dispute")} onClick={(event) => handleRoutedAnchorClick(event, onDispute)}>
                         Open dispute form <ArrowRight size={17} />
-                      </button>
+                      </a>
                     </div>
                   ) : null}
                 </>
@@ -5349,9 +5471,9 @@ function PostSuccessConfirmation({
           <button className="primary-button" type="button" onClick={reviewDashboard}>
             Review dashboard <ArrowRight size={17} />
           </button>
-          <button className="section-link section-button" type="button" onClick={onProfile}>
+          <a className="section-link section-button" href={routeHref("profile")} onClick={(event) => handleRoutedAnchorClick(event, onProfile)}>
             Open trust page <ArrowRight size={17} />
-          </button>
+          </a>
         </div>
       </div>
       <aside className="confirmation-next-steps" aria-label="What happens next">
@@ -5455,9 +5577,9 @@ function FinderDashboardPage({
           <h1 id="finder-dashboard-title">Submit sources and build reputation.</h1>
         </div>
         <div className="head-actions">
-          <button className="section-link section-button" type="button" onClick={onProfile}>
+          <a className="section-link section-button" href={routeHref("profile")} onClick={(event) => handleRoutedAnchorClick(event, onProfile)}>
             Profile <ArrowRight size={17} />
-          </button>
+          </a>
           <button className="primary-button" type="button" onClick={onBrowse}>
             Find requests
           </button>
@@ -5704,9 +5826,9 @@ function TrustProfilePage({ onBrowse, onFinder }: { onBrowse: () => void; onFind
           <button className="primary-button" type="button" onClick={onFinder}>
             Work as a finder
           </button>
-          <button className="section-link section-button" type="button" onClick={onBrowse}>
+          <a className="section-link section-button" href={routeHref("browse")} onClick={(event) => handleRoutedAnchorClick(event, onBrowse)}>
             Browse requests <ArrowRight size={17} />
-          </button>
+          </a>
         </div>
       </section>
       <section className="metric-grid">
@@ -5751,8 +5873,6 @@ function TrustProfilePage({ onBrowse, onFinder }: { onBrowse: () => void; onFind
 }
 
 function FaqPage({ onBrowse, onPost }: { onBrowse: () => void; onPost: () => void }) {
-  const [openQuestion, setOpenQuestion] = useState(faqItems[0].question);
-
   return (
     <main className="route-page faq-page" aria-labelledby="faq-title">
       <section className="route-hero">
@@ -5764,23 +5884,22 @@ function FaqPage({ onBrowse, onPost }: { onBrowse: () => void; onPost: () => voi
           <button className="primary-button" type="button" onClick={onPost}>
             Post a request
           </button>
-          <button className="section-link section-button" type="button" onClick={onBrowse}>
+          <a className="section-link section-button" href={routeHref("browse")} onClick={(event) => handleRoutedAnchorClick(event, onBrowse)}>
             Browse feed <ArrowRight size={17} />
-          </button>
+          </a>
         </div>
       </section>
       <section className="faq-list">
         {faqItems.map((item) => {
-          const isOpen = openQuestion === item.question;
           const answerId = `faq-answer-${item.question.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/(^-|-$)/g, "")}`;
           return (
-            <article className={isOpen ? "faq-item open" : "faq-item"} key={item.question}>
-              <button type="button" aria-expanded={isOpen} aria-controls={answerId} onClick={() => setOpenQuestion(isOpen ? "" : item.question)}>
+            <details className="faq-item" key={item.question} open>
+              <summary aria-controls={answerId}>
                 <span>{item.question}</span>
-                {isOpen ? <X size={18} aria-hidden="true" /> : <CircleHelp size={18} aria-hidden="true" />}
-              </button>
-              {isOpen ? <p id={answerId}>{item.answer}</p> : null}
-            </article>
+                <CircleHelp size={18} aria-hidden="true" />
+              </summary>
+              <p id={answerId}>{item.answer}</p>
+            </details>
           );
         })}
       </section>
@@ -5865,14 +5984,22 @@ function TermsPage() {
           title: "Marketplace role",
           copy: [
             "Posters fund an offer and describe what they want. Finders submit sources, contacts, or handoff paths. The platform records the workflow and review trail.",
+            "Payments on the platform cover the request workflow, poster-paid platform fees, and any eligible finder payout. They are not a purchase of the requested item from pleasefindmethis.",
             "The platform is not the seller of the requested item and does not guarantee that a third-party source remains available, authentic, or suitable after review.",
           ],
         },
         {
           title: "Finder payouts",
           copy: [
-            "The posted offer remains the finder payout. Platform service and trust fees are paid by the poster at checkout.",
+            "The posted offer remains the finder payout. Platform service and source review fees are paid by the poster at checkout.",
             "A payout can become payable after the poster accepts a source, confirms a handoff worked, or a review resolves in the finder position.",
+          ],
+        },
+        {
+          title: "Payment processor compatibility",
+          copy: [
+            "Payment processors are enabled only when their acceptance policies support this marketplace and finder-payout model.",
+            "If a processor requires a separate business or product review for a new website, checkout for that processor remains disabled until the review is explicitly approved.",
           ],
         },
         {
@@ -5900,6 +6027,7 @@ function RefundPolicyPage() {
           title: "No accepted source",
           copy: [
             "If no valid source or handoff is accepted within the active request window, the funded finder offer can be returned to the poster.",
+            "Any separate item purchase from a third-party seller is outside the platform checkout and is not refunded by pleasefindmethis.",
             "Service and source review fees cover hosting the request, payment handling, source review tools, support, and fraud monitoring.",
           ],
         },
@@ -5924,7 +6052,8 @@ function MarketplaceRulesPage() {
         {
           title: "Prohibited requests",
           copy: [
-            "Do not request illegal goods, weapons, regulated substances, stolen items, counterfeit documents, invasive surveillance tools, personal data, or anything that creates safety risk.",
+            "Do not request illegal goods, weapons, regulated or age-restricted goods, alcohol, tobacco, vapes, prescription medicines, stolen items, counterfeit documents, invasive surveillance tools, personal data, or anything that creates safety risk.",
+            "Do not request financial products, stored-value products, gift cards, tickets, crypto assets, NFTs, gambling-related items, pirated media, unauthorized software licenses, or items that violate a payment processor or marketplace policy.",
             "Do not use the platform to harass people, bypass platform rules elsewhere, or pressure sellers into unsafe transactions.",
           ],
         },
@@ -5960,9 +6089,9 @@ function SupportPage({ onReport }: { onReport: () => void }) {
           <a className="primary-button" href="mailto:support@pleasefindmethis.com">
             Email support
           </a>
-          <button className="section-link section-button" type="button" onClick={onReport}>
+          <a className="section-link section-button" href={routeHref("report")} onClick={(event) => handleRoutedAnchorClick(event, onReport)}>
             Report a problem <ArrowRight size={17} />
-          </button>
+          </a>
         </div>
       </section>
       <section className="dashboard-grid">
@@ -6069,9 +6198,9 @@ function NotFoundPage({ onBrowse, onHome }: { onBrowse: () => void; onHome: () =
           <button className="primary-button" type="button" onClick={onBrowse}>
             Browse requests
           </button>
-          <button className="section-link section-button" type="button" onClick={onHome}>
+          <a className="section-link section-button" href={routeHref("landing")} onClick={(event) => handleRoutedAnchorClick(event, onHome)}>
             Go home <ArrowRight size={17} />
-          </button>
+          </a>
         </div>
       </section>
     </main>
@@ -6088,6 +6217,14 @@ function Metric({ icon: Icon, label, value }: { icon: React.ElementType; label: 
   );
 }
 
+function AppReadyMarker() {
+  useEffect(() => {
+    document.documentElement.dataset.appReady = "true";
+  }, []);
+
+  return null;
+}
+
 type RootWindow = Window & {
   __bountyMarketplaceRoot?: ReturnType<typeof createRoot>;
 };
@@ -6097,4 +6234,10 @@ const rootWindow = window as RootWindow;
 const root = rootWindow.__bountyMarketplaceRoot ?? createRoot(rootElement);
 
 rootWindow.__bountyMarketplaceRoot = root;
-root.render(<App />);
+root.render(
+  <>
+    <App />
+    <Analytics />
+    <AppReadyMarker />
+  </>,
+);

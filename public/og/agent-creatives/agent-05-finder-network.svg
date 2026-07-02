@@ -1,0 +1,209 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="630" viewBox="0 0 1200 630">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#111513"/>
+      <stop offset="48%" stop-color="#18231d"/>
+      <stop offset="100%" stop-color="#101412"/>
+    </linearGradient>
+    <linearGradient id="request-panel" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#ffffff"/>
+      <stop offset="62%" stop-color="#f8fbf6"/>
+      <stop offset="100%" stop-color="#edf7f2"/>
+    </linearGradient>
+    <linearGradient id="green-cyan" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#23c46b"/>
+      <stop offset="100%" stop-color="#2aa4bc"/>
+    </linearGradient>
+    <linearGradient id="gold-coral" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#d69225"/>
+      <stop offset="100%" stop-color="#c23b2b"/>
+    </linearGradient>
+    <linearGradient id="source-line" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0%" stop-color="#d69225"/>
+      <stop offset="48%" stop-color="#2aa4bc"/>
+      <stop offset="100%" stop-color="#23c46b"/>
+    </linearGradient>
+    <pattern id="dot-map" width="38" height="38" patternUnits="userSpaceOnUse">
+      <circle cx="3" cy="3" r="1.4" fill="#dfe8df" opacity="0.17"/>
+    </pattern>
+    <filter id="deep-shadow" x="-25%" y="-25%" width="150%" height="150%">
+      <feDropShadow dx="0" dy="28" stdDeviation="24" flood-color="#000000" flood-opacity="0.38"/>
+    </filter>
+    <filter id="soft-shadow" x="-30%" y="-30%" width="160%" height="160%">
+      <feDropShadow dx="0" dy="14" stdDeviation="14" flood-color="#000000" flood-opacity="0.2"/>
+    </filter>
+    <filter id="node-shadow" x="-35%" y="-35%" width="170%" height="170%">
+      <feDropShadow dx="0" dy="12" stdDeviation="10" flood-color="#000000" flood-opacity="0.28"/>
+    </filter>
+    <filter id="glow" x="-45%" y="-45%" width="190%" height="190%">
+      <feGaussianBlur stdDeviation="6" result="blur"/>
+      <feColorMatrix in="blur" type="matrix" values="0 0 0 0 0.14 0 0 0 0 0.77 0 0 0 0 0.42 0 0 0 0.55 0"/>
+      <feMerge>
+        <feMergeNode/>
+        <feMergeNode in="SourceGraphic"/>
+      </feMerge>
+    </filter>
+    <clipPath id="clip-watch">
+      <rect x="470" y="241" width="260" height="156" rx="28"/>
+    </clipPath>
+    <clipPath id="clip-blanket">
+      <rect x="21" y="19" width="82" height="82" rx="21"/>
+    </clipPath>
+    <clipPath id="clip-duck">
+      <rect x="29" y="19" width="80" height="80" rx="20"/>
+    </clipPath>
+    <clipPath id="clip-mug">
+      <rect x="25" y="22" width="76" height="76" rx="19"/>
+    </clipPath>
+    <clipPath id="clip-plush">
+      <rect x="27" y="20" width="70" height="70" rx="18"/>
+    </clipPath>
+    <clipPath id="clip-taillight">
+      <rect x="22" y="20" width="72" height="72" rx="18"/>
+    </clipPath>
+    <style>
+      .sans { font-family: Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", Arial, sans-serif; }
+      .mono { font-family: "SFMono-Regular", "Roboto Mono", Consolas, monospace; }
+      .node-title { font-size: 18px; font-weight: 880; fill: #ffffff; }
+      .node-sub { font-size: 13px; font-weight: 720; fill: #c9d5cd; }
+      .mini-label { font-size: 12px; font-weight: 860; letter-spacing: 1.7px; }
+    </style>
+  </defs>
+
+  <rect width="1200" height="630" fill="url(#bg)"/>
+  <rect width="1200" height="630" fill="url(#dot-map)" opacity="0.85"/>
+  <path d="M-30 500C120 438 220 465 342 392C490 304 619 356 748 260C882 160 1010 174 1234 83" fill="none" stroke="#ffffff" stroke-width="1.2" opacity="0.11"/>
+  <path d="M-20 216C139 279 246 238 360 294C490 358 624 273 760 318C894 362 989 303 1226 352" fill="none" stroke="#ffffff" stroke-width="1.1" opacity="0.1"/>
+  <path d="M274 -12C322 90 317 173 401 232C523 317 507 440 598 502C693 567 802 522 910 650" fill="none" stroke="#ffffff" stroke-width="1.1" opacity="0.09"/>
+
+  <g class="sans">
+    <g transform="translate(70 54)">
+      <circle cx="20" cy="20" r="19" fill="#e9f4ee"/>
+      <circle cx="17" cy="17" r="8.7" fill="none" stroke="#0b6d3b" stroke-width="4"/>
+      <path d="M25 26L35 36" stroke="#0b6d3b" stroke-width="5" stroke-linecap="round"/>
+      <text x="52" y="27" font-size="25" font-weight="890" fill="#ffffff">pleasefindmethis.com</text>
+    </g>
+
+    <g transform="translate(938 54)">
+      <rect width="190" height="42" rx="21" fill="#f5faf6" opacity="0.95"/>
+      <circle cx="25" cy="21" r="6" fill="#23c46b"/>
+      <text x="43" y="27" class="mini-label" fill="#101412">FUNDED REQUESTS</text>
+    </g>
+
+    <text x="70" y="134" font-size="49" font-weight="940" fill="#ffffff">One funded request can reach</text>
+    <text x="70" y="181" font-size="49" font-weight="940" fill="#d9f4e8">the people search missed.</text>
+    <text x="74" y="222" font-size="19" font-weight="680" fill="#cbd5ce">Experts, shops, collectors, and forums</text>
+    <text x="74" y="248" font-size="19" font-weight="680" fill="#cbd5ce">converge on a protected source lead.</text>
+
+    <g opacity="0.95" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M192 333C294 327 376 336 459 360" fill="none" stroke="#d69225" stroke-width="5" opacity="0.72" stroke-dasharray="4 15"/>
+      <path d="M828 171C742 203 681 238 642 267" fill="none" stroke="#c23b2b" stroke-width="5" opacity="0.68" stroke-dasharray="4 15"/>
+      <path d="M1012 190C896 218 806 260 741 338" fill="none" stroke="#2aa4bc" stroke-width="5" opacity="0.72" stroke-dasharray="4 15"/>
+      <path d="M1005 451C889 442 800 410 730 386" fill="none" stroke="#23c46b" stroke-width="5" opacity="0.76" stroke-dasharray="4 15"/>
+      <path d="M284 505C356 466 415 424 462 379" fill="none" stroke="#8b5cf6" stroke-width="5" opacity="0.62" stroke-dasharray="4 15"/>
+      <path d="M172 461C274 440 365 406 455 349" fill="none" stroke="#2aa4bc" stroke-width="5" opacity="0.58" stroke-dasharray="4 15"/>
+      <path d="M590 548C586 497 586 450 590 410" fill="none" stroke="url(#source-line)" stroke-width="6" opacity="0.76" stroke-dasharray="4 15"/>
+    </g>
+
+    <g transform="translate(433 209)" opacity="0.98">
+      <circle cx="167" cy="160" r="206" fill="none" stroke="#cfe8dc" stroke-width="1.4" opacity="0.22"/>
+      <circle cx="167" cy="160" r="160" fill="none" stroke="#23c46b" stroke-width="2" stroke-dasharray="7 16" opacity="0.44"/>
+      <circle cx="167" cy="160" r="116" fill="none" stroke="#2aa4bc" stroke-width="1.6" stroke-dasharray="2 12" opacity="0.55"/>
+    </g>
+
+    <g filter="url(#deep-shadow)">
+      <rect x="430" y="204" width="340" height="324" rx="34" fill="url(#request-panel)" stroke="#ffffff" stroke-width="2"/>
+      <g filter="url(#soft-shadow)">
+        <image href="../../find-requests/seiko-wired-watch.jpg" x="470" y="241" width="260" height="156" preserveAspectRatio="xMidYMid slice" clip-path="url(#clip-watch)"/>
+        <rect x="470" y="241" width="260" height="156" rx="28" fill="none" stroke="#ffffff" stroke-width="6"/>
+      </g>
+      <rect x="458" y="224" width="156" height="34" rx="17" fill="#101412"/>
+      <circle cx="480" cy="241" r="6" fill="#23c46b"/>
+      <text x="494" y="247" class="mini-label" fill="#ffffff">FUNDED REQUEST</text>
+      <text x="470" y="435" font-size="28" font-weight="930" fill="#111513">Exact Seiko Wired watch</text>
+      <text x="470" y="464" font-size="17" font-weight="720" fill="#5d625f">Reference photo + must-have details</text>
+      <g transform="translate(470 483)">
+        <rect width="118" height="44" rx="15" fill="#0b6d3b"/>
+        <text x="18" y="29" font-size="21" font-weight="900" fill="#ffffff">$80</text>
+        <text x="62" y="29" font-size="14" font-weight="790" fill="#dff5e8">offer</text>
+      </g>
+      <g transform="translate(604 483)">
+        <rect width="126" height="44" rx="15" fill="#edf7f2" stroke="#cfe8dc"/>
+        <path d="M25 25V20C25 14 29.5 10 35 10C40.5 10 45 14 45 20V25" fill="none" stroke="#0b6d3b" stroke-width="3.2" stroke-linecap="round"/>
+        <rect x="22" y="24" width="26" height="18" rx="5" fill="#0b6d3b"/>
+        <text x="58" y="30" font-size="15" font-weight="850" fill="#111513">source</text>
+      </g>
+    </g>
+
+    <g transform="translate(70 272)" filter="url(#node-shadow)">
+      <rect width="198" height="132" rx="26" fill="#1d2720" stroke="#365041"/>
+      <image href="../../find-requests/childhood-blanket.jpg" x="21" y="19" width="82" height="82" preserveAspectRatio="xMidYMid slice" clip-path="url(#clip-blanket)"/>
+      <rect x="21" y="19" width="82" height="82" rx="21" fill="none" stroke="#ffffff" stroke-width="4" opacity="0.88"/>
+      <text x="116" y="45" class="node-title">Collector</text>
+      <text x="116" y="70" class="node-sub">knows old</text>
+      <text x="116" y="91" class="node-sub">catalog names</text>
+      <circle cx="176" cy="108" r="10" fill="#d69225"/>
+    </g>
+
+    <g transform="translate(735 105)" filter="url(#node-shadow)">
+      <rect width="216" height="112" rx="24" fill="#251e1a" stroke="#64432e"/>
+      <image href="../../find-requests/red-taillight.jpg" x="22" y="20" width="72" height="72" preserveAspectRatio="xMidYMid slice" clip-path="url(#clip-taillight)"/>
+      <rect x="22" y="20" width="72" height="72" rx="18" fill="none" stroke="#ffffff" stroke-width="4" opacity="0.9"/>
+      <text x="110" y="45" class="node-title">Repair bench</text>
+      <text x="110" y="70" class="node-sub">finds donor parts</text>
+    </g>
+
+    <g transform="translate(975 123)" filter="url(#node-shadow)">
+      <rect width="154" height="145" rx="26" fill="#14252a" stroke="#2d5f68"/>
+      <image href="../../find-requests/duck-wall-art-reddit.jpg" x="29" y="19" width="80" height="80" preserveAspectRatio="xMidYMid slice" clip-path="url(#clip-duck)"/>
+      <rect x="29" y="19" width="80" height="80" rx="20" fill="none" stroke="#ffffff" stroke-width="4" opacity="0.9"/>
+      <text x="29" y="123" class="node-title">Forum</text>
+      <text x="29" y="145" class="node-sub">spots the clue</text>
+    </g>
+
+    <g transform="translate(897 390)" filter="url(#node-shadow)">
+      <rect width="224" height="128" rx="26" fill="#17261c" stroke="#2c5f3d"/>
+      <image href="../../find-requests/living-and-co-mug.jpg" x="25" y="22" width="76" height="76" preserveAspectRatio="xMidYMid slice" clip-path="url(#clip-mug)"/>
+      <rect x="25" y="22" width="76" height="76" rx="19" fill="none" stroke="#ffffff" stroke-width="4" opacity="0.9"/>
+      <text x="118" y="48" class="node-title">Local shop</text>
+      <text x="118" y="73" class="node-sub">checks shelf stock</text>
+      <rect x="118" y="89" width="78" height="20" rx="10" fill="#e9f4ee"/>
+      <text x="132" y="104" font-size="11" font-weight="860" fill="#0b6d3b">lead sent</text>
+    </g>
+
+    <g transform="translate(198 438)" filter="url(#node-shadow)">
+      <rect width="210" height="108" rx="26" fill="#211f2b" stroke="#4e4665"/>
+      <image href="../../find-requests/bunny-plush.jpg" x="27" y="20" width="70" height="70" preserveAspectRatio="xMidYMid slice" clip-path="url(#clip-plush)"/>
+      <rect x="27" y="20" width="70" height="70" rx="18" fill="none" stroke="#ffffff" stroke-width="4" opacity="0.9"/>
+      <text x="113" y="42" class="node-title">Niche expert</text>
+      <text x="113" y="67" class="node-sub">recognizes</text>
+      <text x="113" y="88" class="node-sub">the exact item</text>
+    </g>
+
+    <g transform="translate(64 420)" filter="url(#node-shadow)">
+      <rect width="170" height="82" rx="24" fill="#15262b" stroke="#2f5964"/>
+      <circle cx="38" cy="41" r="21" fill="#2aa4bc"/>
+      <path d="M28 41H48M38 31V51" stroke="#ffffff" stroke-width="4" stroke-linecap="round"/>
+      <text x="73" y="35" class="node-title">Scout</text>
+      <text x="73" y="58" class="node-sub">searches proxies</text>
+    </g>
+
+    <g transform="translate(508 527)" filter="url(#node-shadow)">
+      <rect width="184" height="44" rx="22" fill="#f5faf6"/>
+      <circle cx="29" cy="22" r="14" fill="url(#green-cyan)"/>
+      <path d="M22 23L28 29L39 16" fill="none" stroke="#ffffff" stroke-width="3.6" stroke-linecap="round" stroke-linejoin="round"/>
+      <text x="55" y="28" font-size="16" font-weight="880" fill="#101412">Source recorded</text>
+    </g>
+
+    <g filter="url(#glow)">
+      <circle cx="600" cy="367" r="13" fill="#23c46b"/>
+      <circle cx="600" cy="367" r="28" fill="none" stroke="#23c46b" stroke-width="3" opacity="0.85"/>
+    </g>
+
+    <g transform="translate(70 582)">
+      <rect width="1060" height="34" rx="17" fill="#0c0f0d" opacity="0.92"/>
+      <text x="24" y="22" font-size="14" font-weight="760" fill="#ffffff">A bounty board for hard-to-find things: source leads are saved before reveal, then reviewed by the poster.</text>
+      <text x="912" y="22" font-size="14" font-weight="900" fill="#8ee6b5">pleasefindmethis.com</text>
+    </g>
+  </g>
+</svg>
