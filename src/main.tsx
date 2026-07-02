@@ -238,7 +238,7 @@ type PostDraft = {
 
 type FindSourceType = "source-link" | "private-source" | "finder-has-it";
 
-type EscrowBreakdown = {
+type PaymentBreakdown = {
   reward: number;
   platformFee: number;
   protection: number;
@@ -1933,51 +1933,51 @@ const browseRemainingBounties = rewardSortedBounties.slice(4);
 const problemItems = [
   {
     icon: Store,
-    tag: "Discontinued",
-    title: "Discontinued products",
-    copy: "That exact model is gone from normal stores.",
+    tag: "Near matches",
+    title: "Search shows the wrong one",
+    copy: "Google Lens gives you dupes, close matches, and things you do not want.",
   },
   {
     icon: Globe2,
-    tag: "Location locked",
-    title: "Not shipped to your country",
-    copy: "Someone else may know a seller who will ship.",
+    tag: "Hidden sellers",
+    title: "The seller is somewhere else",
+    copy: "The right shop, collector, or local listing may be outside your feed.",
   },
   {
     icon: Search,
-    tag: "Sold out",
-    title: "Out of stock everywhere",
-    copy: "Finders keep checking resale, shops, and local leads.",
+    tag: "Dead links",
+    title: "The good lead vanished",
+    copy: "The one useful listing is sold out, archived, or gone before you can act.",
   },
   {
     icon: ShieldAlert,
-    tag: "Risky listings",
-    title: "Scammers and risky deals",
-    copy: "A second set of eyes can spot safer sources.",
+    tag: "Risky DMs",
+    title: "Paying strangers feels risky",
+    copy: "Off-platform deals can cost you money and leave no useful record.",
   },
   {
     icon: Clock3,
-    tag: "Time drain",
-    title: "Too much time wasted",
-    copy: "Post once and let people who love searching help.",
+    tag: "Search fatigue",
+    title: "You are tired of looking",
+    copy: "Stop opening the same bad results. Post one clear bounty instead.",
   },
 ];
 
 const workSteps = [
   {
     icon: Search,
-    title: "1. Post what you need",
-    copy: "Add photos, describe the exact item, and choose the offer you are willing to pay for the right source.",
+    title: "1. Fund a real request",
+    copy: "Add photos, describe the exact item, and choose the payout for the right source.",
   },
   {
     icon: LockKeyhole,
-    title: "2. Finders send protected sources",
-    copy: "A finder can send a store link, seller contact, local lead, or handoff option. The full source is recorded before you see it.",
+    title: "2. Sources stay private first",
+    copy: "Finders send a store link, seller contact, local lead, or handoff path. The full source is saved before reveal.",
   },
   {
     icon: BadgeCheck,
-    title: "3. Reveal, review, and accept",
-    copy: "You reveal the source, check if it matches, and accept it when it works. If there is a problem, the case can be reviewed.",
+    title: "3. Reveal, check, and decide",
+    copy: "Open the source, check the match, then accept it when it works. If it does not, give a clear reason.",
   },
 ];
 
@@ -2053,28 +2053,28 @@ const reversedMobileFindRequests = [...mobileFindRequests].reverse();
 const safetySteps = [
   {
     icon: LockKeyhole,
-    title: "You fund the offer first",
-    copy: "The request only goes live after payment, so finders know the offer is real.",
+    title: "Fund the finder payout",
+    copy: "Your request goes live after checkout, so finders see there is money on the table.",
   },
   {
     icon: Search,
-    title: "Finder shares a protected source",
-    copy: "The link, contact, notes, and proof are saved before the poster can reveal them.",
+    title: "Source details stay private",
+    copy: "The link, contact, notes, and proof are saved before you reveal the full source.",
   },
   {
     icon: ShieldCheck,
-    title: "Reveal is recorded",
-    copy: "When the poster opens the full source, the system records that moment for both sides.",
+    title: "Reveal creates a record",
+    copy: "When you open the full source, that moment is logged for both sides.",
   },
   {
     icon: CheckCircle2,
-    title: "Accept or explain",
-    copy: "A poster can accept the source or reject it with a clear reason, not a vague no.",
+    title: "Accept or reject clearly",
+    copy: "Accept a match. Reject only with a clear reason, like wrong item, sold out, bad condition, or price mismatch.",
   },
   {
     icon: Headphones,
-    title: "Review protects both sides",
-    copy: "If there is a dispute, the saved proof helps decide whether the finder should be paid.",
+    title: "Review handles disputes",
+    copy: "If a revealed source is used or disputed, the saved record helps decide the payout.",
   },
 ];
 
@@ -2082,12 +2082,12 @@ const reviewProtectionSteps = [
   {
     icon: ShieldCheck,
     title: "The source is saved before reveal",
-    copy: "We keep the lead, notes, proof, and time submitted so the story cannot change later.",
+    copy: "The lead, notes, proof, and time submitted are kept so the story cannot change later.",
   },
   {
     icon: BadgeCheck,
-    title: "First valid source matters",
-    copy: "If two finders send the same lead, the earlier valid submission gets priority.",
+    title: "First good lead gets priority",
+    copy: "If two finders send the same source, the earlier valid submission gets priority.",
   },
   {
     icon: ShieldAlert,
@@ -2102,12 +2102,12 @@ const reviewProtectionSteps = [
 ];
 
 const comparisonRows = [
-  ["Finds hard-to-source items", "Yes", "Limited", "Rare", "Not always"],
-  ["Community of expert finders", "Yes", "No", "No", "No"],
-  ["Source link or contact handoff", "Yes", "Maybe", "Maybe", "No"],
-  ["Protected payment before work starts", "Yes", "No", "No", "No"],
-  ["Reveal tracking and review", "Yes", "No", "No", "No"],
-  ["Saves your time", "Yes", "Maybe", "No", "No"],
+  ["Funded offer before finder work", "Yes", "No", "No", "Maybe"],
+  ["Source recorded before reveal", "Yes", "No", "No", "No"],
+  ["Clear request brief with photos", "Yes", "Maybe", "No", "Maybe"],
+  ["Duplicate lead priority", "Yes", "No", "No", "No"],
+  ["Review trail if there is a dispute", "Yes", "No", "No", "Maybe"],
+  ["Human sourcing beyond search results", "Yes", "Maybe", "Limited", "Maybe"],
 ];
 
 const finderReviews = [
@@ -2120,12 +2120,12 @@ const faqItems = [
   {
     question: "When do I pay?",
     answer:
-      "You fund the request before it goes live. Checkout shows your offer, the finder payout, and transparent poster-paid service and trust fees before you pay.",
+      "You fund the request before it goes live. Checkout shows your offer, the finder payout, and transparent poster-paid service and source review fees before you pay.",
   },
   {
     question: "What happens if nobody finds it?",
     answer:
-      "If the request is not fulfilled within 30 days, the funded offer is returned to you. Service and protection fees cover the live request, payment handling, review tools, and support.",
+      "If the request is not fulfilled during the active request window, the funded finder offer can be returned under the refund policy. Service and source review fees cover the live request, payment handling, review tools, and support.",
   },
   {
     question: "Can I reject a find?",
@@ -2135,12 +2135,12 @@ const faqItems = [
   {
     question: "How do finders get paid?",
     answer:
-      "Finders earn the posted payout after the poster accepts the source or confirms that the direct handoff worked. We do not take a cut from the finder payout.",
+      "Finders can earn the posted payout when the source is accepted, the handoff is confirmed, or review resolves in their favor. We do not take a cut from the finder payout.",
   },
   {
     question: "How does pleasefindmethis make money?",
     answer:
-      "Posters pay a 12% platform service fee plus 3% trust and payment protection at checkout. The offer amount remains the finder payout.",
+      "Posters pay a 12% platform service fee plus a 3% payment handling and source review fee at checkout. The offer amount remains the finder payout.",
   },
   {
     question: "Is the browse feed public?",
@@ -2391,7 +2391,7 @@ function getCategoryLabel(category: RequestCategory) {
   return requestCategories.find((item) => item.value === category)?.label ?? "General";
 }
 
-function getEscrowBreakdown(reward: number): EscrowBreakdown {
+function getPaymentBreakdown(reward: number): PaymentBreakdown {
   const normalizedReward = Math.max(minimumReward, Math.round(Number.isFinite(reward) ? reward : initialPostDraft.reward));
   const platformFee = Math.max(minimumPlatformFee, Math.round(normalizedReward * platformServiceFeeRate));
   const protection = Math.max(minimumTrustProtectionFee, Math.round(normalizedReward * trustProtectionRate));
@@ -3443,7 +3443,7 @@ function LandingPage({
 
         <aside className="market-preview" aria-label="Featured request preview">
           <span className="floating-tag cyan">Rare finds</span>
-          <span className="floating-tag orange">Payment protected</span>
+          <span className="floating-tag orange">Funded request</span>
           <div className="featured-grid featured-grid-desktop">
             {landingFeaturedBounties.map((bounty, index) => {
               return (
@@ -3476,14 +3476,14 @@ function LandingPage({
           </button>
           <p className="trust-line">
             <LockKeyhole size={18} />
-            Your offer is protected. No accepted source in 30 days? The funded offer comes back to you.
+            Your funded offer is tracked. If no valid source is accepted during the request window, the finder offer can be returned under the refund policy.
           </p>
         </div>
 
         <div className="landing-recent-board board-rails" aria-label="Request board preview">
           <section className="board-row" aria-labelledby="recent-board-title">
             <div className="board-row-head">
-              <h2 id="recent-board-title">Recently posted</h2>
+              <h2 id="recent-board-title">Open funded requests</h2>
               <button className="board-view-all" type="button" onClick={onBrowse}>
                 View all <ArrowRight size={18} />
               </button>
@@ -3499,10 +3499,10 @@ function LandingPage({
 
       <section className="problem-section" aria-labelledby="problem-title">
         <div className="problem-section-head">
-          <p className="route-kicker">Why people post here</p>
-          <h2 id="problem-title">The thing you want is probably not gone. It is just hard to reach.</h2>
+          <p className="route-kicker">When normal search stops working</p>
+          <h2 id="problem-title">The right source may be outside your search results.</h2>
           <p>
-            Stores sell out, listings vanish, and local sellers hide in places search engines miss. A real person can often find the path you could not.
+            Listings expire, sellers use different names, and local leads rarely show up in search. A clear bounty gives people a reason to follow clues you would not know to check.
           </p>
         </div>
         <div className="problem-grid">
@@ -3527,7 +3527,7 @@ function LandingPage({
       <section className="how-section" id="how" aria-labelledby="how-title">
         <h2 id="how-title">How it works</h2>
         <p className="how-intro">
-          Post the thing you cannot find. Fund an offer. Finders send protected leads. You only move forward when the source actually helps.
+          Post the thing you cannot find. Fund an offer. Finders send protected leads. You reveal the source only when you are ready to review it.
         </p>
         <div className="how-steps">
           {workSteps.map((step, index) => {
@@ -3549,10 +3549,10 @@ function LandingPage({
         <div className="review-protection-panel" aria-label="How source review protects posters and finders">
           <div className="review-protection-copy">
             <p className="route-kicker">Protected source review</p>
-            <h3>The full source is not treated like a casual message.</h3>
+            <h3>Your best lead should not vanish in a comment thread.</h3>
             <p>
               When a finder submits a lead, the platform saves what they sent and when they sent it. If the poster reveals the source,
-              that reveal is recorded too. This helps stop people from using a lead and then falsely saying it was wrong.
+              that reveal is recorded too. This makes the payout decision easier to review if something goes wrong.
             </p>
           </div>
           <div className="review-protection-grid">
@@ -3573,7 +3573,7 @@ function LandingPage({
       </section>
 
       <section className="safety-section" id="safety" aria-labelledby="safety-title">
-        <h2 id="safety-title">Why your money is safe</h2>
+        <h2 id="safety-title">How payment and source review work</h2>
         <div className="safety-flow">
           {safetySteps.map((step, index) => {
             const StepIcon = step.icon;
@@ -3594,14 +3594,14 @@ function LandingPage({
       </section>
 
       <section className="comparison-section" aria-labelledby="comparison-title">
-        <h2 id="comparison-title">{siteName} vs other ways to find it</h2>
+        <h2 id="comparison-title">{siteName} vs the usual ways to search</h2>
         <div className="comparison-table">
           <div className="comparison-row comparison-header">
             <span />
             <strong>{siteName}</strong>
-            <strong>General Marketplaces</strong>
-            <strong>Local Classifieds</strong>
-            <strong>Direct sellers</strong>
+            <strong>Reddit/forums</strong>
+            <strong>Marketplaces</strong>
+            <strong>DM offers</strong>
           </div>
           {comparisonRows.map((row) => (
             <div className="comparison-row" key={row[0]}>
@@ -3610,7 +3610,7 @@ function LandingPage({
                 <span
                   className={value === "Yes" ? "yes-cell" : value === "Maybe" || value === "Limited" || value === "Rare" ? "maybe-cell" : "no-cell"}
                   key={`${row[0]}-${index}`}
-                  data-label={[siteName, "General Marketplaces", "Local Classifieds", "Direct sellers"][index]}
+                  data-label={[siteName, "Reddit/forums", "Marketplaces", "DM offers"][index]}
                 >
                   {value === "Yes" ? <Check size={16} /> : value === "No" ? <X size={16} /> : <CircleHelp size={16} />}
                   {value}
@@ -3623,20 +3623,20 @@ function LandingPage({
 
       <section className="finder-section" id="finders" aria-labelledby="finder-title">
         <div className="finder-copy">
-          <h2 id="finder-title">Good at finding things? Earn by finding.</h2>
+          <h2 id="finder-title">Know where to find hard-to-find things? Get paid for the source.</h2>
           <ul>
             <li>
-              <CheckCircle2 size={18} /> Access live requests posted by real people
+              <CheckCircle2 size={18} /> Browse funded requests with clear photos, criteria, and payouts
             </li>
             <li>
-              <CheckCircle2 size={18} /> Use your network and sourcing skills
+              <CheckCircle2 size={18} /> Submit a source link, seller contact, local lead, or handoff path
             </li>
             <li>
-              <CheckCircle2 size={18} /> Earn when your valid source is accepted or wins review
+              <CheckCircle2 size={18} /> Get paid when your valid source is accepted or wins review
             </li>
           </ul>
           <button className="finder-link finder-button large-link" type="button" onClick={onFinders}>
-            Join as a finder <ArrowRight size={18} />
+            Start finding requests <ArrowRight size={18} />
           </button>
         </div>
         <div className="finder-protection">
@@ -3644,22 +3644,22 @@ function LandingPage({
           <div>
             <ShieldCheck size={28} />
             <span>
-              <strong>Your source is protected</strong>
-              Reveal logs and saved proof help protect you from unfair rejection.
+              <strong>Your lead is recorded before reveal</strong>
+              The source, notes, proof, and timestamp are saved before the poster sees the full details.
             </span>
           </div>
           <div>
             <BadgeCheck size={28} />
             <span>
-              <strong>Fair and transparent</strong>
-              Clear communication and ratings built by real results.
+              <strong>First valid source gets priority</strong>
+              If multiple finders send the same lead, the earlier valid submission comes first.
             </span>
           </div>
           <div>
             <Headphones size={28} />
             <span>
-              <strong>Support when you need it</strong>
-              Our team is here if you run into any issue.
+              <strong>A review path for disputes</strong>
+              Saved proof helps resolve unfair rejections or used valid sources.
             </span>
           </div>
         </div>
@@ -3745,7 +3745,7 @@ function AuthPage({
           <p className="route-kicker">Account required for this action</p>
           <h1 id="auth-title">{mode === "signup" ? "Create your account to continue." : "Log in to continue."}</h1>
           <p>
-            Public browsing is open. Posting a request, submitting a source, dashboards, payments, and disputes need a verified account so offers, payouts, and reputation stay trustworthy.
+            Public browsing is open. Posting a request, submitting a source, dashboards, payments, and disputes need a signed-in account so offers, payouts, and reputation stay trustworthy.
           </p>
         </div>
         <div className="auth-panel">
@@ -3998,7 +3998,7 @@ function PostRewardPage({
   onNext: () => void;
 }) {
   const currencyPreference = useCurrencyPreference();
-  const breakdown = getEscrowBreakdown(draft.reward);
+  const breakdown = getPaymentBreakdown(draft.reward);
   const setReward = (value: string) => {
     const nextReward = Number(value);
 
@@ -4058,7 +4058,7 @@ function PostRewardPage({
               <dd>{formatUsdMoney(breakdown.platformFee, currencyPreference)}</dd>
             </div>
             <div>
-              <dt>Trust & payment protection (3%)</dt>
+              <dt>Payment handling and source review (3%)</dt>
               <dd>{formatUsdMoney(breakdown.protection, currencyPreference)}</dd>
             </div>
             <div className="total-row">
@@ -4074,11 +4074,11 @@ function PostRewardPage({
               <Search size={18} /> 12% service fee funds matching, review, and support
             </li>
             <li>
-              <ShieldCheck size={18} /> 3% protection covers payment risk, source review, and disputes
+              <ShieldCheck size={18} /> 3% fee supports payment handling, source records, dispute review, and fraud monitoring
             </li>
           </ul>
           <p>
-            <LockKeyhole size={18} /> The offer stays protected until a source or handoff is approved.
+            <LockKeyhole size={18} /> The finder offer is recorded until a source or handoff is approved.
           </p>
         </aside>
       </section>
@@ -4100,7 +4100,7 @@ function PostPayPage({
   const [customerName, setCustomerName] = useState("");
   const [checkoutStatus, setCheckoutStatus] = useState<"idle" | "loading" | "error">("idle");
   const [checkoutMessage, setCheckoutMessage] = useState("");
-  const breakdown = getEscrowBreakdown(draft.reward);
+  const breakdown = getPaymentBreakdown(draft.reward);
   const itemName = draft.itemName.trim() || "your request";
 
   useEffect(() => {
@@ -4305,7 +4305,7 @@ function PostPayPage({
           </button>
           <h1 id="pay-title">Fund the offer with secure checkout.</h1>
           <p>
-            Pay once through secure checkout. Your offer stays protected until the source is approved or the handoff is complete.
+            Pay once through secure checkout. Your finder offer is recorded until the source is approved or the handoff is complete.
           </p>
           {checkoutReturnStatus === "cancelled" ? (
             <p className="dialog-error" role="status">
@@ -4329,7 +4329,7 @@ function PostPayPage({
             <ExternalLink size={19} />
             <span>
               <strong>Secure Checkout</strong>
-              Your payment is processed securely. We never store your card details. The finder payout stays protected until a source or handoff is approved.
+              Your payment is processed securely. We never store your card details. The finder offer is tracked until a source or handoff is approved.
             </span>
           </div>
           <button className="primary-button" type="button" disabled={checkoutStatus === "loading"} onClick={startCheckout}>
@@ -4351,7 +4351,7 @@ function PostPayPage({
           <div className="summary-card">
             <Banknote size={28} />
             <strong>{formatUsdMoney(breakdown.total, currencyPreference)} due today</strong>
-            <span>Total for {itemName}, including the finder payout, platform service, and trust protection.</span>
+            <span>Total for {itemName}, including the finder payout, platform service, and source review fee.</span>
           </div>
           <dl>
             <div>
@@ -4363,7 +4363,7 @@ function PostPayPage({
               <dd>{formatUsdMoney(breakdown.platformFee, currencyPreference)}</dd>
             </div>
             <div>
-              <dt>Trust & payment protection (3%)</dt>
+              <dt>Payment handling and source review (3%)</dt>
               <dd>{formatUsdMoney(breakdown.protection, currencyPreference)}</dd>
             </div>
             <div>
@@ -4380,10 +4380,10 @@ function PostPayPage({
               <ShieldCheck size={18} /> The processor collects the full poster payment
             </li>
             <li>
-              <Banknote size={18} /> Service and protection fees total {formatUsdMoney(breakdown.platformShare, currencyPreference)}
+              <Banknote size={18} /> Service and source review fees total {formatUsdMoney(breakdown.platformShare, currencyPreference)}
             </li>
             <li>
-              <TimerReset size={18} /> Finder payout becomes payable after acceptance
+              <TimerReset size={18} /> Finder payout can become payable after acceptance and review
             </li>
           </ul>
         </aside>
@@ -4438,7 +4438,7 @@ function BrowsePage({
         <div className="gallery-section-head">
           <div>
             <h2 id="more-bounties-title">More requests closing soon</h2>
-            <p>Active requests with real offers, live source submissions, and a 30-day protection window.</p>
+            <p>Active requests with real offers, live source submissions, and a visible request window.</p>
           </div>
           <button className="section-link section-button" type="button" onClick={onBrowseAll}>
             Browse all <ArrowRight size={17} />
@@ -5296,10 +5296,10 @@ function PostSuccessConfirmation({
   const durationText = checkoutSnapshot?.durationDays ? `${checkoutSnapshot.durationDays} days` : "Active window";
   const categoryText = checkoutSnapshot?.category ?? "Public request";
   const paidTodayText = checkoutSnapshot ? formatUsdMoney(checkoutSnapshot.total, currencyPreference) : "Payment processed";
-  const rewardText = checkoutSnapshot ? formatUsdMoney(checkoutSnapshot.reward, currencyPreference) : "Held after acceptance";
+  const rewardText = checkoutSnapshot ? formatUsdMoney(checkoutSnapshot.reward, currencyPreference) : "Recorded for review";
   const receiptTarget = checkoutSnapshot?.email ? `Receipt sent to ${checkoutSnapshot.email}` : "Receipt saved to your checkout account";
   const platformShareText = checkoutSnapshot
-    ? `Service and protection fees total ${formatUsdMoney(checkoutSnapshot.platformShare, currencyPreference)}, while the finder payout stays reserved for acceptance.`
+    ? `Service and source review fees total ${formatUsdMoney(checkoutSnapshot.platformShare, currencyPreference)}, while the finder offer stays recorded for acceptance or review.`
     : "The hosted checkout keeps the receipt and payment split attached to this request.";
   const reviewDashboard = () => {
     document.getElementById("poster-dashboard-title")?.scrollIntoView({ behavior: "smooth", block: "start" });
@@ -5318,7 +5318,7 @@ function PostSuccessConfirmation({
           </div>
         </div>
         <p className="confirmation-copy">
-          Your payment is recorded, the finder payout is held for acceptance, and the request is ready for sources. Use this confirmation to track the post while finders start working.
+          Your payment is recorded, the finder offer is tracked for acceptance or review, and the request is ready for sources. Use this confirmation to track the post while finders start working.
         </p>
         <div className="confirmation-detail-grid" aria-label="Posted request receipt">
           <div>
@@ -5679,7 +5679,7 @@ function DisputePage({ onBack }: { onBack: () => void }) {
           ))}
           <div className="summary-card warning-card">
             <AlertTriangle size={26} />
-            <strong>Payment stays protected</strong>
+            <strong>Payout pauses during review</strong>
             <span>No payout is released while the case is under review.</span>
           </div>
         </aside>
@@ -5697,7 +5697,7 @@ function TrustProfilePage({ onBrowse, onFinder }: { onBrowse: () => void; onFind
           <div>
             <p className="route-kicker">Public profile / Trust page</p>
             <h1 id="profile-title">Maya L.</h1>
-            <p>Verified finder in New York with a 4.9 rating across rare camera gear, watches, and vintage electronics.</p>
+            <p>Example finder profile for rare camera gear, watches, and vintage electronics.</p>
           </div>
         </div>
         <div className="profile-actions">
@@ -5710,10 +5710,10 @@ function TrustProfilePage({ onBrowse, onFinder }: { onBrowse: () => void; onFind
         </div>
       </section>
       <section className="metric-grid">
-        <Metric icon={Star} label="Rating" value="4.9" />
-        <Metric icon={Trophy} label="Accepted sources" value="18" />
-        <Metric icon={ShieldCheck} label="Verification" value="ID + payout" />
-        <Metric icon={Scale} label="Disputes lost" value="0" />
+        <Metric icon={Star} label="Profile" value="Example" />
+        <Metric icon={Trophy} label="Source history" value="Sample" />
+        <Metric icon={ShieldCheck} label="Review status" value="Demo" />
+        <Metric icon={Scale} label="Dispute record" value="Demo" />
       </section>
       <section className="dashboard-grid">
         <div className="dashboard-panel">
@@ -5723,19 +5723,19 @@ function TrustProfilePage({ onBrowse, onFinder }: { onBrowse: () => void; onFind
           </div>
           <ul className="check-list">
             <li>
-              <CheckCircle2 size={18} /> Verified identity and payout method
+              <CheckCircle2 size={18} /> Example identity and payout checks
             </li>
             <li>
-              <CheckCircle2 size={18} /> 92% accepted on first submission
+              <CheckCircle2 size={18} /> Example acceptance history for real reviews
             </li>
             <li>
-              <CheckCircle2 size={18} /> Average source details within 1 day
+              <CheckCircle2 size={18} /> Example source detail timing
             </li>
           </ul>
         </div>
         <div className="dashboard-panel">
           <div className="panel-header">
-            <h2>Recent reviews</h2>
+            <h2>Example reviews</h2>
             <MessageSquare size={20} />
           </div>
           {finderReviews.map((review) => (
@@ -5900,7 +5900,7 @@ function RefundPolicyPage() {
           title: "No accepted source",
           copy: [
             "If no valid source or handoff is accepted within the active request window, the funded finder offer can be returned to the poster.",
-            "Service and protection fees cover hosting the request, payment handling, source review tools, support, and fraud monitoring.",
+            "Service and source review fees cover hosting the request, payment handling, source review tools, support, and fraud monitoring.",
           ],
         },
         {
