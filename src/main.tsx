@@ -276,9 +276,9 @@ type JsonLdNode = Record<string, unknown>;
 const siteName = "pleasefindmethis.com";
 const siteOrigin = "https://pleasefindmethis.com";
 const defaultSeoDescription =
-  "Post a hard-to-find item request, pay transparent marketplace fees, and let finders submit protected sources for discontinued products, rare goods, replacement parts, and sold-out items.";
+  "Reward-style requests for hard-to-find, discontinued, and sold-out items. Post a photo, fund a reward, and let finders submit protected source leads.";
 const organizationLogo = `${siteOrigin}/magnifying-glass.png`;
-const defaultSeoImage = `${siteOrigin}/og/pleasefindmethis-social-card.png`;
+const defaultSeoImage = `${siteOrigin}/og/pleasefindmethis-vintage-tee-poster-4k.png`;
 const requestSingular = "request";
 const requestPlural = "requests";
 const checkoutRequestTimeoutMs = 25000;
@@ -433,8 +433,8 @@ const indexablePages = new Set<Page>([
 
 const pageSeoCopy: Record<Page, { title: string; description: string }> = {
   landing: {
-    title: "Find Hard-to-Find Items With Protected Offers | pleasefindmethis.com",
-    description: defaultSeoDescription,
+    title: "Please help me find this vintage T-shirt | pleasefindmethis.com",
+    description: "Reward-style requests for hard-to-find, discontinued, and sold-out items.",
   },
   auth: {
     title: "Sign In | pleasefindmethis.com",
@@ -2436,10 +2436,16 @@ function updateDocumentSeo(page: Page, bounties: BountyListing[], activeBounty?:
   setMetaTag("property", "og:description", meta.description);
   setMetaTag("property", "og:url", canonicalUrl);
   setMetaTag("property", "og:image", meta.image);
+  setMetaTag("property", "og:image:secure_url", meta.image);
+  setMetaTag("property", "og:image:type", "image/png");
+  setMetaTag("property", "og:image:width", "3840");
+  setMetaTag("property", "og:image:height", "2160");
+  setMetaTag("property", "og:image:alt", "A reward-style poster asking for help finding a vintage T-shirt with a protected source lead.");
   setMetaTag("name", "twitter:card", "summary_large_image");
   setMetaTag("name", "twitter:title", meta.title);
   setMetaTag("name", "twitter:description", meta.description);
   setMetaTag("name", "twitter:image", meta.image);
+  setMetaTag("name", "twitter:image:alt", "A reward-style poster asking for help finding a vintage T-shirt with a protected source lead.");
   setCanonicalLink(canonicalUrl);
   setStructuredData(createStructuredData(page, meta, bounties, activeBounty));
 }

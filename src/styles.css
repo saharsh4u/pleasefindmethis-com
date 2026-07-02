@@ -361,6 +361,9 @@ main {
 
 .mobile-hero-title {
   display: none;
+  margin: 0;
+  color: #0f1211;
+  font-weight: 860;
 }
 
 .mobile-hero-actions {
