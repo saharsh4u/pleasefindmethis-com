@@ -1767,6 +1767,12 @@ function getContentType(filePath) {
       return "text/html; charset=utf-8";
     case ".js":
       return "text/javascript; charset=utf-8";
+    case ".md":
+      return "text/markdown; charset=utf-8";
+    case ".txt":
+      return "text/plain; charset=utf-8";
+    case ".xml":
+      return "application/xml; charset=utf-8";
     case ".json":
       return "application/json; charset=utf-8";
     case ".svg":

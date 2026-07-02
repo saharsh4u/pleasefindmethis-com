@@ -1325,8 +1325,8 @@ main {
 }
 
 .brand-button,
-.desktop-nav button,
-.mobile-nav button,
+.desktop-nav :is(a, button),
+.mobile-nav :is(a, button),
 .section-button,
 .finder-button {
   border: 0;
@@ -1339,14 +1339,14 @@ main {
   cursor: pointer;
 }
 
-.desktop-nav button {
+.desktop-nav :is(a, button) {
   color: #1a201d;
   font-size: 0.72rem;
   font-weight: 720;
 }
 
-.desktop-nav button:hover,
-.mobile-nav button:hover,
+.desktop-nav :is(a, button):hover,
+.mobile-nav :is(a, button):hover,
 .brand-button:hover {
   color: var(--green);
 }
@@ -1381,7 +1381,7 @@ main {
   justify-content: center;
 }
 
-.app-mobile-nav button {
+.app-mobile-nav :is(a, button) {
   text-align: left;
 }
 
@@ -2821,7 +2821,8 @@ main {
   background: #fff;
 }
 
-.faq-item button {
+.faq-item :is(button, summary),
+.faq-item summary {
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -2834,6 +2835,12 @@ main {
   text-align: left;
   font-size: 1rem;
   font-weight: 850;
+  cursor: pointer;
+  list-style: none;
+}
+
+.faq-item summary::-webkit-details-marker {
+  display: none;
 }
 
 .faq-item svg {
@@ -2850,7 +2857,8 @@ main {
   line-height: 1.5;
 }
 
-.faq-item.open {
+.faq-item.open,
+.faq-item[open] {
   border-color: rgba(10, 109, 59, 0.34);
   box-shadow: var(--soft-shadow);
 }
@@ -3617,7 +3625,7 @@ main {
 }
 
 .app-page .brand,
-.app-page .desktop-nav button,
+.app-page .desktop-nav :is(a, button),
 .app-page .text-button,
 .app-page .icon-label-button,
 .app-page .section-link,
@@ -3627,7 +3635,7 @@ main {
   color: var(--board-text);
 }
 
-.app-page .desktop-nav button,
+.app-page .desktop-nav :is(a, button),
 .app-page .text-button,
 .app-page .route-hero p,
 .app-page .dashboard-head p,
@@ -3667,8 +3675,8 @@ main {
   color: var(--board-blue);
 }
 
-.app-page .desktop-nav button:hover,
-.app-page .mobile-nav button:hover,
+.app-page .desktop-nav :is(a, button):hover,
+.app-page .mobile-nav :is(a, button):hover,
 .app-page .brand-button:hover,
 .app-page .section-link:hover,
 .app-page .finder-link:hover,
@@ -3781,7 +3789,7 @@ main {
 .app-page .listing-meta span,
 .app-page .status-strip span,
 .app-page .review-row,
-.app-page .faq-item button,
+.app-page .faq-item :is(button, summary),
 .app-page .upload-box strong,
 .app-page .summary-card strong,
 .app-page .receipt-panel dd,
@@ -3830,7 +3838,7 @@ main {
   box-shadow: 0 20px 48px rgba(0, 0, 0, 0.34);
 }
 
-.app-page .mobile-nav button {
+.app-page .mobile-nav :is(a, button) {
   color: var(--board-text);
   text-align: left;
 }
@@ -4309,7 +4317,7 @@ main {
   min-width: 0;
 }
 
-.board-request-card button {
+.board-request-card .board-card-hit {
   position: relative;
   display: grid;
   grid-template-columns: 3.4rem minmax(0, 1fr);
@@ -4327,8 +4335,8 @@ main {
   box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.025);
 }
 
-.board-request-card button:hover,
-.board-request-card button:focus-visible {
+.board-request-card .board-card-hit:hover,
+.board-request-card .board-card-hit:focus-visible {
   border-color: rgba(49, 84, 255, 0.7);
   outline: none;
 }
@@ -4619,7 +4627,7 @@ main {
     font-size: 1rem;
   }
 
-  .board-request-card button {
+  .board-request-card .board-card-hit {
     grid-template-columns: 1fr;
     grid-template-rows: auto minmax(3.2rem, auto) auto;
     gap: 0.5rem;
@@ -4708,7 +4716,7 @@ main {
     gap: 0.55rem;
   }
 
-  .board-request-card button {
+  .board-request-card .board-card-hit {
     min-height: 10.8rem;
     padding: 0.48rem;
   }
@@ -4740,14 +4748,14 @@ main {
 }
 
 .app-page .brand,
-.app-page .desktop-nav button,
+.app-page .desktop-nav :is(a, button),
 .app-page .text-button,
 .app-page .icon-label-button,
 .app-page .section-link,
 .app-page .finder-link,
 .app-page .back-button,
 .app-page .center-link,
-.app-page .mobile-nav button {
+.app-page .mobile-nav :is(a, button) {
   color: inherit;
 }
 
@@ -4770,8 +4778,8 @@ main {
   color: var(--green);
 }
 
-.app-page .desktop-nav button:hover,
-.app-page .mobile-nav button:hover,
+.app-page .desktop-nav :is(a, button):hover,
+.app-page .mobile-nav :is(a, button):hover,
 .app-page .brand-button:hover,
 .app-page .section-link:hover,
 .app-page .finder-link:hover,
@@ -4821,7 +4829,7 @@ main {
   letter-spacing: 0;
 }
 
-.app-page .desktop-nav button,
+.app-page .desktop-nav :is(a, button),
 .app-page .text-button,
 .app-page .route-hero p,
 .app-page .dashboard-head p,
@@ -4920,7 +4928,7 @@ main {
 .app-page .listing-meta span,
 .app-page .status-strip span,
 .app-page .review-row,
-.app-page .faq-item button,
+.app-page .faq-item :is(button, summary),
 .app-page .upload-box strong,
 .app-page .summary-card strong,
 .app-page .receipt-panel dd,
@@ -5153,7 +5161,7 @@ main {
   padding: 0;
 }
 
-.landing-recent-board .board-request-card button {
+.landing-recent-board .board-request-card .board-card-hit {
   min-height: 6.7rem;
   border-color: rgba(17, 21, 19, 0.11);
   border-radius: 12px;
@@ -5162,8 +5170,8 @@ main {
   box-shadow: 0 12px 28px rgba(17, 21, 19, 0.08);
 }
 
-.landing-recent-board .board-request-card button:hover,
-.landing-recent-board .board-request-card button:focus-visible {
+.landing-recent-board .board-request-card .board-card-hit:hover,
+.landing-recent-board .board-request-card .board-card-hit:focus-visible {
   border-color: rgba(10, 109, 59, 0.35);
   outline: none;
 }
@@ -5441,7 +5449,7 @@ main {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
-  .landing-recent-board .board-request-card button {
+  .landing-recent-board .board-request-card .board-card-hit {
     grid-template-columns: 1fr;
     min-height: 10.8rem;
   }
@@ -5747,7 +5755,7 @@ main {
   filter: drop-shadow(0 2px 4px rgba(8, 115, 67, 0.12));
 }
 
-.faq-item button > svg,
+.faq-item :is(button, summary) > svg,
 .icon-label-button > svg,
 .panel-header > svg {
   width: 2rem;
@@ -6359,7 +6367,7 @@ textarea {
 }
 
 .desktop-nav,
-.desktop-nav button,
+.desktop-nav :is(a, button),
 .text-button {
   font-size: 0.8rem;
   font-weight: 760;
@@ -6538,12 +6546,12 @@ textarea {
   margin-top: clamp(2.25rem, 4vw, 3.25rem);
 }
 
-.landing-recent-board .board-request-card button {
+.landing-recent-board .board-request-card .board-card-hit {
   min-height: 7rem;
   border-radius: var(--radius-card);
 }
 
-.board-request-card button {
+.board-request-card .board-card-hit {
   border-radius: var(--radius-card);
 }
 
@@ -6908,7 +6916,7 @@ textarea {
   line-height: 1.12;
 }
 
-.faq-item button {
+.faq-item :is(button, summary) {
   min-height: 3.5rem;
   font-size: 1rem;
   line-height: 1.3;
@@ -7107,7 +7115,7 @@ textarea {
     line-height: 1.45;
   }
 
-  .landing-recent-board .board-request-card button {
+  .landing-recent-board .board-request-card .board-card-hit {
     min-height: 11.3rem;
   }
 
@@ -7328,7 +7336,7 @@ textarea {
     height: 3.25rem;
   }
 
-  .faq-item button {
+  .faq-item :is(button, summary) {
     padding: 0.95rem;
     font-size: 0.95rem;
   }
@@ -7654,7 +7662,7 @@ small {
     margin-top: 1.28rem;
   }
 
-  .landing-recent-board .board-request-card button {
+  .landing-recent-board .board-request-card .board-card-hit {
     min-height: 11.65rem;
     padding: 0.6rem;
   }
@@ -7816,7 +7824,7 @@ small {
     font-size: clamp(2.18rem, 9.9vw, 2.48rem);
   }
 
-  .landing-recent-board .board-request-card button {
+  .landing-recent-board .board-request-card .board-card-hit {
     min-height: 11.2rem;
   }
 
@@ -7852,7 +7860,7 @@ small {
 
 /* Interaction polish: keep the visual style while making controls easier to hit. */
 .brand-button,
-.desktop-nav button,
+.desktop-nav :is(a, button),
 .text-button,
 .section-button,
 .finder-button,
@@ -7868,7 +7876,7 @@ small {
   border-radius: 999px;
 }
 
-.desktop-nav button,
+.desktop-nav :is(a, button),
 .section-button,
 .finder-button,
 .back-button,
@@ -7900,7 +7908,7 @@ small {
 
 @media (max-width: 760px) {
   .brand-button,
-  .desktop-nav button,
+  .desktop-nav :is(a, button),
   .text-button,
   .section-button,
   .finder-button,
@@ -8685,7 +8693,7 @@ small {
   gap: 0.7rem 1rem;
 }
 
-.site-footer button {
+.site-footer :is(a, button) {
   border: 0;
   background: transparent;
   color: inherit;
@@ -8693,7 +8701,7 @@ small {
   font-weight: 760;
 }
 
-.site-footer button:hover {
+.site-footer :is(a, button):hover {
   color: var(--green);
 }
 

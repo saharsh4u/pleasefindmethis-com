@@ -26,6 +26,10 @@
       "destination": "/index.html"
     },
     {
+      "source": "/requests/:path*",
+      "destination": "/index.html"
+    },
+    {
       "source": "/submit-find",
       "destination": "/index.html"
     },
