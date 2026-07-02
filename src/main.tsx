@@ -755,11 +755,25 @@ const coordinateRegions: CoordinateRegion[] = [
   { region: "ZA", south: -35, west: 16, north: -22, east: 33 },
 ];
 const heroPlaceholderExamples = [
+  "What do you want found?",
+  "Find me this mug - $20 reward",
+  "Help me find this blanket",
+  "Find this sold-out hoodie",
+  "Find me this pair of socks",
+  "Find me this date night dress",
+  "Find this plush toy for my kid",
   "Help me find this cat mug",
   "Find this old wallet",
-  "I can add an offer",
-  "Help me find this pillow",
-  "Find this exact wall art",
+  "Find this retired Jellycat",
+  "Find this discontinued pillow",
+  "Where can I buy this bag?",
+  "Find this watch - $50 reward",
+  "Find me a cheaper version",
+  "Find this replacement plate",
+  "Help me track down these shoes",
+  "Find this vintage tee",
+  "Find this camera part",
+  "Find this wall art print",
 ];
 
 function getBrowserLocales() {
