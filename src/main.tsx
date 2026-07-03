@@ -77,6 +77,12 @@ type Page =
 type AuthMode = "signup" | "login";
 type AuthBusyAction = "email" | "google" | null;
 type AuthAccountType = "both" | "poster" | "finder";
+type WaitlistIntent = "post" | "browse";
+
+type WaitlistModalState = {
+  intent: WaitlistIntent;
+  source: string;
+};
 
 type GoogleProfile = {
   email?: string;
@@ -299,6 +305,7 @@ type JsonLdNode = Record<string, unknown>;
 
 const siteName = "pleasefindmethis.com";
 const siteOrigin = "https://pleasefindmethis.com";
+const configuredPublicAppOrigin = normalizeClientAppOrigin(import.meta.env.VITE_PUBLIC_APP_URL) || siteOrigin;
 const defaultSeoDescription =
   "pleasefindmethis.com helps people find sold-out, rare, vintage, and hard-to-find items by posting a request and offering a finder reward.";
 const defaultSocialDescription = "Post what you want. Add a reward. Real finders send links and leads to help you buy it.";
@@ -612,10 +619,13 @@ const authProviderStorageKey = "pleasefindmethis-auth-provider";
 const authEmailStorageKey = "pleasefindmethis-auth-email";
 const checkoutSnapshotStorageKey = "pleasefindmethis-last-checkout";
 const postDraftStorageKey = "pleasefindmethis-post-draft";
+const waitlistDeadlineStorageKey = "pleasefindmethis-waitlist-deadline";
+const waitlistEmailStorageKey = "pleasefindmethis-waitlist-email";
 const requestReferenceImagesBucket = "request-reference-images";
 const sourceSubmissionProofBucket = "source-submission-proof";
 const googleClientId = import.meta.env.VITE_GOOGLE_CLIENT_ID;
 const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+const waitlistCountdownDurationMs = 72 * 60 * 60 * 1000;
 const uuidPattern = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 type CurrencySource = "locale" | "timezone" | "geolocation" | "fallback";
 
@@ -1410,8 +1420,38 @@ function readStoredPendingRoute(): Page {
   return storedRoute && storedRoute in pageRoutes ? (storedRoute as Page) : "post-describe";
 }
 
+function normalizeClientAppOrigin(value: unknown) {
+  if (typeof value !== "string") {
+    return "";
+  }
+
+  const trimmed = value.trim().replace(/\/+$/, "");
+
+  if (!trimmed) {
+    return "";
+  }
+
+  try {
+    const parsed = new URL(trimmed);
+    const isLocalHost = parsed.hostname === "localhost" || parsed.hostname === "127.0.0.1";
+
+    if (parsed.protocol !== "https:" && !isLocalHost) {
+      return "";
+    }
+
+    return parsed.origin;
+  } catch {
+    return "";
+  }
+}
+
+function isLocalAppHost(hostname: string) {
+  return hostname === "localhost" || hostname === "127.0.0.1";
+}
+
 function getOAuthRedirectUrl() {
-  return `${window.location.origin}${window.location.pathname}`;
+  const origin = isLocalAppHost(window.location.hostname) ? window.location.origin : configuredPublicAppOrigin;
+  return `${origin}${window.location.pathname}`;
 }
 
 function loadGoogleIdentityScript() {
@@ -2979,6 +3019,7 @@ function App() {
   const [authMessage, setAuthMessage] = useState("");
   const [emailOtpSentTo, setEmailOtpSentTo] = useState("");
   const [postDraft, setPostDraft] = useState<PostDraft>(() => getInitialPostDraft());
+  const [waitlistModal, setWaitlistModal] = useState<WaitlistModalState | null>(null);
   const [activeBountyId, setActiveBountyId] = useState(() => getBountyIdFromCurrentRoute() || bountyListings[0].id);
   const {
     listings: liveBounties,
@@ -3313,6 +3354,16 @@ function App() {
     });
   };
 
+  const openWaitlistModal = (intent: WaitlistIntent, source: string) => {
+    setMenuOpen(false);
+    setWaitlistModal({ intent, source });
+    trackAcquisitionEvent("waitlist_modal_opened", {
+      intent,
+      source,
+      signed_in: signedIn,
+    });
+  };
+
   const startPostRequest = (location: string, prompt?: PostStarterPrompt) => {
     const urlStarter = !prompt ? getAcquisitionStarterFromUrl() : null;
     const selectedPrompt = prompt ?? urlStarter?.prompt ?? null;
@@ -3433,7 +3484,9 @@ function App() {
     requireAuth,
     signedIn,
     menuOpen,
+    onBrowseRequest: () => openWaitlistModal("browse", "app_header_browse"),
     onLogOut: logOut,
+    onPostRequest: () => openWaitlistModal("post", "app_header_post"),
     setMenuOpen,
   };
 
@@ -3443,8 +3496,8 @@ function App() {
         <LandingPage
           menuOpen={menuOpen}
           bounties={marketplaceBounties}
-          onBrowse={() => navigate("browse")}
-          onBrowseAll={() => navigate("browse-all")}
+          onBrowse={() => openWaitlistModal("browse", "landing_browse")}
+          onBrowseAll={() => openWaitlistModal("browse", "landing_browse_all")}
           onDetail={goToDetail}
           onFinders={() => requireAuth("finder-dashboard")}
           onLogin={() => {
@@ -3455,8 +3508,8 @@ function App() {
           onNavigate={navigate}
           onAccount={() => navigate("poster-dashboard")}
           onLogOut={logOut}
-          onPost={(location) => startPostRequest(location)}
-          onPostPrompt={(prompt) => startPostRequest(`starter_${prompt.category}`, prompt)}
+          onPost={(location) => openWaitlistModal("post", location)}
+          onPostPrompt={(prompt) => openWaitlistModal("post", `starter_${prompt.category}`)}
           acquisitionStarterPrompt={acquisitionStarter?.prompt ?? null}
           onSection={scrollToLandingSection}
           setMenuOpen={setMenuOpen}
@@ -3478,7 +3531,7 @@ function App() {
               }}
               onGoogleAuth={signInWithGoogle}
               onModeChange={changeAuthMode}
-              onPublicBrowse={() => navigate("browse")}
+              onPublicBrowse={() => openWaitlistModal("browse", "auth_public_browse")}
             />
           ) : null}
           {visibleRoute === "post-describe" ? (
@@ -3493,9 +3546,9 @@ function App() {
               bounties={marketplaceBounties}
               dataError={publicRequestsError}
               dataLoading={publicRequestsLoading}
-              onBrowseAll={() => navigate("browse-all")}
+              onBrowseAll={() => openWaitlistModal("browse", "browse_featured_all")}
               onDetail={goToDetail}
-              onPost={() => startPostRequest("browse_featured")}
+              onPost={() => openWaitlistModal("post", "browse_featured")}
             />
           ) : null}
           {visibleRoute === "browse-all" ? (
@@ -3504,7 +3557,7 @@ function App() {
               dataError={publicRequestsError}
               dataLoading={publicRequestsLoading}
               onDetail={goToDetail}
-              onPost={() => startPostRequest("browse_all")}
+              onPost={() => openWaitlistModal("post", "browse_all")}
             />
           ) : null}
           {visibleRoute === "bounty-detail" ? (
@@ -3536,7 +3589,7 @@ function App() {
           ) : null}
           {visibleRoute === "dispute" ? <DisputePage onBack={() => navigate("poster-dashboard")} /> : null}
           {visibleRoute === "profile" ? <TrustProfilePage onBrowse={() => navigate("browse")} onFinder={() => requireAuth("finder-dashboard")} /> : null}
-          {visibleRoute === "faq" ? <FaqPage onBrowse={() => navigate("browse")} onPost={() => requireAuth("post-describe")} /> : null}
+          {visibleRoute === "faq" ? <FaqPage onBrowse={() => openWaitlistModal("browse", "faq_browse")} onPost={() => openWaitlistModal("post", "faq_post")} /> : null}
           {visibleRoute === "privacy" ? <PrivacyPage /> : null}
           {visibleRoute === "terms" ? <TermsPage /> : null}
           {visibleRoute === "refunds" ? <RefundPolicyPage /> : null}
@@ -3548,15 +3601,189 @@ function App() {
           {visibleRoute === "not-found" ? <NotFoundPage onBrowse={() => navigate("browse")} onHome={() => navigate("landing")} /> : null}
         </PageChrome>
       )}
+      {waitlistModal ? (
+        <WaitlistDialog
+          intent={waitlistModal.intent}
+          onClose={() => setWaitlistModal(null)}
+          source={waitlistModal.source}
+        />
+      ) : null}
     </CurrencyContext.Provider>
   );
+}
+
+function WaitlistDialog({
+  intent,
+  onClose,
+  source,
+}: {
+  intent: WaitlistIntent;
+  onClose: () => void;
+  source: string;
+}) {
+  const [email, setEmail] = useState(() => window.localStorage.getItem(waitlistEmailStorageKey) ?? window.sessionStorage.getItem(authEmailStorageKey) ?? "");
+  const [deadlineMs] = useState(() => getWaitlistDeadlineMs());
+  const [remainingMs, setRemainingMs] = useState(() => Math.max(0, deadlineMs - Date.now()));
+  const [submitStatus, setSubmitStatus] = useState<"idle" | "loading" | "success" | "error">("idle");
+  const [message, setMessage] = useState("");
+  const title = intent === "post" ? "Posting opens soon." : "Open requests are almost ready.";
+  const body =
+    intent === "post"
+      ? "Leave your email and we will notify you when paid find requests are ready to post."
+      : "Leave your email and we will notify you when the open request board is ready.";
+
+  useEffect(() => {
+    const closeOnEscape = (event: KeyboardEvent) => {
+      if (event.key === "Escape") {
+        onClose();
+      }
+    };
+
+    window.addEventListener("keydown", closeOnEscape);
+    return () => window.removeEventListener("keydown", closeOnEscape);
+  }, [onClose]);
+
+  useEffect(() => {
+    const intervalId = window.setInterval(() => {
+      setRemainingMs(Math.max(0, deadlineMs - Date.now()));
+    }, 1000);
+
+    return () => window.clearInterval(intervalId);
+  }, [deadlineMs]);
+
+  const joinWaitlist = async (event: React.FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    const normalizedEmail = email.trim().toLowerCase();
+
+    setMessage("");
+
+    if (!emailPattern.test(normalizedEmail)) {
+      setSubmitStatus("error");
+      setMessage("Enter a valid email address.");
+      return;
+    }
+
+    setSubmitStatus("loading");
+
+    const controller = new AbortController();
+    const timeoutId = window.setTimeout(() => controller.abort(), 12000);
+
+    try {
+      const response = await fetch("/api/waitlist", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          email: normalizedEmail,
+          intent,
+          source,
+          pagePath: `${window.location.pathname}${window.location.search}`,
+          referrer: document.referrer,
+        }),
+        signal: controller.signal,
+      });
+      const payload = await response.json().catch(() => null);
+
+      if (!response.ok) {
+        throw new Error(payload?.error || "Could not join the waitlist. Please try again.");
+      }
+
+      window.localStorage.setItem(waitlistEmailStorageKey, normalizedEmail);
+      trackAcquisitionEvent("waitlist_joined", {
+        intent,
+        source,
+        email_queued: payload?.emailQueued !== false,
+      });
+      setSubmitStatus("success");
+      setMessage("You're on the waitlist. We'll email you when access opens.");
+    } catch (error) {
+      setSubmitStatus("error");
+      setMessage(error instanceof Error ? error.message : "Could not join the waitlist. Please try again.");
+    } finally {
+      window.clearTimeout(timeoutId);
+    }
+  };
+
+  return (
+    <div className="dialog-backdrop waitlist-backdrop" role="presentation" onMouseDown={(event) => event.target === event.currentTarget && onClose()}>
+      <section className="starter-dialog waitlist-dialog" role="dialog" aria-modal="true" aria-labelledby="waitlist-title">
+        <button className="dialog-close" type="button" aria-label="Close waitlist form" onClick={onClose}>
+          <X size={18} aria-hidden="true" />
+        </button>
+        <div className="waitlist-dialog-copy">
+          <p className="route-kicker">Early access</p>
+          <h2 id="waitlist-title">{title}</h2>
+          <p>{body}</p>
+        </div>
+        <form className="waitlist-form" onSubmit={joinWaitlist}>
+          <div className="waitlist-countdown" aria-label={`Countdown ${formatWaitlistCountdown(remainingMs)}`}>
+            <Clock3 size={20} aria-hidden="true" />
+            <span>Opening in</span>
+            <strong>{formatWaitlistCountdown(remainingMs)}</strong>
+          </div>
+          <label>
+            Email address
+            <input
+              type="email"
+              value={email}
+              placeholder="you@example.com"
+              autoComplete="email"
+              autoFocus
+              disabled={submitStatus === "loading" || submitStatus === "success"}
+              onChange={(event) => setEmail(event.target.value)}
+            />
+          </label>
+          <button className="primary-button wide-button" type="submit" disabled={submitStatus === "loading" || submitStatus === "success"}>
+            <Send size={17} aria-hidden="true" />
+            {submitStatus === "loading" ? "Joining..." : submitStatus === "success" ? "Joined" : "Join waitlist"}
+          </button>
+        </form>
+        {message ? (
+          <p className={submitStatus === "error" ? "dialog-error" : "dialog-success"} role="status">
+            {message}
+          </p>
+        ) : null}
+      </section>
+    </div>
+  );
+}
+
+function getWaitlistDeadlineMs() {
+  const configuredDeadline = String(import.meta.env.VITE_WAITLIST_DEADLINE_AT ?? "").trim();
+  const configuredDeadlineMs = configuredDeadline ? Date.parse(configuredDeadline) : Number.NaN;
+
+  if (Number.isFinite(configuredDeadlineMs)) {
+    return configuredDeadlineMs;
+  }
+
+  const storedDeadline = Number(window.localStorage.getItem(waitlistDeadlineStorageKey));
+
+  if (Number.isFinite(storedDeadline) && storedDeadline > 0) {
+    return storedDeadline;
+  }
+
+  const deadlineMs = Date.now() + waitlistCountdownDurationMs;
+  window.localStorage.setItem(waitlistDeadlineStorageKey, String(deadlineMs));
+  return deadlineMs;
+}
+
+function formatWaitlistCountdown(value: number) {
+  const totalSeconds = Math.max(0, Math.floor(value / 1000));
+  const hours = Math.floor(totalSeconds / 3600);
+  const minutes = Math.floor((totalSeconds % 3600) / 60);
+  const seconds = totalSeconds % 60;
+
+  return `${String(hours).padStart(2, "0")}h ${String(minutes).padStart(2, "0")}m ${String(seconds).padStart(2, "0")}s`;
 }
 
 function PageChrome({
   children,
   menuOpen,
   navigate,
+  onBrowseRequest,
   onLogOut,
+  onPostRequest,
   requireAuth,
   setMenuOpen,
   signedIn,
@@ -3564,7 +3791,9 @@ function PageChrome({
   children: React.ReactNode;
   menuOpen: boolean;
   navigate: (page: Page) => void;
+  onBrowseRequest: () => void;
   onLogOut: () => void;
+  onPostRequest: () => void;
   requireAuth: (page: Page, mode?: AuthMode) => void;
   setMenuOpen: React.Dispatch<React.SetStateAction<boolean>>;
   signedIn: boolean;
@@ -3575,6 +3804,24 @@ function PageChrome({
     ["Trust", "profile", false],
     [signedIn ? "Dashboard" : "Post request", signedIn ? "poster-dashboard" : "post-describe", true],
   ];
+  const handleNavItem = (page: Page, gated: boolean) => {
+    if (page === "browse") {
+      onBrowseRequest();
+      return;
+    }
+
+    if (page === "post-describe") {
+      onPostRequest();
+      return;
+    }
+
+    if (gated) {
+      requireAuth(page);
+      return;
+    }
+
+    navigate(page);
+  };
 
   return (
     <div className="app-page">
@@ -3595,7 +3842,7 @@ function PageChrome({
             <a
               href={routeHref(page)}
               key={label}
-              onClick={(event) => handleRoutedAnchorClick(event, () => (gated ? requireAuth(page) : navigate(page)))}
+              onClick={(event) => handleRoutedAnchorClick(event, () => handleNavItem(page, gated))}
             >
               {label}
             </a>
@@ -3641,7 +3888,7 @@ function PageChrome({
               <a
                 href={routeHref(page)}
                 key={label}
-                onClick={(event) => handleRoutedAnchorClick(event, () => (gated ? requireAuth(page) : navigate(page)))}
+                onClick={(event) => handleRoutedAnchorClick(event, () => handleNavItem(page, gated))}
               >
                 {label}
               </a>

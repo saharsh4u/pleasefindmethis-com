@@ -37,14 +37,14 @@ export function initializeGoogleAnalytics() {
   window.dataLayer = window.dataLayer ?? [];
 
   if (gtmId) {
-    loadScriptOnce("google-tag-manager", `https://www.googletagmanager.com/gtm.js?id=${encodeURIComponent(gtmId)}`);
     window.dataLayer.push({
       event: "gtm.js",
       "gtm.start": Date.now(),
     });
+    loadScriptOnce("google-tag-manager", `https://www.googletagmanager.com/gtm.js?id=${encodeURIComponent(gtmId)}`);
   }
 
-  if (ga4MeasurementId) {
+  if (ga4MeasurementId && directGtagEventsEnabled) {
     window.gtag =
       window.gtag ??
       function gtag(...args: unknown[]) {

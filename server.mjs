@@ -33,12 +33,20 @@ const minimumTrustProtectionFee = 1;
 const ga4MeasurementId = parseString(process.env.GA4_MEASUREMENT_ID ?? process.env.VITE_GA4_MEASUREMENT_ID ?? process.env.VITE_GOOGLE_TAG_ID, 40);
 const ga4ApiSecret = parseString(process.env.GA4_API_SECRET, 160);
 const ga4MeasurementTimeoutMs = 6000;
+const waitlistRecipientEmail = parseString(process.env.WAITLIST_TO_EMAIL ?? process.env.OWNER_EMAIL ?? "saharashsharma3@gmail.com", 160);
+const waitlistFromEmail = parseString(process.env.WAITLIST_FROM_EMAIL ?? process.env.RESEND_FROM_EMAIL ?? "pleasefindmethis <waitlist@pleasefindmethis.com>", 220);
+const waitlistNotificationTimeoutMs = 10000;
 
 const vite = isProduction ? null : await createDevViteServer();
 
 export async function handleRequest(req, res) {
   try {
     const requestUrl = new URL(req.url ?? "/", getRequestOrigin(req));
+
+    if (shouldRedirectToCanonicalAppUrl(req, requestUrl)) {
+      redirect(res, `${publicAppUrl}${requestUrl.pathname}${requestUrl.search}`, 308);
+      return;
+    }
 
     if (requestUrl.pathname === "/api/dodo/checkout") {
       await handleCreateDodoCheckout(req, res);
@@ -50,8 +58,18 @@ export async function handleRequest(req, res) {
       return;
     }
 
+    if (requestUrl.pathname === "/api/whop/checkout") {
+      await handleCreateWhopCheckout(req, res);
+      return;
+    }
+
     if (requestUrl.pathname === "/api/payments/checkout") {
       await handleCreatePaymentCheckout(req, res);
+      return;
+    }
+
+    if (requestUrl.pathname === "/api/waitlist") {
+      await handleJoinWaitlist(req, res);
       return;
     }
 
@@ -72,6 +90,11 @@ export async function handleRequest(req, res) {
 
     if (requestUrl.pathname === "/api/lemonsqueezy/webhook") {
       await handleLemonSqueezyWebhook(req, res);
+      return;
+    }
+
+    if (requestUrl.pathname === "/api/whop/webhook") {
+      await handleWhopWebhook(req, res);
       return;
     }
 
@@ -382,6 +405,11 @@ async function handleCreatePaymentCheckout(req, res) {
     return;
   }
 
+  if (provider === "whop") {
+    await handleCreateWhopCheckout(req, res);
+    return;
+  }
+
   await handleCreateDodoCheckout(req, res);
 }
 
@@ -499,11 +527,131 @@ async function loadSubmissionCounts(requestIds) {
   return counts;
 }
 
+async function handleJoinWaitlist(req, res) {
+  if (req.method !== "POST") {
+    sendJson(res, 405, { error: "Method not allowed." });
+    return;
+  }
+
+  let body;
+
+  try {
+    body = await readJson(req);
+  } catch (error) {
+    sendJson(res, 400, { error: error instanceof Error ? error.message : "Request body must be valid JSON." });
+    return;
+  }
+
+  const email = parseString(body.email, 160).toLowerCase();
+  const intent = sanitizeWaitlistString(body.intent, 40) || "unknown";
+  const source = sanitizeWaitlistString(body.source, 80) || "unknown";
+  const pagePath = sanitizePagePath(body.pagePath) || "/";
+  const referrer = sanitizeWaitlistString(body.referrer, 240);
+  const userAgent = sanitizeWaitlistString(req.headers["user-agent"], 240);
+  const submittedAt = new Date().toISOString();
+
+  if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+    sendJson(res, 400, { error: "Enter a valid email address." });
+    return;
+  }
+
+  if (!waitlistRecipientEmail || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(waitlistRecipientEmail)) {
+    sendJson(res, 503, { error: "Waitlist recipient email is not configured." });
+    return;
+  }
+
+  const notification = {
+    email,
+    intent,
+    source,
+    pagePath,
+    referrer,
+    userAgent,
+    submittedAt,
+  };
+
+  const resendApiKey = parseString(process.env.RESEND_API_KEY, 240);
+
+  if (!resendApiKey) {
+    console.info("Waitlist signup captured without email provider", notification);
+    if (!isProduction) {
+      sendJson(res, 200, {
+        ok: true,
+        emailQueued: false,
+        message: "Local waitlist signup logged. Configure RESEND_API_KEY in production to email the owner.",
+      });
+      return;
+    }
+
+    sendJson(res, 503, { error: "Waitlist email is not configured yet. Set RESEND_API_KEY before collecting production signups." });
+    return;
+  }
+
+  const text = [
+    "New pleasefindmethis waitlist signup",
+    "",
+    `Email: ${email}`,
+    `Intent: ${intent}`,
+    `Source: ${source}`,
+    `Page: ${pagePath}`,
+    referrer ? `Referrer: ${referrer}` : "",
+    `Submitted: ${submittedAt}`,
+    userAgent ? `User agent: ${userAgent}` : "",
+  ]
+    .filter(Boolean)
+    .join("\n");
+
+  let response;
+
+  try {
+    response = await fetchWithTimeout(
+      "https://api.resend.com/emails",
+      {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${resendApiKey}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          from: waitlistFromEmail,
+          to: [waitlistRecipientEmail],
+          reply_to: email,
+          subject: `pleasefindmethis waitlist: ${email}`,
+          text,
+          html: renderWaitlistEmailHtml(notification),
+        }),
+      },
+      waitlistNotificationTimeoutMs,
+    );
+  } catch (error) {
+    console.error("Waitlist notification failed", error);
+    sendJson(res, 504, { error: "The waitlist notification timed out. Please try again." });
+    return;
+  }
+
+  if (!response.ok) {
+    const responseText = await response.text().catch(() => "");
+    console.error("Waitlist notification was rejected", response.status, responseText.slice(0, 500));
+    sendJson(res, 502, { error: "Could not email the waitlist signup. Please try again." });
+    return;
+  }
+
+  sendJson(res, 200, { ok: true, emailQueued: true });
+}
+
 async function handleHealthCheck(req, res) {
   if (req.method !== "GET") {
     sendJson(res, 405, { error: "Method not allowed." });
     return;
   }
+
+  const paymentProvider = getPaymentProvider();
+  const whopSandboxProductionOverride =
+    isProduction &&
+    paymentProvider === "whop" &&
+    !isWhopLiveMode() &&
+    isWhopSandboxOnProductionAllowed();
+  const productionCheckoutAllowed = !isProduction || isConfiguredPaymentProviderLive() || whopSandboxProductionOverride;
 
   const checks = {
     app: "pleasefindmethis-com",
@@ -516,11 +664,15 @@ async function handleHealthCheck(req, res) {
       publicRequestCardsView: false,
     },
     payments: {
-      provider: getPaymentProvider(),
+      provider: paymentProvider,
       productionLiveMode: !isProduction || isConfiguredPaymentProviderLive(),
+      productionCheckoutAllowed,
       dodoMarketplaceCheckoutAllowed: isDodoMarketplaceCheckoutAllowed(),
       lemonSqueezyConfigured: Boolean(process.env.LEMONSQUEEZY_API_KEY && process.env.LEMONSQUEEZY_STORE_ID && process.env.LEMONSQUEEZY_VARIANT_ID && process.env.LEMONSQUEEZY_WEBHOOK_SECRET),
       dodoConfigured: Boolean(process.env.DODO_PAYMENTS_API_KEY && process.env.DODO_PRODUCT_ID && process.env.DODO_WEBHOOK_SECRET),
+      whopConfigured: Boolean(process.env.WHOP_API_KEY && (process.env.WHOP_COMPANY_ID || process.env.WHOP_PLATFORM_COMPANY_ID) && process.env.WHOP_WEBHOOK_SECRET),
+      whopEnvironment: getWhopEnvironment(),
+      whopSandboxOnProductionAllowed: isWhopSandboxOnProductionAllowed(),
       dodoPolicyNote: "Dodo checkout must stay disabled for marketplace/finder-payout transactions unless Dodo explicitly approves this new business model.",
     },
     analytics: {
@@ -547,7 +699,7 @@ async function handleHealthCheck(req, res) {
     checks.supabase.publicRequestCardsView &&
     (!checks.payments.dodoMarketplaceCheckoutAllowed || checks.payments.provider === "dodo") &&
     (checks.payments.provider !== "dodo" || checks.payments.dodoMarketplaceCheckoutAllowed) &&
-    checks.payments.productionLiveMode;
+    checks.payments.productionCheckoutAllowed;
 
   sendJson(res, healthy ? 200 : 503, {
     ok: healthy,
@@ -722,6 +874,161 @@ async function handleCreateLemonSqueezyCheckout(req, res) {
   });
 }
 
+async function handleCreateWhopCheckout(req, res) {
+  if (req.method !== "POST") {
+    sendJson(res, 405, { error: "Method not allowed." });
+    return;
+  }
+
+  if (getPaymentProvider() !== "whop") {
+    sendJson(res, 409, {
+      error: "Whop checkout is disabled because PAYMENT_PROVIDER is not set to whop for this deployment.",
+    });
+    return;
+  }
+
+  const apiKey = process.env.WHOP_API_KEY;
+  const companyId = process.env.WHOP_COMPANY_ID ?? process.env.WHOP_PLATFORM_COMPANY_ID;
+
+  if (!apiKey || !companyId) {
+    sendJson(res, 503, {
+      error: "Whop is not configured. Create a Whop API key and company, then set WHOP_API_KEY and WHOP_COMPANY_ID.",
+    });
+    return;
+  }
+
+  if (isProduction && !isWhopLiveMode() && !isWhopSandboxOnProductionAllowed()) {
+    sendJson(res, 503, { error: "Whop live mode is required before production checkout can be enabled." });
+    return;
+  }
+
+  const checkoutRequest = await readCheckoutRequest(req, res);
+
+  if (!checkoutRequest) {
+    return;
+  }
+
+  const { analytics, breakdown, category, details, durationDays, email, itemName, name, requestId } = checkoutRequest;
+  const claimed = await claimCheckoutRequest(requestId, "whop");
+
+  if (!claimed) {
+    sendJson(res, 409, { error: "Checkout is already in progress for this request. Refresh your dashboard for the latest payment link." });
+    return;
+  }
+
+  const origin = getRequestOrigin(req);
+  const checkoutPayload = {
+    mode: "payment",
+    company_id: companyId,
+    currency: "usd",
+    plan: {
+      company_id: companyId,
+      currency: "usd",
+      initial_price: breakdown.total,
+      plan_type: "one_time",
+      title: "pleasefindmethis request",
+      description: `Finder reward: US$${breakdown.reward}. Platform and review fees: US$${breakdown.platformShare}.`,
+      force_create_new_plan: true,
+      metadata: {
+        ...(requestId ? { request_id: requestId } : {}),
+        source: "pleasefindmethis-post-paywall",
+      },
+    },
+    metadata: {
+      ...(requestId ? { request_id: requestId } : {}),
+      item_name: itemName,
+      category,
+      details,
+      customer_email: email,
+      ...(name ? { customer_name: name } : {}),
+      finder_payout_usd: String(breakdown.reward),
+      platform_service_fee_usd: String(breakdown.platformFee),
+      payment_handling_source_review_fee_usd: String(breakdown.protection),
+      platform_share_usd: String(breakdown.platformShare),
+      total_usd: String(breakdown.total),
+      duration_days: String(durationDays),
+      source: "pleasefindmethis-post-paywall",
+      payment_provider: "whop",
+      payment_environment: getWhopEnvironment(),
+      ...getPaymentAnalyticsMetadata(analytics),
+    },
+    redirect_url: `${origin}/poster-dashboard?checkout=success`,
+  };
+
+  let whopResponse;
+
+  try {
+    whopResponse = await fetchWithTimeout(
+      `${getWhopApiBase()}/checkout_configurations`,
+      {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${apiKey}`,
+          "Api-Version-Date": parseString(process.env.WHOP_API_VERSION_DATE, 40) || "2026-07-01",
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(checkoutPayload),
+      },
+      paymentProviderTimeoutMs,
+    );
+  } catch (error) {
+    console.error("Whop checkout creation timed out or failed", error);
+    await markCheckoutFailed(requestId, true);
+    sendJson(res, 504, { error: "The payment provider took too long to create checkout. Please try again." });
+    return;
+  }
+
+  const responseText = await whopResponse.text();
+  const whopPayload = parseJson(responseText);
+
+  if (!whopResponse.ok) {
+    console.error("Whop checkout creation failed", whopResponse.status, getWhopErrorSummary(whopPayload, responseText));
+    await markCheckoutFailed(requestId, whopResponse.status >= 500 || whopResponse.status === 429);
+    sendJson(res, 502, {
+      error: getWhopCheckoutError(whopResponse.status, whopPayload),
+    });
+    return;
+  }
+
+  if (!isRecord(whopPayload)) {
+    console.error("Whop checkout response was not JSON", responseText.slice(0, 500));
+    await markCheckoutFailed(requestId, false);
+    sendJson(res, 502, { error: "Whop did not return a valid checkout response." });
+    return;
+  }
+
+  const checkoutUrl = normalizeWhopPurchaseUrl(parseString(whopPayload.purchase_url, 1000));
+  const checkoutId = parseString(whopPayload.id, 160);
+
+  if (!checkoutUrl) {
+    console.error("Whop checkout response did not include a purchase_url", getWhopErrorSummary(whopPayload, responseText));
+    await markCheckoutFailed(requestId, false);
+    sendJson(res, 502, { error: "Whop did not return a checkout URL." });
+    return;
+  }
+
+  await updateRequestPaymentState(requestId, {
+    payment_provider: "whop",
+    ...(checkoutId ? { checkout_session_id: checkoutId } : {}),
+    checkout_url: checkoutUrl,
+    status: "checkout_started",
+    payment_status: "checkout_started",
+  });
+
+  sendJson(res, 200, {
+    provider: "whop",
+    checkoutUrl,
+    sessionId: checkoutId || null,
+    total: breakdown.total,
+    split: {
+      finderPayout: breakdown.reward,
+      platformServiceFee: breakdown.platformFee,
+      refundProtectionReserve: breakdown.protection,
+      platformShare: breakdown.platformShare,
+    },
+  });
+}
+
 async function handleDodoWebhook(req, res) {
   if (req.method !== "POST") {
     sendJson(res, 405, { error: "Method not allowed." });
@@ -816,6 +1123,53 @@ async function handleLemonSqueezyWebhook(req, res) {
   }
 }
 
+async function handleWhopWebhook(req, res) {
+  if (req.method !== "POST") {
+    sendJson(res, 405, { error: "Method not allowed." });
+    return;
+  }
+
+  const webhookSecret = process.env.WHOP_WEBHOOK_SECRET;
+
+  if (!webhookSecret) {
+    sendJson(res, 503, { error: "Whop webhook secret is not configured." });
+    return;
+  }
+
+  const rawBody = await readRawBody(req);
+  let event;
+
+  try {
+    const webhook = new Webhook(webhookSecret);
+    event = webhook.verify(rawBody.toString("utf8"), {
+      "webhook-id": firstHeader(req.headers["webhook-id"]),
+      "webhook-signature": firstHeader(req.headers["webhook-signature"]),
+      "webhook-timestamp": firstHeader(req.headers["webhook-timestamp"]),
+    });
+  } catch (error) {
+    console.error("Invalid Whop webhook signature", error);
+    sendJson(res, 400, { error: "Invalid webhook signature." });
+    return;
+  }
+
+  try {
+    const eventType = getWhopEventType(event);
+    const eventData = getWhopEventData(event);
+    await syncWhopEventToRequest(eventType, eventData, event, req);
+    console.log("Verified Whop webhook", {
+      type: eventType,
+      paymentId: eventData.id,
+      checkoutConfigurationId: eventData.checkout_configuration_id,
+    });
+
+    sendJson(res, 200, { received: true });
+  } catch (error) {
+    const status = error instanceof WebhookValidationError ? error.statusCode : 500;
+    console.error("Could not process Whop webhook", error);
+    sendJson(res, status, { error: error instanceof Error ? error.message : "Could not process webhook." });
+  }
+}
+
 function getEscrowBreakdown(reward) {
   const normalizedReward = Math.max(minimumReward, Math.round(reward));
   const platformFee = Math.max(minimumPlatformFee, Math.round(normalizedReward * platformServiceFeeRate));
@@ -875,6 +1229,22 @@ function getLemonSqueezyCheckoutError(status, payload) {
   return fallback || "Lemon Squeezy rejected the checkout request.";
 }
 
+function getWhopCheckoutError(status, payload) {
+  const message =
+    (isRecord(payload) && parseString(payload.message ?? payload.error, 240)) ||
+    (isRecord(payload) && isRecord(payload.error) ? parseString(payload.error.message, 240) : "");
+
+  if (status === 401 || status === 403) {
+    return "Whop rejected the API key or permissions. Create a server-side API key with checkout configuration and plan creation permissions.";
+  }
+
+  if (status === 422) {
+    return message || "Whop rejected the checkout configuration. Check WHOP_COMPANY_ID and one-time payment settings.";
+  }
+
+  return message || "Whop rejected the checkout request.";
+}
+
 function getLemonSqueezyErrorSummary(payload, responseText) {
   if (!isRecord(payload)) {
     return responseText.slice(0, 500);
@@ -895,6 +1265,14 @@ function getLemonSqueezyErrorSummary(payload, responseText) {
   }
 
   return payload;
+}
+
+function getWhopErrorSummary(payload, responseText) {
+  if (isRecord(payload)) {
+    return payload;
+  }
+
+  return responseText.slice(0, 500);
 }
 
 class WebhookValidationError extends Error {
@@ -1019,10 +1397,69 @@ async function syncLemonSqueezyEventToRequest(eventType, eventData, rawEvent) {
   }
 }
 
+async function syncWhopEventToRequest(eventType, eventData, rawEvent, req) {
+  if (!supabaseAdmin) {
+    throw new Error("Supabase admin client is not configured.");
+  }
+
+  const metadata = isRecord(eventData.metadata) ? eventData.metadata : {};
+  const requestId = parseString(metadata.request_id, 64);
+
+  if (!requestId) {
+    return;
+  }
+
+  const request = await loadPaymentRequest(requestId);
+  const providerEventId = getWhopProviderEventId(rawEvent, req, eventType, eventData, requestId);
+  const providerEnvironment = getWhopWebhookEnvironment(eventData, rawEvent);
+  const paymentId = parseString(eventData.id, 160);
+  const checkoutId =
+    parseString(eventData.checkout_configuration_id, 160) ||
+    parseString(eventData.checkout_configuration?.id, 160) ||
+    parseString(eventData.checkout_session_id, 160);
+
+  validateWebhookEnvironment("whop", providerEnvironment);
+  validateRequestProviderState("whop", request, { paymentId, checkoutId });
+
+  if (eventType === "payment.succeeded") {
+    validatePaidWebhookAmount("whop", request, eventData, rawEvent);
+    validateWhopCompany(eventData, rawEvent);
+  }
+
+  await recordPaymentEvent({
+    provider: "whop",
+    request_id: requestId,
+    event_type: eventType,
+    provider_event_id: providerEventId,
+    provider_environment: providerEnvironment,
+    whop_payment_id: paymentId || null,
+    checkout_session_id: checkoutId || null,
+    payload: rawEvent,
+  });
+
+  const paymentUpdate = getWhopPaymentUpdateForEvent(eventType, eventData, request);
+
+  if (!paymentUpdate) {
+    return;
+  }
+
+  await updateRequestPaymentState(requestId, paymentUpdate);
+
+  if (paymentUpdate.payment_status === "paid") {
+    await sendPaidRequestAnalytics({
+      analytics: getAnalyticsContextFromPaymentMetadata(metadata),
+      provider: "whop",
+      providerEventId,
+      request,
+      transactionId: paymentId || checkoutId || providerEventId,
+    });
+  }
+}
+
 async function loadPaymentRequest(requestId) {
   const { data, error } = await supabaseAdmin
     .from("requests")
-    .select("id,category,reward,service_fee,protection_reserve,total_due,finder_payout,currency,status,payment_status,payout_status,platform_fee_status,payment_provider,checkout_session_id,checkout_url,dodo_payment_id,lemon_squeezy_order_id,paid_at,customer_email")
+    .select("id,category,reward,service_fee,protection_reserve,total_due,finder_payout,currency,status,payment_status,payout_status,platform_fee_status,payment_provider,checkout_session_id,checkout_url,dodo_payment_id,lemon_squeezy_order_id,whop_payment_id,paid_at,customer_email")
     .eq("id", requestId)
     .single();
 
@@ -1141,7 +1578,11 @@ function validateWebhookEnvironment(provider, providerEnvironment) {
     throw new WebhookValidationError("Lemon Squeezy production webhooks are disabled while test mode is enabled.", 409);
   }
 
-  if (providerEnvironment === "test") {
+  if (provider === "whop" && !isWhopLiveMode() && !isWhopSandboxOnProductionAllowed()) {
+    throw new WebhookValidationError("Whop production webhooks are disabled until WHOP_ENVIRONMENT is live.", 409);
+  }
+
+  if (providerEnvironment === "test" && !(provider === "whop" && isWhopSandboxOnProductionAllowed())) {
     throw new WebhookValidationError("Test-mode payment webhooks cannot update production marketplace state.", 409);
   }
 }
@@ -1164,6 +1605,16 @@ function validateRequestProviderState(provider, request, ids) {
   if (provider === "lemonsqueezy") {
     if (request.lemon_squeezy_order_id && ids.orderId && request.lemon_squeezy_order_id !== ids.orderId) {
       throw new WebhookValidationError("Webhook order id does not match the request.", 409);
+    }
+
+    if (request.checkout_session_id && ids.checkoutId && request.checkout_session_id !== ids.checkoutId) {
+      throw new WebhookValidationError("Webhook checkout session does not match the request.", 409);
+    }
+  }
+
+  if (provider === "whop") {
+    if (request.whop_payment_id && ids.paymentId && request.whop_payment_id !== ids.paymentId) {
+      throw new WebhookValidationError("Webhook payment id does not match the request.", 409);
     }
 
     if (request.checkout_session_id && ids.checkoutId && request.checkout_session_id !== ids.checkoutId) {
@@ -1209,6 +1660,18 @@ function validateLemonSqueezyProduct(attributes) {
   }
 }
 
+function validateWhopCompany(eventData, rawEvent) {
+  const expectedCompanyId = parseString(process.env.WHOP_COMPANY_ID ?? process.env.WHOP_PLATFORM_COMPANY_ID, 160);
+  const eventCompanyId =
+    parseString(rawEvent?.company_id, 160) ||
+    parseString(isRecord(eventData.company) ? eventData.company.id : "", 160) ||
+    parseString(eventData.company_id, 160);
+
+  if (eventCompanyId && expectedCompanyId && eventCompanyId !== expectedCompanyId) {
+    throw new WebhookValidationError("Whop company id does not match this app.", 409);
+  }
+}
+
 function getPaymentCurrency(provider, eventData, rawEvent) {
   if (provider === "lemonsqueezy") {
     const attributes = isRecord(eventData.attributes) ? eventData.attributes : {};
@@ -1217,6 +1680,10 @@ function getPaymentCurrency(provider, eventData, rawEvent) {
       parseString(attributes.currency_code, 10) ||
       parseString(rawEvent?.meta?.currency, 10)
     ).toUpperCase();
+  }
+
+  if (provider === "whop") {
+    return (parseString(eventData.currency, 10) || parseString(eventData.settlement_currency, 10)).toUpperCase();
   }
 
   return (
@@ -1238,7 +1705,29 @@ function getPaymentAmountCents(provider, eventData, rawEvent) {
     );
   }
 
+  if (provider === "whop") {
+    return parseDecimalAmountCents(eventData.usd_total ?? eventData.total ?? eventData.subtotal);
+  }
+
   return parseAmountCents(eventData.total_amount ?? eventData.amount ?? eventData.payment_amount ?? eventData.total);
+}
+
+function parseDecimalAmountCents(value) {
+  if (typeof value === "number" && Number.isFinite(value)) {
+    return Math.round(value * 100);
+  }
+
+  if (typeof value !== "string") {
+    return NaN;
+  }
+
+  const numeric = Number(value.replace(/[^0-9.]/g, ""));
+
+  if (!Number.isFinite(numeric)) {
+    return NaN;
+  }
+
+  return Math.round(numeric * 100);
 }
 
 function parseAmountCents(value) {
@@ -1278,6 +1767,14 @@ function getLemonSqueezyProviderEventId(rawEvent, eventType, eventData, requestI
   );
 }
 
+function getWhopProviderEventId(rawEvent, req, eventType, eventData, requestId) {
+  return (
+    firstHeader(req.headers["webhook-id"]) ||
+    parseString(rawEvent?.id, 160) ||
+    `${eventType}:${requestId}:${parseString(eventData.id, 160) || parseString(eventData.checkout_configuration_id, 160) || "unknown"}`
+  );
+}
+
 function getDodoWebhookEnvironment(eventData, rawEvent) {
   const metadata = isRecord(eventData.metadata) ? eventData.metadata : {};
   const value =
@@ -1306,6 +1803,12 @@ function getLemonSqueezyWebhookEnvironment(rawEvent, attributes) {
   }
 
   return parseBooleanEnv("LEMONSQUEEZY_TEST_MODE", false) ? "test" : "live";
+}
+
+function getWhopWebhookEnvironment(eventData, rawEvent) {
+  const metadata = isRecord(eventData.metadata) ? eventData.metadata : {};
+  const value = parseString(metadata.payment_environment, 20) || parseString(rawEvent?.environment, 20) || getWhopEnvironment();
+  return normalizePaymentEnvironment(value);
 }
 
 function normalizePaymentEnvironment(value) {
@@ -1426,6 +1929,71 @@ function getLemonSqueezyPaymentUpdateForEvent(eventType, eventData, customData, 
       payment_status: "refunded",
       payout_status: "refunded",
       platform_fee_status: "refunded",
+    };
+  }
+
+  return null;
+}
+
+function getWhopPaymentUpdateForEvent(eventType, eventData, request) {
+  const paymentId = parseString(eventData.id, 160);
+  const checkoutId =
+    parseString(eventData.checkout_configuration_id, 160) ||
+    parseString(eventData.checkout_configuration?.id, 160) ||
+    parseString(eventData.checkout_session_id, 160);
+  const substatus = parseString(eventData.substatus, 80).toLowerCase();
+  const total = Number(eventData.total ?? eventData.usd_total ?? 0);
+  const refundedAmount = Number(eventData.refunded_amount ?? 0);
+  const paymentFields = {
+    payment_provider: "whop",
+    ...(paymentId ? { whop_payment_id: paymentId } : {}),
+    ...(checkoutId ? { checkout_session_id: checkoutId } : {}),
+  };
+
+  if (eventType === "payment.succeeded") {
+    if (isTerminalPaymentState(request.payment_status)) {
+      return null;
+    }
+
+    return {
+      ...paymentFields,
+      status: "paid",
+      payment_status: "paid",
+      payout_status: request.payout_status === "not_ready" ? "pending_acceptance" : request.payout_status,
+      platform_fee_status: request.platform_fee_status === "unearned" ? "earned" : request.platform_fee_status,
+      paid_at: request.paid_at ?? (parseString(eventData.paid_at, 80) || new Date().toISOString()),
+    };
+  }
+
+  if (eventType === "payment.failed" || ["failed", "canceled", "uncollectible"].includes(substatus)) {
+    if (request.payment_status !== "unpaid" && request.payment_status !== "checkout_started") {
+      return null;
+    }
+
+    return {
+      ...paymentFields,
+      status: "checkout_failed",
+      payment_status: "failed",
+    };
+  }
+
+  if (eventType.startsWith("refund.") || ["refunded", "auto_refunded"].includes(substatus) || (total > 0 && refundedAmount >= total)) {
+    return {
+      ...paymentFields,
+      status: "refunded",
+      payment_status: "refunded",
+      payout_status: "refunded",
+      platform_fee_status: "refunded",
+    };
+  }
+
+  if (eventType.startsWith("dispute.") || substatus.includes("dispute") || substatus.includes("resolution")) {
+    return {
+      ...paymentFields,
+      status: "disputed",
+      payment_status: "disputed",
+      payout_status: "disputed",
+      platform_fee_status: "disputed",
     };
   }
 
@@ -1582,6 +2150,10 @@ function sanitizeAnalyticsString(value, maxLength) {
   return sanitized || undefined;
 }
 
+function sanitizeWaitlistString(value, maxLength) {
+  return parseString(firstHeader(value), maxLength).replace(/[\r\n\t]/g, " ").trim();
+}
+
 function sanitizePagePath(value) {
   const pathValue = sanitizeAnalyticsString(value, 200);
 
@@ -1599,6 +2171,48 @@ function parseNumericString(value) {
 
 function stripEmpty(value) {
   return Object.fromEntries(Object.entries(value).filter(([, entry]) => entry !== undefined && entry !== ""));
+}
+
+function renderWaitlistEmailHtml(notification) {
+  const rows = [
+    ["Email", notification.email],
+    ["Intent", notification.intent],
+    ["Source", notification.source],
+    ["Page", notification.pagePath],
+    ["Referrer", notification.referrer],
+    ["Submitted", notification.submittedAt],
+    ["User agent", notification.userAgent],
+  ].filter(([, value]) => value);
+
+  return `<!doctype html>
+<html>
+  <body style="margin:0;padding:24px;background:#f6f8f5;color:#111513;font-family:Inter,Arial,sans-serif;">
+    <div style="max-width:560px;margin:0 auto;background:#ffffff;border:1px solid #d4d6d2;border-radius:8px;padding:24px;">
+      <h1 style="margin:0 0 16px;font-size:22px;line-height:1.2;">New waitlist signup</h1>
+      <table style="width:100%;border-collapse:collapse;">
+        <tbody>
+          ${rows
+            .map(
+              ([label, value]) => `<tr>
+                <th style="width:128px;padding:10px 12px;border-top:1px solid #d4d6d2;text-align:left;color:#5d625f;font-size:13px;">${escapeHtml(label)}</th>
+                <td style="padding:10px 12px;border-top:1px solid #d4d6d2;font-size:14px;">${escapeHtml(value)}</td>
+              </tr>`,
+            )
+            .join("")}
+        </tbody>
+      </table>
+    </div>
+  </body>
+</html>`;
+}
+
+function escapeHtml(value) {
+  return String(value)
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#39;");
 }
 
 function createSupabaseAdminClient() {
@@ -1742,6 +2356,10 @@ function getPaymentProvider() {
     return "dodo";
   }
 
+  if (configuredProvider === "whop") {
+    return "whop";
+  }
+
   if (process.env.LEMONSQUEEZY_API_KEY && process.env.LEMONSQUEEZY_STORE_ID && process.env.LEMONSQUEEZY_VARIANT_ID) {
     return "lemonsqueezy";
   }
@@ -1758,6 +2376,10 @@ function isConfiguredPaymentProviderLive() {
 
   if (provider === "lemonsqueezy") {
     return !parseBooleanEnv("LEMONSQUEEZY_TEST_MODE", false);
+  }
+
+  if (provider === "whop") {
+    return isWhopLiveMode();
   }
 
   return isDodoLiveMode();
@@ -1777,6 +2399,39 @@ function isDodoLiveMode() {
 
 function isDodoMarketplaceCheckoutAllowed() {
   return parseBooleanEnv("DODO_MARKETPLACE_CHECKOUT_ENABLED", false);
+}
+
+function getWhopEnvironment() {
+  const normalized = parseString(process.env.WHOP_ENVIRONMENT ?? process.env.WHOP_MODE ?? "sandbox", 40).toLowerCase();
+  return ["live", "production", "prod"].includes(normalized) ? "live" : "sandbox";
+}
+
+function isWhopLiveMode() {
+  return getWhopEnvironment() === "live";
+}
+
+function isWhopSandboxOnProductionAllowed() {
+  return parseBooleanEnv("WHOP_ALLOW_SANDBOX_ON_PRODUCTION", false);
+}
+
+function getWhopApiBase() {
+  return isWhopLiveMode() ? "https://api.whop.com/api/v1" : "https://sandbox-api.whop.com/api/v1";
+}
+
+function getWhopFrontendBase() {
+  return isWhopLiveMode() ? "https://whop.com" : "https://sandbox.whop.com";
+}
+
+function normalizeWhopPurchaseUrl(value) {
+  if (!value) {
+    return "";
+  }
+
+  try {
+    return new URL(value, getWhopFrontendBase()).toString();
+  } catch {
+    return "";
+  }
 }
 
 function parseLemonSqueezyVariantId(variantId) {
@@ -1855,6 +2510,19 @@ function normalizeAppUrl(value) {
   }
 }
 
+function shouldRedirectToCanonicalAppUrl(req, requestUrl) {
+  if (!isProduction || !publicAppUrl || !["GET", "HEAD"].includes(req.method ?? "GET")) {
+    return false;
+  }
+
+  try {
+    const canonicalUrl = new URL(publicAppUrl);
+    return requestUrl.hostname !== canonicalUrl.hostname;
+  } catch {
+    return false;
+  }
+}
+
 function parseJson(value) {
   try {
     return JSON.parse(value);
@@ -1897,6 +2565,22 @@ function getLemonSqueezyEventType(event) {
   }
 
   return parseString(event.meta.event_name, 100) || "unknown";
+}
+
+function getWhopEventType(event) {
+  if (!isRecord(event)) {
+    return "unknown";
+  }
+
+  return parseString(event.type, 100) || "unknown";
+}
+
+function getWhopEventData(event) {
+  if (!isRecord(event)) {
+    return {};
+  }
+
+  return isRecord(event.data) ? event.data : {};
 }
 
 async function fetchWithTimeout(url, options, timeoutMs) {
@@ -2003,6 +2687,11 @@ function firstHeader(value) {
 function sendJson(res, statusCode, payload) {
   res.writeHead(statusCode, { "Content-Type": "application/json; charset=utf-8" });
   res.end(JSON.stringify(payload));
+}
+
+function redirect(res, location, statusCode = 302) {
+  res.writeHead(statusCode, { Location: location });
+  res.end();
 }
 
 function sendText(res, statusCode, text) {

@@ -4,6 +4,21 @@
       "maxDuration": 30
     }
   },
+  "redirects": [
+    {
+      "source": "/:path((?!api/).*)",
+      "has": [
+        {
+          "type": "host",
+          "value": {
+            "eq": "pleasefindmethis-com.vercel.app"
+          }
+        }
+      ],
+      "destination": "https://pleasefindmethis.com/:path*",
+      "permanent": true
+    }
+  ],
   "rewrites": [
     {
       "source": "/auth",

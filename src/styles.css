@@ -1401,6 +1401,75 @@ main {
   box-shadow: 0 0 0 3px rgba(10, 109, 59, 0.12);
 }
 
+.waitlist-dialog {
+  width: min(100%, 32rem);
+  gap: 1.1rem;
+  padding: clamp(1.25rem, 4vw, 1.75rem);
+}
+
+.waitlist-dialog-copy {
+  display: grid;
+  gap: 0.55rem;
+  padding-right: 2.4rem;
+}
+
+.waitlist-dialog-copy .route-kicker {
+  margin: 0;
+}
+
+.waitlist-form {
+  display: grid;
+  gap: 0.9rem;
+}
+
+.waitlist-countdown {
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  align-items: center;
+  gap: 0.7rem;
+  min-height: 3.35rem;
+  padding: 0.85rem 0.95rem;
+  border: 1px solid rgba(193, 121, 8, 0.34);
+  border-radius: 8px;
+  background: #fff8eb;
+  color: #5d3a07;
+}
+
+.waitlist-countdown svg {
+  color: var(--gold);
+}
+
+.waitlist-countdown span {
+  font-size: 0.84rem;
+  font-weight: 840;
+}
+
+.waitlist-countdown strong {
+  min-width: 9.2rem;
+  color: #141713;
+  font-variant-numeric: tabular-nums;
+  font-size: 1.06rem;
+  font-weight: 920;
+  text-align: right;
+  white-space: nowrap;
+}
+
+.waitlist-form .primary-button {
+  gap: 0.45rem;
+}
+
+@media (max-width: 460px) {
+  .waitlist-countdown {
+    grid-template-columns: auto 1fr;
+  }
+
+  .waitlist-countdown strong {
+    grid-column: 1 / -1;
+    min-width: 0;
+    text-align: left;
+  }
+}
+
 .dialog-close {
   position: absolute;
   top: 0.9rem;
