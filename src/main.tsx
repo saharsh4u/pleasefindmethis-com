@@ -3687,7 +3687,9 @@ function SiteFooter({
     ["Support", "support"],
     ["Report", "report"],
   ];
-  const machineReadableLinks: Array<[string, string]> = [
+  const resourceLinks: Array<[string, string]> = [
+    ["Guides", "/guides/"],
+    ["Request categories", "/requests/"],
     ["AI summary", "/llms.txt"],
     ["Pricing", "/pricing.md"],
     ["Use cases", "/use-cases.md"],
@@ -3705,7 +3707,7 @@ function SiteFooter({
             {label}
           </a>
         ))}
-        {machineReadableLinks.map(([label, href]) => (
+        {resourceLinks.map(([label, href]) => (
           <a href={href} key={href}>
             {label}
           </a>

@@ -22,6 +22,7 @@ const publicAppUrl = normalizeAppUrl(process.env.PUBLIC_APP_URL ?? process.env.V
 const host = process.env.HOST ?? "127.0.0.1";
 let port = Number(process.env.PORT ?? 5173);
 const distRoot = path.resolve(root, "dist");
+const publicRoot = path.resolve(root, "public");
 const supabaseAdmin = createSupabaseAdminClient();
 const paymentProviderTimeoutMs = 20000;
 const minimumReward = 10;
@@ -75,6 +76,14 @@ export async function handleRequest(req, res) {
     }
 
     if (vite) {
+      if (shouldServePublicStaticPath(requestUrl.pathname)) {
+        const servedPublicAsset = await tryServeStaticAsset(publicRoot, requestUrl.pathname, res);
+
+        if (servedPublicAsset) {
+          return;
+        }
+      }
+
       vite.middlewares(req, res, () => {
         sendText(res, 404, "Not found");
       });
@@ -1934,12 +1943,28 @@ async function readRawBody(req) {
 }
 
 async function serveStaticAsset(pathname, res) {
-  const normalizedPath = pathname === "/" ? "/index.html" : pathname;
-  const requestedPath = path.resolve(distRoot, `.${decodeURIComponent(normalizedPath)}`);
+  const served = await tryServeStaticAsset(distRoot, pathname, res);
 
-  if (!requestedPath.startsWith(distRoot)) {
-    sendText(res, 403, "Forbidden");
+  if (served) {
     return;
+  }
+
+  const indexFile = await fs.readFile(path.join(distRoot, "index.html"));
+  res.writeHead(200, { "Content-Type": "text/html; charset=utf-8" });
+  res.end(indexFile);
+}
+
+function shouldServePublicStaticPath(pathname) {
+  return pathname === "/pseo.css" || pathname.startsWith("/guides/") || pathname.startsWith("/requests/") || pathname.startsWith("/sitemaps/");
+}
+
+async function tryServeStaticAsset(assetRoot, pathname, res) {
+  const normalizedPath = pathname === "/" ? "/index.html" : pathname;
+  const requestedPath = path.resolve(assetRoot, `.${decodeURIComponent(normalizedPath)}`);
+
+  if (!isPathInside(assetRoot, requestedPath)) {
+    sendText(res, 403, "Forbidden");
+    return true;
   }
 
   try {
@@ -1948,11 +1973,15 @@ async function serveStaticAsset(pathname, res) {
     const file = await fs.readFile(filePath);
     res.writeHead(200, { "Content-Type": getContentType(filePath) });
     res.end(file);
+    return true;
   } catch {
-    const indexFile = await fs.readFile(path.join(distRoot, "index.html"));
-    res.writeHead(200, { "Content-Type": "text/html; charset=utf-8" });
-    res.end(indexFile);
+    return false;
   }
+}
+
+function isPathInside(parentPath, childPath) {
+  const relativePath = path.relative(parentPath, childPath);
+  return relativePath === "" || (!relativePath.startsWith("..") && !path.isAbsolute(relativePath));
 }
 
 function getRequestOrigin(req) {

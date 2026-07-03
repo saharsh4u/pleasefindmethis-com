@@ -8,6 +8,8 @@
   },
   "scripts": {
     "dev": "node server.mjs",
+    "generate:pseo": "node scripts/generate-pseo-pages.mjs",
+    "prebuild": "npm run generate:pseo",
     "build": "vite build",
     "preview": "NODE_ENV=production node server.mjs",
     "start": "NODE_ENV=production node server.mjs"

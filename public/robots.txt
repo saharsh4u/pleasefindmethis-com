@@ -32,3 +32,4 @@ Disallow: /account/
 Disallow: /admin/
 
 Sitemap: https://pleasefindmethis.com/sitemap.xml
+Sitemap: https://pleasefindmethis.com/sitemaps/pseo.xml
