@@ -1,0 +1,190 @@
+{
+  "updatedAt": "2026-07-03T09:57:41.000Z",
+  "goal": 100,
+  "summary": {
+    "pipelineRows": 100,
+    "directTargets": 32,
+    "contacted": 0,
+    "replied": 0,
+    "acquired": 0,
+    "approvalRequired": 32
+  },
+  "topTargets": [
+    {
+      "id": "B01-005",
+      "priority": "hot",
+      "segment": "sentimental plush",
+      "surface": "r/HelpMeFind",
+      "signal": "stuffed bunny, willing to pay for an active listing",
+      "url": "https://www.reddit.com/r/HelpMeFind/comments/1tvdjd4/please_help_me_find_my_stuffed_bunny_my_mom_threw/",
+      "status": "draft_ready_not_sent",
+      "nextAction": "Approve a helpful-first public comment with optional disclosed platform add-on only if rules allow."
+    },
+    {
+      "id": "B01-001",
+      "priority": "hot",
+      "segment": "sentimental plush",
+      "surface": "r/HelpMeFind",
+      "signal": "Trudi Trudini fawn deer plush, recent search with generous offer signal",
+      "url": "https://www.reddit.com/r/HelpMeFind/comments/1uhaxsr/looking_for_trudi_trudini_fawn_deer_plush_sweet/",
+      "status": "draft_ready_not_sent",
+      "nextAction": "Approve no-platform comment after checking r/HelpMeFind rules and thread status."
+    },
+    {
+      "id": "B01-002",
+      "priority": "hot",
+      "segment": "sentimental plush",
+      "surface": "r/HelpMeFind",
+      "signal": "sold-out Vermont Teddy Bear, searched eBay/Mercari/Poshmark",
+      "url": "https://www.reddit.com/r/HelpMeFind/comments/1uaeo3d/searching_for_this_sold_out_bear_for_sale/",
+      "status": "draft_ready_not_sent",
+      "nextAction": "Approve a source-checking comment plus bounty-board mention if allowed."
+    },
+    {
+      "id": "B01-003",
+      "priority": "hot",
+      "segment": "sentimental vintage",
+      "surface": "r/HelpMeFind",
+      "signal": "exact 30-year-old Sanpaotai Gaiwan, international shipping accepted",
+      "url": "https://www.reddit.com/r/HelpMeFind/comments/1tn1c3u/looking_for_this_exact_30yearold_vintage/",
+      "status": "draft_ready_not_sent",
+      "nextAction": "Approve exact-item comment focused on Chinese search terms and verification steps."
+    },
+    {
+      "id": "B01-004",
+      "priority": "hot",
+      "segment": "niche custom plush",
+      "surface": "r/HelpMeFind",
+      "signal": "Solyn plush tied to Calamity fan project, recent and unresolved",
+      "url": "https://www.reddit.com/r/HelpMeFind/comments/1tv9645/looking_on_how_to_get_this_solyn_plush_calamity/",
+      "status": "draft_ready_not_sent",
+      "nextAction": "Approve fan-project sourcing comment; product mention only if allowed."
+    },
+    {
+      "id": "B01-006",
+      "priority": "warm",
+      "segment": "lost sentimental plush",
+      "surface": "r/HelpMeFind",
+      "signal": "child's small tiger/lion plush lost on Turkey to Germany travel route",
+      "url": "https://www.reddit.com/r/HelpMeFind/comments/1t7zh91/lost_small_plush_tigerlion_during_travel_from/",
+      "status": "draft_ready_not_sent",
+      "nextAction": "Approve local lost-and-found/replacement search comment with no product mention first."
+    },
+    {
+      "id": "B01-007",
+      "priority": "hot",
+      "segment": "fashion exact",
+      "surface": "r/HelpMeFind",
+      "signal": "Dad's LL Bean shirt, recent exact apparel replacement post",
+      "url": "https://www.reddit.com/r/HelpMeFind/comments/1tyvg34/dads_ll_bean_shirt/",
+      "status": "draft_ready_not_sent",
+      "nextAction": "Approve apparel identification comment; product mention only if rules allow."
+    },
+    {
+      "id": "B01-010",
+      "priority": "warm",
+      "segment": "fashion exact",
+      "surface": "r/wherecanibuythis",
+      "signal": "specific waffle/textured henley search with exact fit details",
+      "url": "https://www.reddit.com/r/wherecanibuythis/comments/1skcx9m/please_help_me_find_this_specific_long_sleeve/",
+      "status": "draft_ready_not_sent",
+      "nextAction": "Approve no-platform comment; avoid product mention unless rules explicitly allow."
+    },
+    {
+      "id": "B01-011",
+      "priority": "warm",
+      "segment": "discontinued pet item",
+      "surface": "r/wherecanibuythis",
+      "signal": "Pet Zone Safari Friends giraffe cat toy, discontinued and OP willing to pay",
+      "url": "https://www.reddit.com/r/wherecanibuythis/comments/1ovltx5/this_discontinued_giraffe_cat_toy_will_pay/",
+      "status": "draft_ready_not_sent",
+      "nextAction": "Approve no-platform discontinued-item comment; use UPC/product-name search angle."
+    },
+    {
+      "id": "B01-012",
+      "priority": "warm",
+      "segment": "discontinued consumable",
+      "surface": "r/wherecanibuythis",
+      "signal": "SoBe drinks, will pay handsomely",
+      "url": "https://www.reddit.com/r/wherecanibuythis/comments/1qqr542/someone_please_tell_me_where_i_can_buy_sobe_drinks/",
+      "status": "draft_ready_not_sent",
+      "nextAction": "Approve no-platform safety-aware comment; lower-fit target due consumable expiry/shipping risk."
+    },
+    {
+      "id": "B02-001",
+      "priority": "hot",
+      "segment": "sentimental blanket",
+      "surface": "r/HelpMeFind",
+      "signal": "current open baby blanket request",
+      "url": "https://www.reddit.com/r/HelpMeFind/comments/1u4tz2m/help_me_find_my_baby_blanket/",
+      "status": "draft_ready_not_sent",
+      "nextAction": "Approve no-platform comment only after manual verification and rule check."
+    },
+    {
+      "id": "B02-002",
+      "priority": "hot",
+      "segment": "sentimental blanket",
+      "surface": "r/HelpMeFind",
+      "signal": "France 1997-1999 childhood baby blanket, recent open post",
+      "url": "https://www.reddit.com/r/HelpMeFind/comments/1u9zv5n/help_me_find_my_childhood_baby_blanket_france/",
+      "status": "draft_ready_not_sent",
+      "nextAction": "Approve French-resale search comment only after manual verification and rule check."
+    },
+    {
+      "id": "B02-010",
+      "priority": "warm",
+      "segment": "discontinued fashion",
+      "surface": "r/wherecanibuythis",
+      "signal": "discontinued Ugg shepra boots, long-running buyer intent",
+      "url": "https://www.reddit.com/r/wherecanibuythis/comments/1olfr5g/where_can_i_buy_the_ugg_classic_shepra_boots/",
+      "status": "draft_ready_not_sent",
+      "nextAction": "Approve no-platform discontinued-fashion comment; avoid product mention unless rules allow."
+    },
+    {
+      "id": "B03-001",
+      "priority": "hot",
+      "segment": "fashion exact",
+      "surface": "r/HelpMeFind",
+      "signal": "recent Abercrombie top search with high willingness-to-pay signal",
+      "url": "https://www.reddit.com/r/HelpMeFind/comments/1uk73m0/please_help_me_find_this_abercrombie_fitch/",
+      "status": "draft_ready_not_sent",
+      "nextAction": "Approve no-platform apparel search comment; product mention only with mod approval."
+    },
+    {
+      "id": "B03-002",
+      "priority": "hot",
+      "segment": "home exact",
+      "surface": "r/HelpMeFind",
+      "signal": "recent blue down comforter replacement search",
+      "url": "https://www.reddit.com/r/HelpMeFind/comments/1uke7kh/good_quality_blue_down_comforter/",
+      "status": "draft_ready_not_sent",
+      "nextAction": "Approve construction-focused comforter search comment after checking unresolved status."
+    },
+    {
+      "id": "B03-003",
+      "priority": "hot",
+      "segment": "discontinued sentimental",
+      "surface": "r/HelpMeFind",
+      "signal": "recent discontinued Siaki mug search with reward offered",
+      "url": "https://www.reddit.com/r/HelpMeFind/comments/1u79me8/help_me_find_this_siaki_mug_reward_offered/",
+      "status": "draft_ready_not_sent",
+      "nextAction": "Approve discontinued-mug search comment; disclosed platform add-on only if rules allow."
+    }
+  ],
+  "approvalQueue": [
+    "Approve or reject the 32 direct comment drafts in marketing/poster_acquisition_direct_batch_01.md, marketing/poster_acquisition_direct_batch_02.md, and marketing/poster_acquisition_direct_batch_03.md.",
+    "Confirm current subreddit rules and unresolved status before each public comment.",
+    "Choose no-platform or disclosed product-mention variant for each approved Reddit target.",
+    "Approve owned founder post #1 and #2 from marketing/poster_acquisition_outreach_queue.md.",
+    "Provide account access or personally send approved comments/posts.",
+    "Update each row only when a real touch is sent, replied to, or converted."
+  ],
+  "outputs": [
+    "../marketing/poster_acquisition_pipeline_100.csv",
+    "../marketing/poster_acquisition_outreach_queue.md",
+    "../marketing/poster_acquisition_direct_batch_01.md",
+    "../marketing/poster_acquisition_direct_batch_02.md",
+    "../marketing/poster_acquisition_direct_batch_03.md",
+    "../marketing/poster_acquisition_tracking_plan.md"
+  ]
+}

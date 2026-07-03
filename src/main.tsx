@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { createRoot } from "react-dom/client";
 import type { Session } from "@supabase/supabase-js";
+import { track } from "@vercel/analytics";
 import { Analytics } from "@vercel/analytics/react";
 import {
   AlertTriangle,
@@ -99,6 +100,7 @@ type GoogleAccountsApi = {
 
 declare global {
   interface Window {
+    dataLayer?: Array<Record<string, unknown>>;
     google?: GoogleAccountsApi;
   }
 }
@@ -220,7 +222,8 @@ type SourceDisputeRow = {
   updated_at: string;
 };
 
-type RequestCategory = "home" | "audio" | "camera" | "watch" | "gaming" | "parts";
+type RequestCategory = "home" | "audio" | "camera" | "watch" | "gaming" | "parts" | "fashion";
+type PostStarterId = "sentimental" | "rare-gear" | "parts" | "fashion";
 type RequestDuration = 14 | 30 | 60;
 type ReferenceImageDraft = {
   file: File;
@@ -233,6 +236,20 @@ type PostDraft = {
   category: RequestCategory;
   details: string;
   referenceImages: ReferenceImageDraft[];
+  reward: number;
+  durationDays: RequestDuration;
+};
+
+type StoredPostDraft = Omit<PostDraft, "referenceImages">;
+
+type PostStarterPrompt = {
+  id: PostStarterId;
+  icon: typeof Search;
+  label: string;
+  title: string;
+  itemName: string;
+  category: RequestCategory;
+  details: string;
   reward: number;
   durationDays: RequestDuration;
 };
@@ -298,6 +315,7 @@ const requestCategories: Array<{ value: RequestCategory; label: string }> = [
   { value: "watch", label: "Watches" },
   { value: "gaming", label: "Gaming" },
   { value: "parts", label: "Replacement parts" },
+  { value: "fashion", label: "Clothing & accessories" },
 ];
 
 const initialPostDraft: PostDraft = {
@@ -308,6 +326,57 @@ const initialPostDraft: PostDraft = {
   reward: 180,
   durationDays: 30,
 };
+
+const posterStarterPrompts: PostStarterPrompt[] = [
+  {
+    id: "sentimental",
+    icon: ImagePlus,
+    label: "Lost sentimental item",
+    title: "Blanket, plush, mug, art, or a family item",
+    itemName: "Help me find this exact sentimental item",
+    category: "home",
+    details:
+      "I need the exact same item, not a close match. Must match the reference photo, color, size, pattern, label, and condition closely enough to buy with confidence.",
+    reward: 75,
+    durationDays: 30,
+  },
+  {
+    id: "rare-gear",
+    icon: Search,
+    label: "Sold-out rare gear",
+    title: "Camera, watch, handheld, or collector model",
+    itemName: "Help me find this exact sold-out model",
+    category: "camera",
+    details:
+      "I am looking for the exact model or reference. Include condition, price, seller/source, shipping region, and any authenticity or compatibility details before I reveal the lead.",
+    reward: 120,
+    durationDays: 30,
+  },
+  {
+    id: "parts",
+    icon: PackageCheck,
+    label: "Replacement part",
+    title: "Donor unit, discontinued part, cable, hinge, or cover",
+    itemName: "Help me find this replacement part",
+    category: "parts",
+    details:
+      "I need a compatible part or donor unit. Please include model numbers, compatibility proof, condition, source link or seller contact, and any fitment risks.",
+    reward: 60,
+    durationDays: 30,
+  },
+  {
+    id: "fashion",
+    icon: Store,
+    label: "Exact clothing or accessory",
+    title: "Dress, shirt, bag, shoes, jewelry, or a discontinued style",
+    itemName: "Help me find this exact clothing or accessory item",
+    category: "fashion",
+    details:
+      "I need the exact item or a source for the same style. Please include brand, size, colorway, condition, listing/source, and the details that prove it is not just a similar lookalike.",
+    reward: 50,
+    durationDays: 30,
+  },
+];
 
 const findSourceOptions: Array<{ value: FindSourceType; label: string; copy: string }> = [
   {
@@ -535,6 +604,7 @@ const pendingRouteStorageKey = "pleasefindmethis-pending-route";
 const authProviderStorageKey = "pleasefindmethis-auth-provider";
 const authEmailStorageKey = "pleasefindmethis-auth-email";
 const checkoutSnapshotStorageKey = "pleasefindmethis-last-checkout";
+const postDraftStorageKey = "pleasefindmethis-post-draft";
 const requestReferenceImagesBucket = "request-reference-images";
 const sourceSubmissionProofBucket = "source-submission-proof";
 const googleClientId = import.meta.env.VITE_GOOGLE_CLIENT_ID;
@@ -2257,6 +2327,154 @@ function parseCheckoutReturnStatus(): CheckoutReturnStatus {
   return status === "success" || status === "cancelled" ? status : null;
 }
 
+function getCurrentSearchParams() {
+  const params = new URLSearchParams(window.location.search);
+  const hashQuery = window.location.hash.split("?")[1] ?? "";
+
+  if (hashQuery) {
+    const hashParams = new URLSearchParams(hashQuery);
+    hashParams.forEach((value, key) => {
+      if (!params.has(key)) {
+        params.set(key, value);
+      }
+    });
+  }
+
+  return params;
+}
+
+function getStarterPromptById(value?: string | null) {
+  const normalized = (value ?? "").trim().toLowerCase();
+  const aliasMap: Record<string, PostStarterId> = {
+    blanket: "sentimental",
+    childhood: "sentimental",
+    lost: "sentimental",
+    plush: "sentimental",
+    sentimental: "sentimental",
+    toy: "sentimental",
+    camera: "rare-gear",
+    collector: "rare-gear",
+    gear: "rare-gear",
+    rare: "rare-gear",
+    "rare-gear": "rare-gear",
+    soldout: "rare-gear",
+    "sold-out": "rare-gear",
+    discontinued: "parts",
+    part: "parts",
+    parts: "parts",
+    repair: "parts",
+    accessory: "fashion",
+    bag: "fashion",
+    clothing: "fashion",
+    dress: "fashion",
+    fashion: "fashion",
+    jewelry: "fashion",
+    shirt: "fashion",
+    shoes: "fashion",
+  };
+  const starterId = aliasMap[normalized] ?? (posterStarterPrompts.some((prompt) => prompt.id === normalized) ? (normalized as PostStarterId) : null);
+  return starterId ? posterStarterPrompts.find((prompt) => prompt.id === starterId) ?? null : null;
+}
+
+function cleanStarterParam(value: string | null, maxLength: number) {
+  return (value ?? "").replace(/\s+/g, " ").trim().slice(0, maxLength);
+}
+
+function getAcquisitionStarterFromUrl() {
+  const params = getCurrentSearchParams();
+  const prompt = getStarterPromptById(params.get("starter") ?? params.get("type") ?? params.get("intent"));
+
+  if (!prompt) {
+    return null;
+  }
+
+  const itemName = cleanStarterParam(params.get("item"), 96);
+  const context = cleanStarterParam(params.get("context"), 240);
+
+  return {
+    prompt,
+    draft: {
+      itemName: itemName || prompt.itemName,
+      category: prompt.category,
+      details: context ? `${prompt.details}\n\nContext: ${context}` : prompt.details,
+      referenceImages: [],
+      reward: prompt.reward,
+      durationDays: prompt.durationDays,
+    } satisfies PostDraft,
+  };
+}
+
+function isRequestCategory(value: unknown): value is RequestCategory {
+  return typeof value === "string" && requestCategories.some((category) => category.value === value);
+}
+
+function isRequestDuration(value: unknown): value is RequestDuration {
+  return value === 14 || value === 30 || value === 60;
+}
+
+function postDraftToStoredDraft(draft: PostDraft): StoredPostDraft {
+  return {
+    itemName: draft.itemName,
+    category: draft.category,
+    details: draft.details,
+    reward: Math.max(minimumReward, Math.round(Number.isFinite(draft.reward) ? draft.reward : initialPostDraft.reward)),
+    durationDays: draft.durationDays,
+  };
+}
+
+function storedDraftToPostDraft(storedDraft: StoredPostDraft): PostDraft {
+  return {
+    ...storedDraft,
+    referenceImages: [],
+  };
+}
+
+function readStoredPostDraft(): PostDraft | null {
+  try {
+    const raw = window.sessionStorage.getItem(postDraftStorageKey);
+
+    if (!raw) {
+      return null;
+    }
+
+    const parsed = JSON.parse(raw) as Partial<StoredPostDraft>;
+    const itemName = typeof parsed.itemName === "string" ? parsed.itemName.slice(0, 120) : initialPostDraft.itemName;
+    const details = typeof parsed.details === "string" ? parsed.details.slice(0, 5000) : "";
+    const category = isRequestCategory(parsed.category) ? parsed.category : initialPostDraft.category;
+    const reward = Math.max(minimumReward, Math.round(typeof parsed.reward === "number" && Number.isFinite(parsed.reward) ? parsed.reward : initialPostDraft.reward));
+    const durationDays = isRequestDuration(parsed.durationDays) ? parsed.durationDays : initialPostDraft.durationDays;
+
+    return storedDraftToPostDraft({
+      itemName,
+      category,
+      details,
+      reward,
+      durationDays,
+    });
+  } catch {
+    return null;
+  }
+}
+
+function writeStoredPostDraft(draft: PostDraft) {
+  try {
+    window.sessionStorage.setItem(postDraftStorageKey, JSON.stringify(postDraftToStoredDraft(draft)));
+  } catch {
+    // Draft persistence is helpful for auth redirects, but the form still works if storage is blocked.
+  }
+}
+
+function getInitialPostDraft() {
+  const starter = getAcquisitionStarterFromUrl();
+
+  if (starter) {
+    writeStoredPostDraft(starter.draft);
+    return starter.draft;
+  }
+
+  return readStoredPostDraft() ?? initialPostDraft;
+}
+
 function routeHref(page: Page, bountyId?: string, bountyName?: string) {
   if (page === "bounty-detail" && bountyId) {
     return getBountyPath(bountyId, bountyName);
@@ -2272,6 +2490,29 @@ function handleRoutedAnchorClick(event: React.MouseEvent<HTMLAnchorElement>, act
 
   event.preventDefault();
   action();
+}
+
+type AcquisitionEventProperties = Record<string, string | number | boolean | null | undefined>;
+
+function trackAcquisitionEvent(name: string, properties: AcquisitionEventProperties = {}) {
+  const eventProperties: AcquisitionEventProperties = {
+    ...properties,
+    page_path: window.location.pathname,
+    page_search: window.location.search || undefined,
+  };
+
+  try {
+    track(name, eventProperties);
+  } catch {
+    // Analytics must never block the posting flow.
+  }
+
+  try {
+    window.dataLayer = window.dataLayer ?? [];
+    window.dataLayer.push({ event: name, ...eventProperties });
+  } catch {
+    // GTM/dataLayer is optional.
+  }
 }
 
 function getInitialRoute(): Page {
@@ -2585,7 +2826,7 @@ function App() {
   const [authBusyAction, setAuthBusyAction] = useState<AuthBusyAction>(null);
   const [authMessage, setAuthMessage] = useState("");
   const [emailOtpSentTo, setEmailOtpSentTo] = useState("");
-  const [postDraft, setPostDraft] = useState<PostDraft>(initialPostDraft);
+  const [postDraft, setPostDraft] = useState<PostDraft>(() => getInitialPostDraft());
   const [activeBountyId, setActiveBountyId] = useState(() => getBountyIdFromCurrentRoute() || bountyListings[0].id);
   const {
     listings: liveBounties,
@@ -2593,6 +2834,7 @@ function App() {
     error: publicRequestsError,
   } = usePublicRequestListings();
   const marketplaceBounties = useMemo(() => mergeBounties(liveBounties, bountyListings), [liveBounties]);
+  const acquisitionStarter = getAcquisitionStarterFromUrl();
 
   useEffect(() => {
     const syncRoute = () => {
@@ -2624,6 +2866,22 @@ function App() {
   useEffect(() => {
     updateDocumentSeo(visibleRoute, marketplaceBounties, activeBounty);
   }, [activeBounty, marketplaceBounties, visibleRoute]);
+
+  useEffect(() => {
+    const starter = getAcquisitionStarterFromUrl();
+
+    if (!starter) {
+      return;
+    }
+
+    setPostDraft(starter.draft);
+    writeStoredPostDraft(starter.draft);
+    trackAcquisitionEvent("starter_link_viewed", {
+      starter_id: starter.prompt.id,
+      starter_label: starter.prompt.label,
+      has_item_param: starter.draft.itemName !== starter.prompt.itemName,
+    });
+  }, []);
 
   const navigate = (page: Page, routeBountyId = activeBountyId, routeBountyName = "") => {
     const targetPath = routeHref(page, routeBountyId, routeBountyName);
@@ -2702,6 +2960,10 @@ function App() {
       return;
     }
 
+    trackAcquisitionEvent(authMode === "signup" ? "signup_code_requested" : "login_code_requested", {
+      account_type: accountType,
+      pending_route: pendingRoute,
+    });
     window.sessionStorage.setItem(pendingRouteStorageKey, pendingRoute);
     setAuthBusyAction("email");
 
@@ -2869,7 +3131,61 @@ function App() {
   };
 
   const updatePostDraft = (updates: Partial<PostDraft>) => {
-    setPostDraft((draft) => ({ ...draft, ...updates }));
+    setPostDraft((draft) => {
+      const nextDraft = { ...draft, ...updates };
+      writeStoredPostDraft(nextDraft);
+      return nextDraft;
+    });
+  };
+
+  const startPostRequest = (location: string, prompt?: PostStarterPrompt) => {
+    const urlStarter = !prompt ? getAcquisitionStarterFromUrl() : null;
+    const selectedPrompt = prompt ?? urlStarter?.prompt ?? null;
+
+    if (selectedPrompt) {
+      const nextDraft =
+        urlStarter?.draft ?? {
+          itemName: selectedPrompt.itemName,
+          category: selectedPrompt.category,
+          details: selectedPrompt.details,
+          referenceImages: [],
+          reward: selectedPrompt.reward,
+          durationDays: selectedPrompt.durationDays,
+        };
+
+      setPostDraft(nextDraft);
+      writeStoredPostDraft(nextDraft);
+    }
+
+    trackAcquisitionEvent("start_bounty", {
+      location,
+      signed_in: signedIn,
+      prompt: selectedPrompt?.label ?? "blank",
+      starter_id: selectedPrompt?.id,
+      from_starter_link: Boolean(urlStarter),
+    });
+    requireAuth("post-describe");
+  };
+
+  const continueFromDescribe = () => {
+    trackAcquisitionEvent("post_describe_completed", {
+      category: getCategoryLabel(postDraft.category),
+      has_item_name: Boolean(postDraft.itemName.trim()),
+      has_details: Boolean(postDraft.details.trim()),
+      reference_image_count: postDraft.referenceImages.length,
+    });
+    navigate("post-reward");
+  };
+
+  const continueFromReward = () => {
+    const breakdown = getPaymentBreakdown(postDraft.reward);
+    trackAcquisitionEvent("set_reward", {
+      category: getCategoryLabel(postDraft.category),
+      duration_days: postDraft.durationDays,
+      reward: breakdown.reward,
+      total_due: breakdown.total,
+    });
+    navigate("post-pay");
   };
 
   useEffect(() => {
@@ -2957,7 +3273,9 @@ function App() {
           onNavigate={navigate}
           onAccount={() => navigate("poster-dashboard")}
           onLogOut={logOut}
-          onPost={() => requireAuth("post-describe")}
+          onPost={(location) => startPostRequest(location)}
+          onPostPrompt={(prompt) => startPostRequest(`starter_${prompt.category}`, prompt)}
+          acquisitionStarterPrompt={acquisitionStarter?.prompt ?? null}
           onSection={scrollToLandingSection}
           setMenuOpen={setMenuOpen}
           signedIn={signedIn}
@@ -2982,10 +3300,10 @@ function App() {
             />
           ) : null}
           {visibleRoute === "post-describe" ? (
-            <PostDescribePage draft={postDraft} onBack={() => navigate("landing")} onDraftChange={updatePostDraft} onNext={() => navigate("post-reward")} />
+            <PostDescribePage draft={postDraft} onBack={() => navigate("landing")} onDraftChange={updatePostDraft} onNext={continueFromDescribe} />
           ) : null}
           {visibleRoute === "post-reward" ? (
-            <PostRewardPage draft={postDraft} onBack={() => navigate("post-describe")} onDraftChange={updatePostDraft} onNext={() => navigate("post-pay")} />
+            <PostRewardPage draft={postDraft} onBack={() => navigate("post-describe")} onDraftChange={updatePostDraft} onNext={continueFromReward} />
           ) : null}
           {visibleRoute === "post-pay" ? <PostPayPage checkoutReturnStatus={checkoutReturnStatus} draft={postDraft} onBack={() => navigate("post-reward")} /> : null}
           {visibleRoute === "browse" ? (
@@ -2995,7 +3313,7 @@ function App() {
               dataLoading={publicRequestsLoading}
               onBrowseAll={() => navigate("browse-all")}
               onDetail={goToDetail}
-              onPost={() => requireAuth("post-describe")}
+              onPost={() => startPostRequest("browse_featured")}
             />
           ) : null}
           {visibleRoute === "browse-all" ? (
@@ -3004,7 +3322,7 @@ function App() {
               dataError={publicRequestsError}
               dataLoading={publicRequestsLoading}
               onDetail={goToDetail}
-              onPost={() => requireAuth("post-describe")}
+              onPost={() => startPostRequest("browse_all")}
             />
           ) : null}
           {visibleRoute === "bounty-detail" ? (
@@ -3317,6 +3635,7 @@ function FeaturedBountyCard({
 }
 
 function LandingPage({
+  acquisitionStarterPrompt,
   bounties,
   menuOpen,
   onAccount,
@@ -3328,10 +3647,12 @@ function LandingPage({
   onLogOut,
   onNavigate,
   onPost,
+  onPostPrompt,
   onSection,
   setMenuOpen,
   signedIn,
 }: {
+  acquisitionStarterPrompt: PostStarterPrompt | null;
   bounties: BountyListing[];
   menuOpen: boolean;
   onAccount: () => void;
@@ -3342,7 +3663,8 @@ function LandingPage({
   onLogin: () => void;
   onLogOut: () => void;
   onNavigate: (page: Page) => void;
-  onPost: () => void;
+  onPost: (location: string) => void;
+  onPostPrompt: (prompt: PostStarterPrompt) => void;
   onSection: (sectionId: string) => void;
   setMenuOpen: React.Dispatch<React.SetStateAction<boolean>>;
   signedIn: boolean;
@@ -3564,7 +3886,7 @@ function LandingPage({
             <button type="submit">Search</button>
           </form>
           <div className="mobile-hero-actions" aria-label="Hero actions">
-            <button className="primary-button mobile-post-button hero-plus-button" type="button" onClick={onPost}>
+            <button className="primary-button mobile-post-button hero-plus-button" type="button" onClick={() => onPost("hero_mobile")}>
               <span aria-hidden="true">+</span>
               Post a Find Request
             </button>
@@ -3601,9 +3923,20 @@ function LandingPage({
           <p className="hero-subline">
             Post a photo, set a reward, and get links, seller leads, or local tips from people who know where to look.
           </p>
-          <button className="primary-button hero-cta" type="button" onClick={onPost}>
+          <button className="primary-button hero-cta" type="button" onClick={() => onPost("hero_primary")}>
             Post a Find Request
           </button>
+          {acquisitionStarterPrompt ? (
+            <div className="starter-link-panel">
+              <span>
+                <strong>{acquisitionStarterPrompt.label}</strong>
+                {acquisitionStarterPrompt.title}
+              </span>
+              <button className="starter-link-button" type="button" onClick={() => onPost("starter_link")}>
+                Start this request <ArrowRight size={16} />
+              </button>
+            </div>
+          ) : null}
           <a className="finder-link finder-button hero-secondary-link" href={routeHref("finder-dashboard")} onClick={(event) => handleRoutedAnchorClick(event, onFinders)}>
             Know where to find rare items? Earn from helpful leads <ArrowRight size={18} />
           </a>
@@ -3612,6 +3945,27 @@ function LandingPage({
             Your reward is tracked. If no valid lead is accepted, the finder payout can be returned under the refund policy.
           </p>
         </div>
+
+        <section className="poster-prompt-strip" aria-label="Start a request from a common use case">
+          <div>
+            <p className="route-kicker">Start from the situation</p>
+            <h2>Pick the kind of item you need found.</h2>
+          </div>
+          <div className="poster-prompt-grid">
+            {posterStarterPrompts.map((prompt) => {
+              const PromptIcon = prompt.icon;
+              return (
+                <button className="poster-prompt-button" type="button" key={prompt.label} onClick={() => onPostPrompt(prompt)}>
+                  <PromptIcon size={20} aria-hidden="true" />
+                  <span>
+                    <strong>{prompt.label}</strong>
+                    <small>{prompt.title}</small>
+                  </span>
+                </button>
+              );
+            })}
+          </div>
+        </section>
 
         <div className="landing-recent-board board-rails" aria-label="Request board preview">
           <section className="board-row" aria-labelledby="recent-board-title">
@@ -3816,7 +4170,7 @@ function LandingPage({
           The thing you can't find?
           <span> Someone out there knows exactly where it is.</span>
         </h2>
-        <button className="primary-button" type="button" onClick={onPost}>
+        <button className="primary-button" type="button" onClick={() => onPost("closing")}>
           Post a Find Request
         </button>
       </section>
@@ -4027,8 +4381,18 @@ function PostDescribePage({
         url: URL.createObjectURL(file),
       })),
     });
+    trackAcquisitionEvent("upload_reference_image", {
+      category: getCategoryLabel(draft.category),
+      reference_image_count: files.length,
+    });
     event.target.value = "";
   };
+
+  const finderPreviewImage = draft.referenceImages[0];
+  const finderPreviewImageSrc = finderPreviewImage?.url || bountyListings[5].image;
+  const finderPreviewImageAlt = finderPreviewImage
+    ? `${finderPreviewImage.name} reference preview`
+    : `${bountyListings[5].name} reference`;
 
   return (
     <main className="route-page" aria-labelledby="describe-title">
@@ -4096,7 +4460,7 @@ function PostDescribePage({
         <aside className="side-panel">
           <h2>What finders see</h2>
           <div className="mini-bounty-card">
-            <img src={bountyListings[5].image} alt={`${bountyListings[5].name} reference`} />
+            <img src={finderPreviewImageSrc} alt={finderPreviewImageAlt} />
             <div>
               <strong>{draft.itemName || "Your request"}</strong>
               <span>{getCategoryLabel(draft.category)} · Open to worldwide sources</span>
@@ -4264,6 +4628,14 @@ function PostPayPage({
       return;
     }
 
+    trackAcquisitionEvent("checkout_started", {
+      category: getCategoryLabel(draft.category),
+      duration_days: draft.durationDays,
+      has_reference_images: draft.referenceImages.length > 0,
+      reference_image_count: draft.referenceImages.length,
+      reward: breakdown.reward,
+      total_due: breakdown.total,
+    });
     setCheckoutStatus("loading");
     setCheckoutMessage("");
 
@@ -4417,12 +4789,24 @@ function PostPayPage({
         throw new Error(payload?.error || "Could not start secure checkout.");
       }
 
+      trackAcquisitionEvent("checkout_redirected", {
+        category: getCategoryLabel(draft.category),
+        duration_days: draft.durationDays,
+        reward: breakdown.reward,
+        total_due: breakdown.total,
+      });
       window.location.assign(payload.checkoutUrl);
     } catch (error) {
       if (supabase && !createdRequestId && uploadedPaths.length) {
         await supabase.storage.from(requestReferenceImagesBucket).remove(uploadedPaths);
       }
 
+      trackAcquisitionEvent("checkout_failed", {
+        category: getCategoryLabel(draft.category),
+        error_type: error instanceof Error ? error.name || "error" : "unknown",
+        reward: breakdown.reward,
+        total_due: breakdown.total,
+      });
       setCheckoutStatus("error");
       setCheckoutMessage(getCheckoutErrorMessage(error));
     }

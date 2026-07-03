@@ -1,7 +1,9 @@
 const DATA_URL = "./data/agents.json";
+const ACQUISITION_URL = "./data/poster-acquisition.json";
 const refreshMs = 5000;
 
 const state = {
+  acquisition: null,
   data: null,
 };
 
@@ -101,6 +103,50 @@ function renderOutputs(data) {
   }
 }
 
+function formatDateTime(value) {
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return "Updated just now";
+  return `Updated ${date.toLocaleDateString([], { month: "short", day: "numeric" })} ${date.toLocaleTimeString([], {
+    hour: "2-digit",
+    minute: "2-digit",
+  })}`;
+}
+
+function renderAcquisition(data) {
+  const summary = data.summary ?? {};
+  $("#acq-goal").textContent = String(data.goal ?? 100);
+  $("#acq-acquired").textContent = String(summary.acquired ?? 0);
+  $("#acq-direct").textContent = String(summary.directTargets ?? 0);
+  $("#acq-approval").textContent = String(summary.approvalRequired ?? 0);
+  $("#acquisition-updated").textContent = formatDateTime(data.updatedAt);
+
+  const targets = $("#acquisition-targets");
+  targets.innerHTML = "";
+  for (const target of data.topTargets ?? []) {
+    const item = document.createElement("article");
+    item.className = `target-card ${target.priority}`;
+    item.innerHTML = `
+      <div class="target-card-top">
+        <strong>${target.id} - ${target.segment}</strong>
+        <span>${target.priority}</span>
+      </div>
+      <p>${target.signal}</p>
+      <small>${target.surface} - ${target.status}</small>
+      <a href="${target.url}" target="_blank" rel="noreferrer">Open source</a>
+      <em>${target.nextAction}</em>
+    `;
+    targets.appendChild(item);
+  }
+
+  const approvals = $("#acquisition-approvals");
+  approvals.innerHTML = "";
+  for (const action of data.approvalQueue ?? []) {
+    const item = document.createElement("li");
+    item.textContent = action;
+    approvals.appendChild(item);
+  }
+}
+
 function render(data) {
   renderMetrics(data);
   renderAgents(data);
@@ -109,12 +155,25 @@ function render(data) {
   renderOutputs(data);
 }
 
+async function loadAcquisitionData() {
+  try {
+    const response = await fetch(`${ACQUISITION_URL}?t=${Date.now()}`, { cache: "no-store" });
+    if (!response.ok) throw new Error(`HTTP ${response.status}`);
+    state.acquisition = await response.json();
+    renderAcquisition(state.acquisition);
+  } catch (error) {
+    $("#acquisition-updated").textContent = "Acquisition data unavailable";
+    console.error(error);
+  }
+}
+
 async function loadData() {
   try {
     const response = await fetch(`${DATA_URL}?t=${Date.now()}`, { cache: "no-store" });
     if (!response.ok) throw new Error(`HTTP ${response.status}`);
     state.data = await response.json();
     render(state.data);
+    await loadAcquisitionData();
   } catch (error) {
     $("#last-updated").textContent = "Data file unavailable";
     console.error(error);

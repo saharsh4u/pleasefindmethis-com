@@ -1,145 +1,121 @@
 {
-  "updatedAt": "2026-07-02T13:38:30.687Z",
+  "updatedAt": "2026-07-03T09:57:41.000Z",
   "summary": {
     "domainVerified": 1,
-    "postingWithoutApproval": 0
+    "postingWithoutApproval": 0,
+    "preparedPosterTargets": 100,
+    "directDraftsReady": 32,
+    "verifiedAcquiredPosters": 0
   },
   "agents": [
     {
-      "name": "Goodall",
-      "shortId": "Agent 1",
-      "focus": "Reddit scout",
-      "now": "Mapped safe Reddit paths. No posting done.",
+      "name": "Acquisition Ops",
+      "shortId": "AO",
+      "focus": "First 100 posters",
+      "now": "Built the 100-row poster pipeline and 32 direct approval drafts. No outreach sent.",
       "status": "Complete",
       "progress": 100
     },
     {
-      "name": "Noether",
-      "shortId": "Agent 2",
-      "focus": "Social content",
-      "now": "Wrote hooks, captions, and video scripts.",
+      "name": "Reddit Scout",
+      "shortId": "RS",
+      "focus": "High-intent Reddit targets",
+      "now": "Found current/recent item-search threads, drafted helpful-first replies, and flagged rule-sensitive targets.",
       "status": "Complete",
       "progress": 100
     },
     {
-      "name": "Bacon",
-      "shortId": "Agent 3",
-      "focus": "Finder recruiting",
-      "now": "Built 80-prospect finder outreach plan.",
+      "name": "Conversion",
+      "shortId": "CV",
+      "focus": "Poster activation",
+      "now": "Added starter prompts, URL-driven starter intent, and privacy-safe funnel events for poster onboarding.",
       "status": "Complete",
       "progress": 100
     },
     {
-      "name": "Poincare",
-      "shortId": "Agent 4",
-      "focus": "Partner outreach",
-      "now": "Prepared creator and shop partner pitches.",
+      "name": "Approvals",
+      "shortId": "AP",
+      "focus": "Account actions",
+      "now": "Waiting for final approval before any Reddit comments, modmail, emails, or social posts.",
+      "status": "Blocked",
+      "progress": 70
+    },
+    {
+      "name": "Measurement",
+      "shortId": "MS",
+      "focus": "UTMs and acquired criteria",
+      "now": "Tracking plan defines sent, reply, click, signup, and acquired-poster states.",
       "status": "Complete",
       "progress": 100
     },
     {
-      "name": "Franklin",
-      "shortId": "Agent 5",
-      "focus": "SEO pages",
-      "now": "Planned request, solved, category, and image pages.",
-      "status": "Complete",
-      "progress": 100
-    },
-    {
-      "name": "Bernoulli",
-      "shortId": "Agent 6",
-      "focus": "PR launch",
-      "now": "Wrote press, PH, HN, and founder copy.",
-      "status": "Complete",
-      "progress": 100
-    },
-    {
-      "name": "Fermat",
-      "shortId": "Agent 7",
-      "focus": "Paid ads",
-      "now": "Built $1,000 paid test. Waiting on tracking.",
-      "status": "Complete",
-      "progress": 100
-    },
-    {
-      "name": "Ohm",
-      "shortId": "Agent 8",
-      "focus": "Trust safety",
-      "now": "Created payment, referral, and Reddit guardrails.",
-      "status": "Complete",
-      "progress": 100
-    },
-    {
-      "name": "Boyle",
-      "shortId": "Agent 9",
-      "focus": "Community replies",
-      "now": "Prepared 25 helpful-first community replies.",
-      "status": "Complete",
-      "progress": 100
-    },
-    {
-      "name": "Curie",
-      "shortId": "Agent 10",
-      "focus": "Sprint coordinator",
-      "now": "Prioritized assets, blockers, and launch checks.",
+      "name": "Dashboard",
+      "shortId": "DB",
+      "focus": "Local monitor",
+      "now": "Shows prepared targets, direct drafts, approval queue, and zero verified acquisitions.",
       "status": "Complete",
       "progress": 100
     }
   ],
   "blockers": [
     {
-      "title": "Domain and HTTPS verified",
-      "detail": "pleasefindmethis.com and www.pleasefindmethis.com now return 200 on Vercel.",
-      "level": "low"
+      "title": "Public outreach requires approval",
+      "detail": "No Reddit comments, modmail, DMs, emails, social posts, or paid ads should be sent without exact destination and content approval.",
+      "level": "high"
     },
     {
-      "title": "Reddit is blocked here",
-      "detail": "Browser and public JSON endpoints returned network security blocks. No bypass was attempted.",
+      "title": "Subreddit rules must be checked live",
+      "detail": "Each Reddit draft needs a final rule and unresolved-status check before posting. Use the no-platform variant unless product mentions are clearly allowed.",
       "level": "medium"
     },
     {
-      "title": "Paid ads need tracking first",
-      "detail": "Do not spend until bounty start, checkout, funded, submit source, and accepted source events work.",
+      "title": "No verified acquired posters yet",
+      "detail": "A person counts as acquired only after creating a real request on pleasefindmethis.com. Current verified count is 0.",
       "level": "medium"
     }
   ],
   "nextActions": [
-    "Fix or verify DNS and HTTPS.",
-    "Verify the full product flow end to end.",
-    "Use the Reddit workflow manually after login/security gate clears.",
-    "Start finder outreach with the 80-prospect list.",
-    "Build the SEO page factory before directory pushes."
+    "Approve or reject the 32 drafts in marketing/poster_acquisition_direct_batch_01.md, marketing/poster_acquisition_direct_batch_02.md, and marketing/poster_acquisition_direct_batch_03.md.",
+    "After approval, send only 3-8 highest-quality helpful comments first and log each URL/timestamp.",
+    "Approve or reject the two owned founder posts in marketing/poster_acquisition_outreach_queue.md.",
+    "Update marketing/poster_acquisition_pipeline_100.csv only when a touch, reply, click, signup, or request creation actually happens.",
+    "Keep paid traffic off until checkout and acquisition tracking are verified end to end."
   ],
   "outputs": [
     {
-      "title": "Marketing sprint assets",
-      "detail": "Positioning, hooks, video scripts, PR copy, Product Hunt, and Show HN copy.",
-      "path": "../marketing/marketing_sprint_assets.md"
+      "title": "100-poster pipeline",
+      "detail": "One hundred acquisition rows with segment, channel, status, and next-action fields.",
+      "path": "../marketing/poster_acquisition_pipeline_100.csv"
     },
     {
-      "title": "Reddit workflow",
-      "detail": "Rules, safe communities, daily search queries, and no-spam templates.",
-      "path": "../marketing/reddit_daily_workflow.md"
+      "title": "Direct Reddit batch 01",
+      "detail": "Twelve current or recent high-intent threads with no-platform drafts and disclosed add-ons.",
+      "path": "../marketing/poster_acquisition_direct_batch_01.md"
     },
     {
-      "title": "Community comment bank",
-      "detail": "25 helpful-first drafts for Reddit, Discord, and forums.",
-      "path": "../marketing/community_comment_bank.md"
+      "title": "Direct Reddit batch 02",
+      "detail": "Ten additional current or recent threads with research-assisted, manual-verification drafts.",
+      "path": "../marketing/poster_acquisition_direct_batch_02.md"
     },
     {
-      "title": "Finder outreach",
-      "detail": "Prospect segments, DMs, email sequence, and finder incentive plan.",
-      "path": "../marketing/finder_partner_outreach.md"
+      "title": "Direct Reddit batch 03",
+      "detail": "Ten more public search-result targets with helpful-first drafts and rule-sensitive manual-review notes.",
+      "path": "../marketing/poster_acquisition_direct_batch_03.md"
     },
     {
-      "title": "SEO roadmap",
-      "detail": "Request pages, solved pages, category hubs, image pages, and sitemaps.",
-      "path": "../marketing/seo_page_factory_roadmap.md"
+      "title": "Outreach queue",
+      "detail": "Approval-ready public comments, modmail, social replies, creator emails, and owned posts.",
+      "path": "../marketing/poster_acquisition_outreach_queue.md"
     },
     {
-      "title": "Paid test",
-      "detail": "$1,000 test plan across Google, Reddit, TikTok, Meta, and Pinterest.",
-      "path": "../marketing/paid_acquisition_test.md"
+      "title": "Tracking plan",
+      "detail": "Privacy-safe funnel events, UTM rules, and acquired-poster criteria.",
+      "path": "../marketing/poster_acquisition_tracking_plan.md"
+    },
+    {
+      "title": "Dashboard data",
+      "detail": "Local acquisition monitor data for prepared targets, approval queue, and zero acquired posters.",
+      "path": "./data/poster-acquisition.json"
     }
   ]
 }

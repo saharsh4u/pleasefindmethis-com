@@ -74,3 +74,112 @@ These actions should not be automated without user review:
 4. Start founder channels with non-Reddit posts from `marketing/marketing_sprint_assets.md`.
 5. Build SEO page-factory implementation from `marketing/seo_page_factory_roadmap.md`.
 6. Start 80-prospect finder outreach from `marketing/finder_partner_outreach.md`.
+
+---
+
+# Poster Acquisition Execution Log
+
+Date: July 3, 2026
+
+Goal: Prepare and improve the first-100 poster acquisition system for pleasefindmethis.com without sending unauthorized public comments, DMs, emails, or paid ads.
+
+## What Was Done
+
+- Verified the live site resolves at `https://pleasefindmethis.com/` from web search results.
+- Added poster-focused starter prompts to the landing page:
+  - Lost sentimental item
+  - Sold-out rare gear
+  - Replacement part
+- Starter prompts now prefill the post-request draft with relevant item name, category, details, reward, and duration.
+- Added privacy-safe funnel tracking events for:
+  - `start_bounty`
+  - `signup_code_requested`
+  - `login_code_requested`
+  - `post_describe_completed`
+  - `upload_reference_image`
+  - `set_reward`
+  - `checkout_started`
+  - `checkout_redirected`
+  - `checkout_failed`
+- Preserved the existing uncommitted post-preview image change in `src/main.tsx`.
+- Created `marketing/poster_acquisition_pipeline_100.csv` with 100 acquisition rows.
+- Created `marketing/poster_acquisition_outreach_queue.md` with approval-ready public comments, modmail, social replies, creator emails, and owned post copy.
+- Created `marketing/poster_acquisition_tracking_plan.md` defining conversion events, UTM rules, and acquired-poster criteria.
+- Ran `npm run build`; production build succeeded.
+
+## Current Status
+
+- 100 acquisition targets are prepared but not contacted.
+- No person is marked acquired yet.
+- Public account actions still require user approval and account access.
+
+## Approval Required
+
+- Posting or commenting from Reddit, Facebook, Instagram, TikTok, X, YouTube, email, or any founder/brand account.
+- Sending modmail to subreddit moderators.
+- Sending creator/community partner emails.
+- Spending on paid ads.
+- Claiming solve rates, payout volume, verified sellers, or guaranteed outcomes.
+
+---
+
+# Poster Acquisition Continuation Log
+
+Date: July 3, 2026
+
+Goal: Move from a broad 100-row target list toward reviewable, direct acquisition actions while keeping account actions approval-gated.
+
+## What Was Done
+
+- Loaded and followed the Reddit marketing workflow, including the pleasefindmethis.com context, opportunity playbook, comment patterns, and safety guardrails.
+- Created `marketing/poster_acquisition_direct_batch_01.md` with 12 high-intent Reddit targets.
+- Drafted no-platform helpful comments for each direct target.
+- Added disclosed pleasefindmethis.com add-ons only as optional variants, not default copy.
+- Added UTM-tagged destination links for approved future use.
+- Added URL-driven starter intent to the website so outreach links can prefill the relevant poster starter from `starter` and `item` query parameters.
+- Added a fourth poster starter for exact clothing and accessories, covering the fashion/accessory search segment in the acquisition pipeline.
+- Updated direct batch 01 links to use starter-aware acquisition URLs.
+- Created `marketing/poster_acquisition_direct_batch_02.md` with 10 additional current/recent Reddit targets and research-assisted drafts.
+- Added live Reddit rule notes to the outreach queue: no pasted AI-generated answers, no link shorteners, and manual verification required before r/HelpMeFind comments.
+- Added a local `First 100 Posters` dashboard panel in `agent-dashboard/`.
+- Created `agent-dashboard/data/poster-acquisition.json` to track the first-100 poster goal, direct drafts, approvals, and acquired count.
+- Updated `agent-dashboard/data/agents.json` so the dashboard reflects the current poster-acquisition sprint instead of the older DNS-oriented sprint.
+
+## Current Status
+
+- 100 acquisition targets are prepared.
+- Direct Reddit drafts from batches 01-02 were prepared for approval; the latest continuation section has the current count.
+- 0 targets have been contacted from this environment.
+- 0 posters are verified acquired.
+- No comments, DMs, modmail, emails, social posts, paid ads, or account actions were sent.
+
+## Next Approval Gate
+
+This checkpoint was superseded by the latest continuation section. Before any approved Reddit comment is posted, the current subreddit rules, the target thread's unresolved status, and any source/product-ID claims must be checked live.
+
+---
+
+# Poster Acquisition Continuation Log 02
+
+Date: July 3, 2026
+
+Goal: Keep moving the first-100 poster acquisition system forward after context compaction, while preserving approval gates for account actions.
+
+## What Was Done
+
+- Added draft persistence for URL-prefilled poster requests so `starter` and `item` acquisition links survive the local email-code auth redirect.
+- Verified the auth redirect path locally with a fashion starter link for "LL Bean shirt"; after demo-code verification, the post form reopened with the item and category still populated.
+- Created `marketing/poster_acquisition_direct_batch_03.md` with 10 more public Reddit search-result targets and helpful-first draft comments.
+- Updated the local acquisition dashboard data to reflect 32 direct Reddit drafts prepared for approval.
+
+## Current Status
+
+- 100 acquisition targets are prepared.
+- 32 direct Reddit drafts are prepared for approval.
+- 0 targets have been contacted from this environment.
+- 0 posters are verified acquired.
+- No comments, DMs, modmail, emails, social posts, paid ads, or account actions were sent.
+
+## Next Approval Gate
+
+Approve or reject the 32 direct drafts in `marketing/poster_acquisition_direct_batch_01.md`, `marketing/poster_acquisition_direct_batch_02.md`, and `marketing/poster_acquisition_direct_batch_03.md`. Before any approved Reddit comment is posted, the current subreddit rules, the target thread's unresolved status, and any source/product-ID claims must be checked live.
