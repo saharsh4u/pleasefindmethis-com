@@ -1,5 +1,7 @@
 # Pricing and Fees - pleasefindmethis.com
 
+Last updated: 2026-07-03
+
 pleasefindmethis.com uses poster-paid fees. The finder payout is the offer amount shown on the request, and we do not take a cut from that posted finder payout.
 
 The checkout covers the request workflow, source review, and any eligible finder payout. pleasefindmethis.com is not the seller, reseller, shipper, or broker of the requested item. If a source leads to an item purchase, the poster buys that item separately from the third-party source or seller.
@@ -45,4 +47,8 @@ If no valid source or handoff is accepted within the active request window, the 
 
 Payment processors are enabled only where their acceptance policies support this marketplace and finder-payout model. Dodo checkout must remain disabled unless Dodo explicitly approves this exact new website and business model in a new business/product review.
 
-See also: https://pleasefindmethis.com/fees.md and https://pleasefindmethis.com/refunds
+See also:
+
+- Fee details: https://pleasefindmethis.com/fees.md
+- Workflow: https://pleasefindmethis.com/workflow.md
+- Refund policy: https://pleasefindmethis.com/refunds

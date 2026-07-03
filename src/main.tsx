@@ -1,7 +1,6 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { createRoot } from "react-dom/client";
 import type { Session } from "@supabase/supabase-js";
-import { track } from "@vercel/analytics";
 import { Analytics } from "@vercel/analytics/react";
 import {
   AlertTriangle,
@@ -41,6 +40,13 @@ import {
   X,
 } from "lucide-react";
 import { hasSupabaseEnv, supabase } from "./lib/supabase";
+import {
+  getCheckoutAnalyticsContext,
+  initializeGoogleAnalytics,
+  trackMarketingEvent,
+  trackPageView,
+  type AnalyticsProperties,
+} from "./lib/analytics";
 import "./styles.css";
 
 type Page =
@@ -100,7 +106,6 @@ type GoogleAccountsApi = {
 
 declare global {
   interface Window {
-    dataLayer?: Array<Record<string, unknown>>;
     google?: GoogleAccountsApi;
   }
 }
@@ -307,6 +312,8 @@ const platformServiceFeeRate = 0.12;
 const trustProtectionRate = 0.03;
 const minimumPlatformFee = 6;
 const minimumTrustProtectionFee = 1;
+const siteLastUpdated = "2026-07-03";
+const siteLastUpdatedDisplay = "July 3, 2026";
 
 const requestCategories: Array<{ value: RequestCategory; label: string }> = [
   { value: "home", label: "Home goods" },
@@ -2200,6 +2207,48 @@ const comparisonRows = [
   ["Human sourcing beyond search results", "Yes", "Maybe", "Limited", "Maybe"],
 ];
 
+const answerBlocks = [
+  {
+    question: "What is pleasefindmethis.com?",
+    answer:
+      "pleasefindmethis.com is a bounty board for hard-to-find items. A poster funds a finder payout for a specific item, then finders submit protected source links, seller contacts, local leads, or handoff paths that match the request criteria.",
+  },
+  {
+    question: "When should someone post a find request?",
+    answer:
+      "A find request fits when normal search has already returned near matches, dead listings, unclear model names, or unsafe DMs. Posters use it for exact sentimental replacements, discontinued goods, rare camera gear, watches, repair parts, collectibles, and other items where a human source matters.",
+  },
+  {
+    question: "What is a protected source?",
+    answer:
+      "A protected source is a lead saved before the poster sees the full details. The submitted link, contact, proof, notes, and timestamp create a review record so a finder can be credited when the source is accepted or wins a payout review.",
+  },
+  {
+    question: "What can finders submit?",
+    answer:
+      "Finders can submit a public listing, shop page, seller contact, local lead, direct handoff option, model number, source clue, or compatibility proof. A strong submission explains why the item matches the poster's photos, must-have details, location, price, and condition requirements.",
+  },
+];
+
+const useCaseBlocks = [
+  {
+    title: "Sentimental replacements",
+    copy: "Lost blankets, plush toys, mugs, art, decor, family items, and exact-photo replacements where a close dupe is not enough.",
+  },
+  {
+    title: "Collector gear",
+    copy: "Cult cameras, watches, vintage electronics, handhelds, audio gear, and model references where naming varies by market.",
+  },
+  {
+    title: "Repair parts",
+    copy: "Discontinued parts, donor units, hinges, shells, cables, battery covers, appliance components, and compatibility leads.",
+  },
+  {
+    title: "Sold-out fashion",
+    copy: "Exact clothing, accessories, colorways, sizes, labels, and discontinued styles that visual search keeps matching incorrectly.",
+  },
+];
+
 const finderReviews = [
   ["Ari P.", "Maya found the exact cap in two days and included the seller link plus what to ask before buying."],
   ["Theo N.", "The source review made it easy to avoid a risky listing and choose the right part."],
@@ -2207,6 +2256,16 @@ const finderReviews = [
 ];
 
 const faqItems = [
+  {
+    question: "How does pleasefindmethis.com work?",
+    answer:
+      "A poster creates a request with photos, must-have criteria, location, duration, and a funded finder payout. Finders submit protected source records, the poster reveals and reviews promising leads, and an accepted source or review decision can make the posted payout payable to the finder.",
+  },
+  {
+    question: "What is a protected source?",
+    answer:
+      "A protected source is a saved lead that stays private until the poster reveals it. The platform records the source link or contact, notes, proof, and timestamp before reveal so duplicate priority, acceptance, rejection, and payout review can be handled with a clear trail.",
+  },
   {
     question: "When do I pay?",
     answer:
@@ -2226,6 +2285,16 @@ const faqItems = [
     question: "How do finders get paid?",
     answer:
       "Finders can earn the posted payout when the source is accepted, the handoff is confirmed, or review resolves in their favor. We do not take a cut from the finder payout.",
+  },
+  {
+    question: "What should I include in a good find request?",
+    answer:
+      "A good request includes clear reference photos, item name or suspected brand, size, color, condition, location, budget, must-have details, and what counts as an acceptable source. Mention wrong matches you already found so finders do not repeat the same dead ends.",
+  },
+  {
+    question: "What can a finder submit?",
+    answer:
+      "A finder can submit a store link, resale listing, seller contact, local shop lead, direct handoff path, model number, compatibility clue, or proof package. The submission should include enough context for the poster to judge whether the source matches the request.",
   },
   {
     question: "How does pleasefindmethis make money?",
@@ -2492,26 +2561,11 @@ function handleRoutedAnchorClick(event: React.MouseEvent<HTMLAnchorElement>, act
   action();
 }
 
-type AcquisitionEventProperties = Record<string, string | number | boolean | null | undefined>;
-
-function trackAcquisitionEvent(name: string, properties: AcquisitionEventProperties = {}) {
-  const eventProperties: AcquisitionEventProperties = {
-    ...properties,
-    page_path: window.location.pathname,
-    page_search: window.location.search || undefined,
-  };
-
+function trackAcquisitionEvent(name: string, properties: AnalyticsProperties = {}) {
   try {
-    track(name, eventProperties);
+    trackMarketingEvent(name, properties);
   } catch {
-    // Analytics must never block the posting flow.
-  }
-
-  try {
-    window.dataLayer = window.dataLayer ?? [];
-    window.dataLayer.push({ event: name, ...eventProperties });
-  } catch {
-    // GTM/dataLayer is optional.
+    // Analytics must never block the marketplace flow.
   }
 }
 
@@ -2588,12 +2642,123 @@ function createItemListSchema(bounties: BountyListing[], pagePath: string): Json
   };
 }
 
+function createMarketplaceServiceSchema(organizationId: string): JsonLdNode {
+  return {
+    "@type": "Service",
+    "@id": `${siteOrigin}/#service`,
+    name: "Hard-to-find item bounty marketplace",
+    alternateName: siteName,
+    serviceType: "Hard-to-find item marketplace",
+    url: siteOrigin,
+    provider: { "@id": organizationId },
+    areaServed: "Worldwide",
+    description:
+      "pleasefindmethis.com lets posters fund requests for hard-to-find items and lets finders submit protected source leads for accepted payouts.",
+    audience: [
+      {
+        "@type": "Audience",
+        audienceType: "Posters looking for discontinued, sold-out, rare, or sentimental items",
+      },
+      {
+        "@type": "Audience",
+        audienceType: "Finders with niche sourcing knowledge, seller leads, or local availability",
+      },
+    ],
+    offers: {
+      "@type": "AggregateOffer",
+      priceCurrency: "USD",
+      lowPrice: minimumReward + minimumPlatformFee + minimumTrustProtectionFee,
+      description:
+        "Poster checkout starts with a US$10 minimum finder payout plus a US$6 minimum platform service fee and a US$1 minimum payment handling and source review fee.",
+      url: `${siteOrigin}/pricing.md`,
+    },
+    termsOfService: `${siteOrigin}/terms`,
+  };
+}
+
+function createQuestionSetSchema(canonicalUrl: string, items: typeof faqItems | typeof answerBlocks, id: string): JsonLdNode {
+  return {
+    "@type": "FAQPage",
+    "@id": `${canonicalUrl}#${id}`,
+    mainEntity: items.map((item) => ({
+      "@type": "Question",
+      name: item.question,
+      acceptedAnswer: {
+        "@type": "Answer",
+        text: item.answer,
+      },
+    })),
+  };
+}
+
+function createLandingHowToSchema(canonicalUrl: string): JsonLdNode {
+  return {
+    "@type": "HowTo",
+    "@id": `${canonicalUrl}#post-find-request-howto`,
+    name: "How to post a funded find request",
+    description: "The basic workflow for creating a protected request on pleasefindmethis.com.",
+    step: workSteps.map((step, index) => ({
+      "@type": "HowToStep",
+      position: index + 1,
+      name: step.title,
+      text: step.copy,
+    })),
+  };
+}
+
+function createBreadcrumbSchema(page: Page, meta: SeoMeta, activeBounty?: BountyListing): JsonLdNode {
+  const currentName = page === "bounty-detail" && activeBounty ? activeBounty.name : pageLabels[page] ?? meta.title;
+
+  return {
+    "@type": "BreadcrumbList",
+    "@id": `${getCanonicalUrl(meta.path)}#breadcrumb`,
+    itemListElement: [
+      {
+        "@type": "ListItem",
+        position: 1,
+        name: "Home",
+        item: siteOrigin,
+      },
+      {
+        "@type": "ListItem",
+        position: 2,
+        name: currentName,
+        item: getCanonicalUrl(meta.path),
+      },
+    ],
+  };
+}
+
 function createStructuredData(page: Page, meta: SeoMeta, bounties: BountyListing[], activeBounty?: BountyListing) {
   const canonicalUrl = getCanonicalUrl(meta.path);
   const organizationId = `${siteOrigin}/#organization`;
   const websiteId = `${siteOrigin}/#website`;
   const webpageId = `${canonicalUrl}#webpage`;
   const webPageType = page === "support" ? "ContactPage" : "WebPage";
+  const webPage: JsonLdNode = {
+    "@type": webPageType,
+    "@id": webpageId,
+    url: canonicalUrl,
+    name: meta.title,
+    description: meta.description,
+    isPartOf: { "@id": websiteId },
+    publisher: { "@id": organizationId },
+    dateModified: siteLastUpdated,
+    inLanguage: "en",
+    primaryImageOfPage: {
+      "@type": "ImageObject",
+      url: meta.image,
+    },
+  };
+
+  if (page === "landing") {
+    webPage.mainEntity = { "@id": `${siteOrigin}/#service` };
+  }
+
+  if (page === "bounty-detail" && activeBounty) {
+    webPage.mainEntity = { "@id": `${canonicalUrl}#request` };
+  }
+
   const graph: JsonLdNode[] = [
     {
       "@type": "Organization",
@@ -2617,38 +2782,25 @@ function createStructuredData(page: Page, meta: SeoMeta, bounties: BountyListing
       description: defaultSeoDescription,
       publisher: { "@id": organizationId },
     },
-    {
-      "@type": webPageType,
-      "@id": webpageId,
-      url: canonicalUrl,
-      name: meta.title,
-      description: meta.description,
-      isPartOf: { "@id": websiteId },
-      publisher: { "@id": organizationId },
-      primaryImageOfPage: {
-        "@type": "ImageObject",
-        url: meta.image,
-      },
-    },
+    createMarketplaceServiceSchema(organizationId),
+    webPage,
   ];
 
   if (page === "landing" || page === "browse" || page === "browse-all") {
     graph.push(createItemListSchema(bounties, meta.path));
   }
 
+  if (page !== "landing") {
+    graph.push(createBreadcrumbSchema(page, meta, activeBounty));
+  }
+
+  if (page === "landing") {
+    graph.push(createQuestionSetSchema(canonicalUrl, answerBlocks, "homepage-answers"));
+    graph.push(createLandingHowToSchema(canonicalUrl));
+  }
+
   if (page === "faq") {
-    graph.push({
-      "@type": "FAQPage",
-      "@id": `${canonicalUrl}#faq`,
-      mainEntity: faqItems.map((item) => ({
-        "@type": "Question",
-        name: item.question,
-        acceptedAnswer: {
-          "@type": "Answer",
-          text: item.answer,
-        },
-      })),
-    });
+    graph.push(createQuestionSetSchema(canonicalUrl, faqItems, "faq"));
   }
 
   if (page === "bounty-detail" && activeBounty) {
@@ -2837,6 +2989,10 @@ function App() {
   const acquisitionStarter = getAcquisitionStarterFromUrl();
 
   useEffect(() => {
+    initializeGoogleAnalytics();
+  }, []);
+
+  useEffect(() => {
     const syncRoute = () => {
       const routeBountyId = getBountyIdFromCurrentRoute();
       if (routeBountyId) {
@@ -2866,6 +3022,21 @@ function App() {
   useEffect(() => {
     updateDocumentSeo(visibleRoute, marketplaceBounties, activeBounty);
   }, [activeBounty, marketplaceBounties, visibleRoute]);
+
+  useEffect(() => {
+    trackPageView({
+      route: visibleRoute,
+      bounty_id: visibleRoute === "bounty-detail" ? activeBounty.id : undefined,
+      category: visibleRoute === "bounty-detail" ? activeBounty.category : undefined,
+      signed_in: signedIn,
+    });
+
+    if (visibleRoute === "landing") {
+      trackAcquisitionEvent("landing_view", {
+        signed_in: signedIn,
+      });
+    }
+  }, [activeBounty.category, activeBounty.id, signedIn, visibleRoute]);
 
   useEffect(() => {
     const starter = getAcquisitionStarterFromUrl();
@@ -2941,6 +3112,10 @@ function App() {
     setEmailOtpSentTo("");
     setAuthMessage("");
     setSignedIn(true);
+    trackAcquisitionEvent("auth_completed", {
+      provider,
+      pending_route: pendingRoute,
+    });
     navigate(pendingRoute);
   };
 
@@ -3209,6 +3384,7 @@ function App() {
     let mounted = true;
     const finishSupabaseSession = (session: Session) => {
       const storedRoute = readStoredPendingRoute();
+      const hadPendingAuthRoute = Boolean(window.sessionStorage.getItem(pendingRouteStorageKey));
       const provider = session.user.app_metadata?.provider;
 
       window.sessionStorage.setItem(signedInStorageKey, "true");
@@ -3221,6 +3397,12 @@ function App() {
       setAuthMessage("");
       setSignedIn(true);
       setPendingRoute(storedRoute);
+      if (hadPendingAuthRoute) {
+        trackAcquisitionEvent("auth_completed", {
+          provider: typeof provider === "string" ? provider : "email",
+          pending_route: storedRoute,
+        });
+      }
       navigate(storedRoute);
     };
 
@@ -3505,6 +3687,11 @@ function SiteFooter({
     ["Support", "support"],
     ["Report", "report"],
   ];
+  const machineReadableLinks: Array<[string, string]> = [
+    ["AI summary", "/llms.txt"],
+    ["Pricing", "/pricing.md"],
+    ["Use cases", "/use-cases.md"],
+  ];
 
   return (
     <footer className="site-footer">
@@ -3515,6 +3702,11 @@ function SiteFooter({
       <nav aria-label="Policy and support links">
         {publicLinks.map(([label, page]) => (
           <a href={routeHref(page)} key={page} onClick={(event) => handleRoutedAnchorClick(event, () => navigate(page))}>
+            {label}
+          </a>
+        ))}
+        {machineReadableLinks.map(([label, href]) => (
+          <a href={href} key={href}>
             {label}
           </a>
         ))}
@@ -4011,6 +4203,34 @@ function LandingPage({
         </div>
       </section>
 
+      <section className="answer-section" aria-labelledby="answer-title">
+        <div className="answer-section-head">
+          <p className="route-kicker">Hard-to-find item bounties</p>
+          <h2 id="answer-title">A funded request is for the exact item normal search missed.</h2>
+          <p>
+            Use {siteName} when the right match depends on a collector, shop, seller lead, local source, model clue, or repair-part
+            compatibility detail that search engines and marketplaces keep missing.
+          </p>
+          <p className="freshness-line">Last updated {siteLastUpdatedDisplay}</p>
+        </div>
+        <div className="answer-grid" aria-label="Core marketplace answers">
+          {answerBlocks.map((item) => (
+            <article className="answer-card" key={item.question}>
+              <h3>{item.question}</h3>
+              <p>{item.answer}</p>
+            </article>
+          ))}
+        </div>
+        <div className="use-case-strip" aria-label="Common hard-to-find item request types">
+          {useCaseBlocks.map((item) => (
+            <article className="use-case-card" key={item.title}>
+              <h3>{item.title}</h3>
+              <p>{item.copy}</p>
+            </article>
+          ))}
+        </div>
+      </section>
+
       <section className="how-section" id="how" aria-labelledby="how-title">
         <h2 id="how-title">How it works</h2>
         <p className="how-intro">
@@ -4410,7 +4630,16 @@ function PostDescribePage({
           </label>
           <label>
             Category
-            <select value={draft.category} onChange={(event) => onDraftChange({ category: event.target.value as RequestCategory })}>
+            <select
+              value={draft.category}
+              onChange={(event) => {
+                const category = event.target.value as RequestCategory;
+                onDraftChange({ category });
+                trackAcquisitionEvent("category_selected", {
+                  category: getCategoryLabel(category),
+                });
+              }}
+            >
               {requestCategories.map((category) => (
                 <option value={category.value} key={category.value}>
                   {category.label}
@@ -4769,6 +4998,7 @@ function PostPayPage({
               email: normalizedEmail,
               name: normalizedName,
             },
+            analytics: getCheckoutAnalyticsContext(),
             draft: {
               requestId,
               itemName,
@@ -4794,6 +5024,7 @@ function PostPayPage({
         duration_days: draft.durationDays,
         reward: breakdown.reward,
         total_due: breakdown.total,
+        checkout_provider: typeof payload.provider === "string" ? payload.provider : "configured",
       });
       window.location.assign(payload.checkoutUrl);
     } catch (error) {
@@ -5284,6 +5515,14 @@ function SubmitFindPage({
       setContactEmail(normalizedEmail);
       setSubmitted(true);
       setSubmitStatus("success");
+      trackAcquisitionEvent("submit_source", {
+        bounty_id: bounty.id,
+        category: bounty.category,
+        source_type: sourceType,
+        has_source_link: Boolean(normalizedSource),
+        has_price_or_terms: Boolean(normalizedTerms),
+        proof_file_count: proofFiles.length,
+      });
     } catch (error) {
       if (supabase && uploadedPaths.length) {
         await supabase.storage.from(sourceSubmissionProofBucket).remove(uploadedPaths);
@@ -5629,6 +5868,10 @@ function PosterDashboardPage({
       }
 
       setActionMessage("Source revealed and logged. Full source details are now visible to you and the finder.");
+      trackAcquisitionEvent("source_revealed", {
+        request_id: selectedSubmission.request_id,
+        source_type: selectedSubmission.source_type,
+      });
       setRefreshKey((key) => key + 1);
     } catch (error) {
       setDashboardError(error instanceof Error ? error.message : "Could not reveal this source.");
@@ -5661,6 +5904,11 @@ function PosterDashboardPage({
       setReviewMode(false);
       setReviewNote("");
       setActionMessage(decision === "accepted" ? "Source accepted. Finder payout is now marked payable after the release window." : "Source sent to review with your reason saved.");
+      trackAcquisitionEvent(decision === "accepted" ? "source_accepted" : "source_sent_to_review", {
+        request_id: selectedSubmission.request_id,
+        source_type: selectedSubmission.source_type,
+        review_reason: decision === "accepted" ? undefined : rejectionReason,
+      });
       setRefreshKey((key) => key + 1);
     } catch (error) {
       setDashboardError(error instanceof Error ? error.message : "Could not save this review decision.");
@@ -6277,6 +6525,7 @@ function FaqPage({ onBrowse, onPost }: { onBrowse: () => void; onPost: () => voi
         <div>
           <h1 id="faq-title">FAQ</h1>
           <p>Clear answers for posters, finders, offers, payouts, refunds, disputes, and public browsing.</p>
+          <p className="freshness-line">Last updated {siteLastUpdatedDisplay}</p>
         </div>
         <div className="head-actions">
           <button className="primary-button" type="button" onClick={onPost}>

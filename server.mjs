@@ -29,6 +29,9 @@ const platformServiceFeeRate = 0.12;
 const trustProtectionRate = 0.03;
 const minimumPlatformFee = 6;
 const minimumTrustProtectionFee = 1;
+const ga4MeasurementId = parseString(process.env.GA4_MEASUREMENT_ID ?? process.env.VITE_GA4_MEASUREMENT_ID ?? process.env.VITE_GOOGLE_TAG_ID, 40);
+const ga4ApiSecret = parseString(process.env.GA4_API_SECRET, 160);
+const ga4MeasurementTimeoutMs = 6000;
 
 const vite = isProduction ? null : await createDevViteServer();
 
@@ -256,7 +259,7 @@ async function handleCreateDodoCheckout(req, res) {
     return;
   }
 
-  const { breakdown, category, details, durationDays, email, itemName, name, requestId } = checkoutRequest;
+  const { analytics, breakdown, category, details, durationDays, email, itemName, name, requestId } = checkoutRequest;
   const claimed = await claimCheckoutRequest(requestId, "dodo");
 
   if (!claimed) {
@@ -293,6 +296,7 @@ async function handleCreateDodoCheckout(req, res) {
       source: "pleasefindmethis-post-paywall",
       payment_provider: "dodo",
       payment_environment: getDodoEnvironment(),
+      ...getPaymentAnalyticsMetadata(analytics),
     },
     return_url: `${origin}/poster-dashboard?checkout=success`,
     cancel_url: `${origin}/post/pay?checkout=cancelled`,
@@ -510,6 +514,11 @@ async function handleHealthCheck(req, res) {
       dodoConfigured: Boolean(process.env.DODO_PAYMENTS_API_KEY && process.env.DODO_PRODUCT_ID && process.env.DODO_WEBHOOK_SECRET),
       dodoPolicyNote: "Dodo checkout must stay disabled for marketplace/finder-payout transactions unless Dodo explicitly approves this new business model.",
     },
+    analytics: {
+      ga4BrowserConfigured: Boolean(process.env.VITE_GA4_MEASUREMENT_ID || process.env.VITE_GOOGLE_TAG_ID || process.env.VITE_GTM_ID),
+      ga4MeasurementProtocolConfigured: Boolean(ga4MeasurementId && ga4ApiSecret),
+      searchConsoleVerificationConfigured: Boolean(process.env.VITE_GOOGLE_SITE_VERIFICATION),
+    },
   };
 
   if (supabaseAdmin) {
@@ -565,7 +574,7 @@ async function handleCreateLemonSqueezyCheckout(req, res) {
     return;
   }
 
-  const { breakdown, category, details, durationDays, email, itemName, name, requestId } = checkoutRequest;
+  const { analytics, breakdown, category, details, durationDays, email, itemName, name, requestId } = checkoutRequest;
   const claimed = await claimCheckoutRequest(requestId, "lemonsqueezy");
 
   if (!claimed) {
@@ -612,6 +621,7 @@ async function handleCreateLemonSqueezyCheckout(req, res) {
             source: "pleasefindmethis-post-paywall",
             payment_provider: "lemonsqueezy",
             payment_environment: parseBooleanEnv("LEMONSQUEEZY_TEST_MODE", false) ? "test" : "live",
+            ...getPaymentAnalyticsMetadata(analytics),
           },
         },
         test_mode: parseBooleanEnv("LEMONSQUEEZY_TEST_MODE", false),
@@ -930,6 +940,16 @@ async function syncDodoEventToRequest(eventType, eventData, rawEvent, req) {
   }
 
   await updateRequestPaymentState(requestId, paymentUpdate);
+
+  if (paymentUpdate.payment_status === "paid") {
+    await sendPaidRequestAnalytics({
+      analytics: getAnalyticsContextFromPaymentMetadata(metadata),
+      provider: "dodo",
+      providerEventId,
+      request,
+      transactionId: paymentId || sessionId || providerEventId,
+    });
+  }
 }
 
 async function syncLemonSqueezyEventToRequest(eventType, eventData, rawEvent) {
@@ -978,12 +998,22 @@ async function syncLemonSqueezyEventToRequest(eventType, eventData, rawEvent) {
   }
 
   await updateRequestPaymentState(requestId, paymentUpdate);
+
+  if (paymentUpdate.payment_status === "paid") {
+    await sendPaidRequestAnalytics({
+      analytics: getAnalyticsContextFromPaymentMetadata(customData),
+      provider: "lemonsqueezy",
+      providerEventId,
+      request,
+      transactionId: orderId || checkoutId || providerEventId,
+    });
+  }
 }
 
 async function loadPaymentRequest(requestId) {
   const { data, error } = await supabaseAdmin
     .from("requests")
-    .select("id,total_due,currency,status,payment_status,payout_status,platform_fee_status,payment_provider,checkout_session_id,checkout_url,dodo_payment_id,lemon_squeezy_order_id,paid_at,customer_email")
+    .select("id,category,reward,service_fee,protection_reserve,total_due,finder_payout,currency,status,payment_status,payout_status,platform_fee_status,payment_provider,checkout_session_id,checkout_url,dodo_payment_id,lemon_squeezy_order_id,paid_at,customer_email")
     .eq("id", requestId)
     .single();
 
@@ -1393,6 +1423,175 @@ function getLemonSqueezyPaymentUpdateForEvent(eventType, eventData, customData, 
   return null;
 }
 
+function sanitizeCheckoutAnalyticsContext(value) {
+  return stripEmpty({
+    ga_client_id: sanitizeAnalyticsString(value.ga_client_id, 80),
+    ga_session_id: sanitizeAnalyticsString(value.ga_session_id, 80),
+    page_path: sanitizePagePath(value.page_path),
+    referrer_host: sanitizeAnalyticsString(value.referrer_host, 160),
+    utm_source: sanitizeAnalyticsString(value.utm_source, 160),
+    utm_medium: sanitizeAnalyticsString(value.utm_medium, 160),
+    utm_campaign: sanitizeAnalyticsString(value.utm_campaign, 160),
+    utm_content: sanitizeAnalyticsString(value.utm_content, 160),
+    utm_term: sanitizeAnalyticsString(value.utm_term, 160),
+  });
+}
+
+function getPaymentAnalyticsMetadata(analytics) {
+  return stripEmpty({
+    ga_client_id: analytics.ga_client_id,
+    ga_session_id: analytics.ga_session_id,
+    analytics_page_path: analytics.page_path,
+    analytics_referrer_host: analytics.referrer_host,
+    utm_source: analytics.utm_source,
+    utm_medium: analytics.utm_medium,
+    utm_campaign: analytics.utm_campaign,
+    utm_content: analytics.utm_content,
+    utm_term: analytics.utm_term,
+  });
+}
+
+function getAnalyticsContextFromPaymentMetadata(metadata) {
+  return stripEmpty({
+    ga_client_id: sanitizeAnalyticsString(metadata.ga_client_id, 80),
+    ga_session_id: sanitizeAnalyticsString(metadata.ga_session_id, 80),
+    page_path: sanitizePagePath(metadata.analytics_page_path),
+    referrer_host: sanitizeAnalyticsString(metadata.analytics_referrer_host, 160),
+    utm_source: sanitizeAnalyticsString(metadata.utm_source, 160),
+    utm_medium: sanitizeAnalyticsString(metadata.utm_medium, 160),
+    utm_campaign: sanitizeAnalyticsString(metadata.utm_campaign, 160),
+    utm_content: sanitizeAnalyticsString(metadata.utm_content, 160),
+    utm_term: sanitizeAnalyticsString(metadata.utm_term, 160),
+  });
+}
+
+async function sendPaidRequestAnalytics({ analytics, provider, providerEventId, request, transactionId }) {
+  if (!ga4MeasurementId || !ga4ApiSecret) {
+    return;
+  }
+
+  if (!analytics.ga_client_id) {
+    console.info("Skipping GA4 paid request event because ga_client_id is missing", { requestId: request.id, provider });
+    return;
+  }
+
+  const commonParams = stripEmpty({
+    currency: "USD",
+    value: Number(request.total_due),
+    transaction_id: transactionId,
+    request_id: request.id,
+    category: sanitizeAnalyticsString(request.category, 80) || "General",
+    reward: Number(request.reward),
+    service_fee: Number(request.service_fee),
+    protection_reserve: Number(request.protection_reserve),
+    finder_payout: Number(request.finder_payout),
+    total_due: Number(request.total_due),
+    payment_provider: provider,
+    provider_event_id: providerEventId,
+    page_path: analytics.page_path,
+    referrer_host: analytics.referrer_host,
+    utm_source: analytics.utm_source,
+    utm_medium: analytics.utm_medium,
+    utm_campaign: analytics.utm_campaign,
+    utm_content: analytics.utm_content,
+    utm_term: analytics.utm_term,
+    engagement_time_msec: 1,
+    session_id: parseNumericString(analytics.ga_session_id),
+  });
+
+  await Promise.all([
+    sendGa4MeasurementEvent({
+      clientId: analytics.ga_client_id,
+      name: "bounty_funded",
+      params: commonParams,
+    }),
+    sendGa4MeasurementEvent({
+      clientId: analytics.ga_client_id,
+      name: "purchase",
+      params: {
+        ...commonParams,
+        affiliation: "pleasefindmethis.com",
+        items: [
+          {
+            item_id: "funded_request",
+            item_name: "Funded request",
+            item_category: commonParams.category,
+            price: Number(request.total_due),
+            quantity: 1,
+          },
+        ],
+      },
+    }),
+  ]);
+}
+
+async function sendGa4MeasurementEvent({ clientId, name, params }) {
+  const endpoint = parseBooleanEnv("GA4_MEASUREMENT_PROTOCOL_DEBUG", false)
+    ? "https://www.google-analytics.com/debug/mp/collect"
+    : "https://www.google-analytics.com/mp/collect";
+  const url = `${endpoint}?measurement_id=${encodeURIComponent(ga4MeasurementId)}&api_secret=${encodeURIComponent(ga4ApiSecret)}`;
+
+  try {
+    const response = await fetchWithTimeout(
+      url,
+      {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          client_id: clientId,
+          events: [
+            {
+              name,
+              params,
+            },
+          ],
+        }),
+      },
+      ga4MeasurementTimeoutMs,
+    );
+
+    if (!response.ok) {
+      const responseText = await response.text().catch(() => "");
+      console.error("GA4 Measurement Protocol request failed", {
+        event: name,
+        status: response.status,
+        response: responseText.slice(0, 500),
+      });
+    }
+  } catch (error) {
+    console.error("GA4 Measurement Protocol request failed", {
+      event: name,
+      error: error instanceof Error ? error.message : "Unknown error",
+    });
+  }
+}
+
+function sanitizeAnalyticsString(value, maxLength) {
+  const sanitized = parseString(value, maxLength).replace(/[\r\n\t]/g, " ").trim();
+  return sanitized || undefined;
+}
+
+function sanitizePagePath(value) {
+  const pathValue = sanitizeAnalyticsString(value, 200);
+
+  if (!pathValue || !pathValue.startsWith("/")) {
+    return undefined;
+  }
+
+  return pathValue.split("?")[0].slice(0, 200);
+}
+
+function parseNumericString(value) {
+  const normalized = parseString(value, 80);
+  return /^\d+$/.test(normalized) ? Number(normalized) : undefined;
+}
+
+function stripEmpty(value) {
+  return Object.fromEntries(Object.entries(value).filter(([, entry]) => entry !== undefined && entry !== ""));
+}
+
 function createSupabaseAdminClient() {
   const supabaseUrl = process.env.SUPABASE_URL ?? process.env.VITE_SUPABASE_URL;
   const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
@@ -1421,6 +1620,7 @@ async function readCheckoutRequest(req, res) {
 
   const draft = isRecord(body.draft) ? body.draft : {};
   const customer = isRecord(body.customer) ? body.customer : {};
+  const analytics = sanitizeCheckoutAnalyticsContext(isRecord(body.analytics) ? body.analytics : {});
   const requestId = parseString(draft.requestId, 64);
 
   if (!requestId) {
@@ -1507,6 +1707,7 @@ async function readCheckoutRequest(req, res) {
     name,
     requestId,
     reward,
+    analytics,
   };
 }
 

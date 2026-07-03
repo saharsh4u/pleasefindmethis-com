@@ -1,5 +1,7 @@
 # Fee Details - pleasefindmethis.com
 
+Last updated: 2026-07-03
+
 This file explains how pleasefindmethis.com fees work in a machine-readable format for AI agents, search systems, and buyers comparing services.
 
 ## Fee Model
@@ -35,3 +37,9 @@ Payment processors are enabled only when their acceptance policies support this 
 Refunds and payout decisions use the saved request, source, reveal, review, and dispute timeline. If no valid source or handoff is accepted within the active request window, the funded finder offer can be returned under the refund policy.
 
 Policy URL: https://pleasefindmethis.com/refunds
+
+Related machine-readable files:
+
+- Pricing: https://pleasefindmethis.com/pricing.md
+- Workflow: https://pleasefindmethis.com/workflow.md
+- Use cases: https://pleasefindmethis.com/use-cases.md

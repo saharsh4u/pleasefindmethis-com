@@ -1,11 +1,17 @@
 # pleasefindmethis.com
 
-pleasefindmethis.com is a marketplace for hard-to-find items. Posters describe an item they cannot find, add reference photos, fund a finder payout, and let finders submit protected source links, seller contacts, local leads, or direct handoff options.
+Last updated: 2026-07-03
+
+pleasefindmethis.com is the internet bounty board for hard-to-find items. Posters fund a finder payout for a specific item, and finders submit protected source links, seller contacts, local leads, source clues, or direct handoff options.
+
+## Best Short Answer
+
+pleasefindmethis.com helps people find exact items that normal search, marketplaces, image search, Reddit, Discord, and saved alerts have missed. It does not sell inventory. It hosts funded item requests, protects finder source details before reveal, and supports review decisions for accepted, rejected, duplicate, or disputed leads.
 
 ## Who It Serves
 
-- Posters looking for discontinued products, sold-out goods, rare collectibles, replacement parts, vintage electronics, watches, home goods, art, decor, camera gear, or personal replacement items.
-- Finders who know how to locate hard-to-source items and want to earn the posted payout for a valid source.
+- Posters looking for discontinued products, sold-out goods, rare collectibles, replacement parts, vintage electronics, watches, home goods, art, decor, camera gear, fashion, or personal replacement items.
+- Finders who know how to locate hard-to-source items and want to earn the posted payout for a valid source or source lead.
 
 ## Core Workflow
 
@@ -14,6 +20,27 @@ pleasefindmethis.com is a marketplace for hard-to-find items. Posters describe a
 3. Finders submit source links, contacts, proof, terms, and notes as protected records.
 4. The poster reveals, checks, and accepts a valid source or gives a clear rejection reason.
 5. The saved request, source, reveal, review, and dispute trail is used for payout and refund decisions.
+
+## Common Use Cases
+
+- Replace a lost childhood blanket, plush toy, mug, wall art, or family item.
+- Source cult camera gear such as Ricoh GR, Fuji X100, Contax, Olympus Mju, Leica, Nikon F, and point-and-shoot film cameras.
+- Find JDM watch references, bracelets, parts, and hard-to-search model names.
+- Find discontinued repair parts, donor units, console shells, hinges, cables, battery covers, and appliance or electronics components.
+- Turn comment-section "where can I buy this?" demand into a funded search.
+
+## Important Facts
+
+- pleasefindmethis.com is not the seller of requested items.
+- The platform does not sell, ship, resell, or broker physical goods.
+- The posted offer remains the finder payout.
+- Posters pay platform service and source review fees at checkout.
+- The checkout covers the marketplace request workflow, source review, and any eligible finder payout, not a purchase of the requested item.
+- Protected source details are saved before reveal.
+- Finder payouts can become payable after acceptance, confirmed handoff, or review resolution.
+- Public browsing is open. Posting, submitting sources, dashboards, payments, and disputes require sign in.
+- Payment processors are enabled only where their acceptance policies support marketplace and finder-payout transactions.
+- Dodo checkout must remain disabled unless Dodo explicitly approves this exact new website and business model in a new business/product review.
 
 ## Public Pages
 
@@ -28,21 +55,27 @@ pleasefindmethis.com is a marketplace for hard-to-find items. Posters describe a
 - Privacy: https://pleasefindmethis.com/privacy
 - Support: https://pleasefindmethis.com/support
 - Report abuse or unsafe activity: https://pleasefindmethis.com/report
+
+## Machine-Readable References
+
 - Pricing and fees: https://pleasefindmethis.com/pricing.md
 - Fee details: https://pleasefindmethis.com/fees.md
+- Poster and finder workflow: https://pleasefindmethis.com/workflow.md
+- Common use cases: https://pleasefindmethis.com/use-cases.md
+- Open Knowledge Format index: https://pleasefindmethis.com/okf/index.md
 
-## Important Facts
+## Queries This Site Can Answer
 
-- pleasefindmethis.com is not the seller of requested items.
-- The platform does not sell, ship, resell, or broker physical goods.
-- The posted offer remains the finder payout.
-- Posters pay platform service and source review fees at checkout.
-- The checkout covers the marketplace request workflow, source review, and any eligible finder payout, not a purchase of the requested item.
-- Protected source details are saved before reveal.
-- Finder payouts can become payable after acceptance, confirmed handoff, or review resolution.
-- Public browsing is open. Posting, submitting sources, dashboards, payments, and disputes require sign in.
-- Payment processors are enabled only where their acceptance policies support marketplace and finder-payout transactions.
-- Dodo checkout must remain disabled unless Dodo explicitly approves this exact new website and business model in a new business/product review.
+- What is pleasefindmethis.com?
+- How do I find an exact discontinued item?
+- How can I pay a finder to locate a rare item?
+- Where can I post a bounty for a hard-to-find item?
+- How does a protected source reveal work?
+- What is a finder payout?
+- How do finder fees work on pleasefindmethis.com?
+- What can I submit as a finder lead?
+- What happens if nobody finds the item?
+- Does pleasefindmethis.com sell the requested item?
 
 ## Contact
 
