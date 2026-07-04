@@ -19,6 +19,12 @@
       "skillPath": "skills/engineering/code-review/SKILL.md",
       "computedHash": "4a17d9d3e0fc87ae48544d371a820fac5a4a78f4c05e7e6b3229094fbf8a7e26"
     },
+    "code-reviewer": {
+      "source": "Shubhamsaboo/awesome-llm-apps",
+      "sourceType": "github",
+      "skillPath": "awesome_agent_skills/code-reviewer/SKILL.md",
+      "computedHash": "4d3963ea9b091e75be5c66a52cf14ad36ba20a8bc52832fd8278349887224072"
+    },
     "codebase-design": {
       "source": "mattpocock/skills",
       "sourceType": "github",
@@ -30,6 +36,13 @@
       "sourceType": "github",
       "skillPath": "skills/deprecated/design-an-interface/SKILL.md",
       "computedHash": "885b05367fb1cf61a1e27e0d50f14d2502a05c1fa276c6e9ea050ce6a90e7095"
+    },
+    "design-review": {
+      "source": "garrytan/gstack",
+      "ref": "main",
+      "sourceType": "github",
+      "skillPath": "design-review/SKILL.md",
+      "computedHash": "7cc4b39c8b5f9d66e20509e0aca1c95c9cb009f4e8f2e3479b7e5ea530f53102"
     },
     "diagnosing-bugs": {
       "source": "mattpocock/skills",
@@ -144,6 +157,12 @@
       "sourceType": "github",
       "skillPath": "skills/misc/scaffold-exercises/SKILL.md",
       "computedHash": "486d60a7e984b76850bd22b3b58b98d0063a3b9b3acf319e4d5a37bf1283ea02"
+    },
+    "seo": {
+      "source": "affaan-m/ECC",
+      "sourceType": "github",
+      "skillPath": "skills/seo/SKILL.md",
+      "computedHash": "342da0c7fa6235cdc08789e67bac0e8ff770e8aeaa106f32895c17201501b1b0"
     },
     "setup-matt-pocock-skills": {
       "source": "mattpocock/skills",

@@ -19,6 +19,7 @@ for (const [key, value] of Object.entries(env)) {
 
 const isProduction = mode === "production";
 const publicAppUrl = normalizeAppUrl(process.env.PUBLIC_APP_URL ?? process.env.VITE_PUBLIC_APP_URL ?? "");
+const deploymentPublicAppUrl = normalizeDeploymentAppUrl(process.env.VERCEL_PROJECT_PRODUCTION_URL ?? "");
 const host = process.env.HOST ?? "127.0.0.1";
 let port = Number(process.env.PORT ?? 5173);
 const distRoot = path.resolve(root, "dist");
@@ -312,6 +313,12 @@ async function handleCreateDodoCheckout(req, res) {
     return;
   }
 
+  const origin = ensureCheckoutRedirectOrigin(req, res);
+
+  if (!origin) {
+    return;
+  }
+
   const checkoutRequest = await readCheckoutRequest(req, res);
 
   if (!checkoutRequest) {
@@ -326,7 +333,6 @@ async function handleCreateDodoCheckout(req, res) {
     return;
   }
 
-  const origin = getRequestOrigin(req);
   const checkoutPayload = {
     product_cart: [
       {
@@ -727,6 +733,12 @@ async function handleCreateLemonSqueezyCheckout(req, res) {
     return;
   }
 
+  const origin = ensureCheckoutRedirectOrigin(req, res);
+
+  if (!origin) {
+    return;
+  }
+
   const checkoutRequest = await readCheckoutRequest(req, res);
 
   if (!checkoutRequest) {
@@ -741,7 +753,6 @@ async function handleCreateLemonSqueezyCheckout(req, res) {
     return;
   }
 
-  const origin = getRequestOrigin(req);
   const checkoutPayload = {
     data: {
       type: "checkouts",
@@ -900,6 +911,12 @@ async function handleCreateWhopCheckout(req, res) {
     return;
   }
 
+  const origin = ensureCheckoutRedirectOrigin(req, res);
+
+  if (!origin) {
+    return;
+  }
+
   const checkoutRequest = await readCheckoutRequest(req, res);
 
   if (!checkoutRequest) {
@@ -914,7 +931,6 @@ async function handleCreateWhopCheckout(req, res) {
     return;
   }
 
-  const origin = getRequestOrigin(req);
   const checkoutPayload = {
     mode: "payment",
     company_id: companyId,
@@ -2735,6 +2751,16 @@ function normalizeAppUrl(value) {
   }
 }
 
+function normalizeDeploymentAppUrl(value) {
+  const deploymentUrl = parseString(value, 300);
+
+  if (!deploymentUrl) {
+    return "";
+  }
+
+  return normalizeAppUrl(/^https?:\/\//i.test(deploymentUrl) ? deploymentUrl : `https://${deploymentUrl}`);
+}
+
 function shouldRedirectToCanonicalAppUrl(req, requestUrl) {
   if (!isProduction || !publicAppUrl || !["GET", "HEAD"].includes(req.method ?? "GET")) {
     return false;
@@ -2924,6 +2950,29 @@ function getRequestOrigin(req) {
   return `${protocol}://${requestHost}`;
 }
 
+function getCheckoutRedirectOrigin(req) {
+  if (publicAppUrl) {
+    return publicAppUrl;
+  }
+
+  if (isProduction) {
+    return deploymentPublicAppUrl;
+  }
+
+  return getRequestOrigin(req);
+}
+
+function ensureCheckoutRedirectOrigin(req, res) {
+  const origin = getCheckoutRedirectOrigin(req);
+
+  if (origin) {
+    return origin;
+  }
+
+  sendJson(res, 503, { error: "Checkout is unavailable until the public app URL is configured." });
+  return "";
+}
+
 function firstHeader(value) {
   return Array.isArray(value) ? value[0] : typeof value === "string" ? value.split(",")[0].trim() : "";
 }
@@ -2974,3 +3023,8 @@ function getContentType(filePath) {
       return "application/octet-stream";
   }
 }
+
+export const __securityTest = {
+  getCheckoutRedirectOrigin,
+  normalizeDeploymentAppUrl,
+};
