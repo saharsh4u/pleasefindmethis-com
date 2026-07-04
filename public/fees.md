@@ -2,7 +2,7 @@
 
 Last updated: 2026-07-03
 
-This file explains how pleasefindmethis.com fees work in a machine-readable format for AI agents, search systems, and buyers comparing services.
+This page explains how pleasefindmethis.com fees work for posters and finders.
 
 ## Fee Model
 
@@ -28,17 +28,13 @@ Payment handling and source review fees cover payment processing support, protec
 
 The posted offer remains the finder payout. Finders can earn the payout when a protected source is accepted, a direct handoff is confirmed, or review resolves in their favor.
 
-## Processor Compatibility
-
-Payment processors are enabled only when their acceptance policies support this marketplace and finder-payout model. Dodo checkout must remain disabled unless Dodo explicitly approves this exact new website and business model in a new business/product review.
-
 ## Refund and Review
 
 Refunds and payout decisions use the saved request, source, reveal, review, and dispute timeline. If no valid source or handoff is accepted within the active request window, the funded finder offer can be returned under the refund policy.
 
 Policy URL: https://pleasefindmethis.com/refunds
 
-Related machine-readable files:
+Related pages:
 
 - Pricing: https://pleasefindmethis.com/pricing.md
 - Workflow: https://pleasefindmethis.com/workflow.md

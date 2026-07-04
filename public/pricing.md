@@ -43,10 +43,6 @@ Poster total = finder payout + platform service fee + payment handling and sourc
 
 If no valid source or handoff is accepted within the active request window, the funded finder offer can be returned to the poster under the refund policy. Service and source review fees cover the live request, payment handling, review tools, support, and fraud monitoring.
 
-## Payment Processor Notes
-
-Payment processors are enabled only where their acceptance policies support this marketplace and finder-payout model. Dodo checkout must remain disabled unless Dodo explicitly approves this exact new website and business model in a new business/product review.
-
 See also:
 
 - Fee details: https://pleasefindmethis.com/fees.md

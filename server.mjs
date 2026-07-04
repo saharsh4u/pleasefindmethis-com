@@ -48,6 +48,11 @@ export async function handleRequest(req, res) {
       return;
     }
 
+    if (isBlockedPublicPath(requestUrl.pathname)) {
+      sendText(res, 404, "Not found");
+      return;
+    }
+
     if (requestUrl.pathname === "/api/dodo/checkout") {
       await handleCreateDodoCheckout(req, res);
       return;
@@ -117,7 +122,7 @@ export async function handleRequest(req, res) {
   } catch (error) {
     console.error(error);
     if (!res.headersSent) {
-      sendJson(res, 500, { error: error instanceof Error ? error.message : "Unexpected server error." });
+      sendJson(res, 500, { error: "Unexpected server error." });
     } else {
       res.end();
     }
@@ -257,15 +262,14 @@ async function handleCreateDodoCheckout(req, res) {
 
   if (getPaymentProvider() !== "dodo") {
     sendJson(res, 409, {
-      error: "Dodo checkout is disabled because PAYMENT_PROVIDER is not set to dodo for this deployment.",
+      error: "This checkout option is not available.",
     });
     return;
   }
 
   if (!isDodoMarketplaceCheckoutAllowed()) {
     sendJson(res, 409, {
-      error:
-        "Dodo checkout is disabled for this marketplace payment flow until Dodo explicitly approves this new website and business model. Use PAYMENT_PROVIDER=lemonsqueezy or another processor approved for marketplace/finder-payout transactions.",
+      error: "This checkout option is not available for this request.",
     });
     return;
   }
@@ -275,13 +279,13 @@ async function handleCreateDodoCheckout(req, res) {
 
   if (!apiKey || !productId) {
     sendJson(res, 503, {
-      error: "Dodo Payments is not configured. Create an API key and a one-time pay-what-you-want product in your own Dodo dashboard, then set DODO_PAYMENTS_API_KEY and DODO_PRODUCT_ID.",
+      error: "Checkout is unavailable right now.",
     });
     return;
   }
 
   if (isProduction && !isDodoLiveMode()) {
-    sendJson(res, 503, { error: "Dodo live mode is required before production checkout can be enabled." });
+    sendJson(res, 503, { error: "Checkout is not available in this deployment." });
     return;
   }
 
@@ -371,7 +375,7 @@ async function handleCreateDodoCheckout(req, res) {
   if (!isRecord(dodoPayload) || typeof dodoPayload.checkout_url !== "string") {
     console.error("Dodo checkout response did not include checkout_url", dodoPayload);
     await markCheckoutFailed(requestId, false);
-    sendJson(res, 502, { error: "Dodo did not return a checkout URL." });
+    sendJson(res, 502, { error: "Checkout could not be started." });
     return;
   }
 
@@ -420,7 +424,7 @@ async function handlePublicRequests(req, res) {
   }
 
   if (!supabaseAdmin) {
-    sendJson(res, 503, { error: "Public request feed is not configured." });
+    sendJson(res, 503, { error: "Public request feed is unavailable." });
     return;
   }
 
@@ -556,7 +560,7 @@ async function handleJoinWaitlist(req, res) {
   }
 
   if (!waitlistRecipientEmail || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(waitlistRecipientEmail)) {
-    sendJson(res, 503, { error: "Waitlist recipient email is not configured." });
+    sendJson(res, 503, { error: "Waitlist is unavailable right now." });
     return;
   }
 
@@ -647,34 +651,8 @@ async function handleHealthCheck(req, res) {
     isWhopSandboxOnProductionAllowed();
   const productionCheckoutAllowed = !isProduction || isConfiguredPaymentProviderLive() || whopSandboxProductionOverride;
 
-  const checks = {
-    app: "pleasefindmethis-com",
-    mode,
-    publicAppUrl: Boolean(publicAppUrl),
-    supabase: {
-      publicEnv: Boolean(process.env.VITE_SUPABASE_URL && process.env.VITE_SUPABASE_PUBLISHABLE_KEY),
-      adminEnv: Boolean(supabaseAdmin),
-      requestsTable: false,
-      publicRequestCardsView: false,
-    },
-    payments: {
-      provider: paymentProvider,
-      productionLiveMode: !isProduction || isConfiguredPaymentProviderLive(),
-      productionCheckoutAllowed,
-      dodoMarketplaceCheckoutAllowed: isDodoMarketplaceCheckoutAllowed(),
-      lemonSqueezyConfigured: Boolean(process.env.LEMONSQUEEZY_API_KEY && process.env.LEMONSQUEEZY_STORE_ID && process.env.LEMONSQUEEZY_VARIANT_ID && process.env.LEMONSQUEEZY_WEBHOOK_SECRET),
-      dodoConfigured: Boolean(process.env.DODO_PAYMENTS_API_KEY && process.env.DODO_PRODUCT_ID && process.env.DODO_WEBHOOK_SECRET),
-      whopConfigured: Boolean(process.env.WHOP_API_KEY && (process.env.WHOP_COMPANY_ID || process.env.WHOP_PLATFORM_COMPANY_ID) && process.env.WHOP_WEBHOOK_SECRET),
-      whopEnvironment: getWhopEnvironment(),
-      whopSandboxOnProductionAllowed: isWhopSandboxOnProductionAllowed(),
-      dodoPolicyNote: "Dodo checkout must stay disabled for marketplace/finder-payout transactions unless Dodo explicitly approves this new business model.",
-    },
-    analytics: {
-      ga4BrowserConfigured: Boolean(process.env.VITE_GA4_MEASUREMENT_ID || process.env.VITE_GOOGLE_TAG_ID || process.env.VITE_GTM_ID),
-      ga4MeasurementProtocolConfigured: Boolean(ga4MeasurementId && ga4ApiSecret),
-      searchConsoleVerificationConfigured: Boolean(process.env.VITE_GOOGLE_SITE_VERIFICATION),
-    },
-  };
+  let requestsTableAvailable = false;
+  let publicRequestCardsAvailable = false;
 
   if (supabaseAdmin) {
     const [{ error: requestsError }, { error: publicCardsError }] = await Promise.all([
@@ -682,22 +660,22 @@ async function handleHealthCheck(req, res) {
       supabaseAdmin.from("public_request_cards").select("id", { count: "exact", head: true }),
     ]);
 
-    checks.supabase.requestsTable = !requestsError;
-    checks.supabase.publicRequestCardsView = !publicCardsError;
+    requestsTableAvailable = !requestsError;
+    publicRequestCardsAvailable = !publicCardsError;
   }
 
   const healthy =
-    checks.supabase.publicEnv &&
-    checks.supabase.adminEnv &&
-    checks.supabase.requestsTable &&
-    checks.supabase.publicRequestCardsView &&
-    (!checks.payments.dodoMarketplaceCheckoutAllowed || checks.payments.provider === "dodo") &&
-    (checks.payments.provider !== "dodo" || checks.payments.dodoMarketplaceCheckoutAllowed) &&
-    checks.payments.productionCheckoutAllowed;
+    Boolean(process.env.VITE_SUPABASE_URL && process.env.VITE_SUPABASE_PUBLISHABLE_KEY) &&
+    Boolean(supabaseAdmin) &&
+    requestsTableAvailable &&
+    publicRequestCardsAvailable &&
+    (!isDodoMarketplaceCheckoutAllowed() || paymentProvider === "dodo") &&
+    (paymentProvider !== "dodo" || isDodoMarketplaceCheckoutAllowed()) &&
+    productionCheckoutAllowed;
 
   sendJson(res, healthy ? 200 : 503, {
     ok: healthy,
-    checks,
+    app: "pleasefindmethis-com",
   });
 }
 
@@ -713,13 +691,13 @@ async function handleCreateLemonSqueezyCheckout(req, res) {
 
   if (!apiKey || !storeId || !variantId) {
     sendJson(res, 503, {
-      error: "Lemon Squeezy is not configured. Create an API key, store, and one-time product variant, then set LEMONSQUEEZY_API_KEY, LEMONSQUEEZY_STORE_ID, and LEMONSQUEEZY_VARIANT_ID.",
+      error: "Checkout is unavailable right now.",
     });
     return;
   }
 
   if (isProduction && parseBooleanEnv("LEMONSQUEEZY_TEST_MODE", false)) {
-    sendJson(res, 503, { error: "Lemon Squeezy live mode is required before production checkout can be enabled." });
+    sendJson(res, 503, { error: "Checkout is not available in this deployment." });
     return;
   }
 
@@ -842,7 +820,7 @@ async function handleCreateLemonSqueezyCheckout(req, res) {
   if (!checkoutUrl) {
     console.error("Lemon Squeezy checkout response did not include a URL", getLemonSqueezyErrorSummary(lemonPayload, responseText));
     await markCheckoutFailed(requestId, false);
-    sendJson(res, 502, { error: "Lemon Squeezy did not return a checkout URL." });
+    sendJson(res, 502, { error: "Checkout could not be started." });
     return;
   }
 
@@ -876,7 +854,7 @@ async function handleCreateWhopCheckout(req, res) {
 
   if (getPaymentProvider() !== "whop") {
     sendJson(res, 409, {
-      error: "Whop checkout is disabled because PAYMENT_PROVIDER is not set to whop for this deployment.",
+      error: "This checkout option is not available.",
     });
     return;
   }
@@ -886,13 +864,13 @@ async function handleCreateWhopCheckout(req, res) {
 
   if (!apiKey || !companyId) {
     sendJson(res, 503, {
-      error: "Whop is not configured. Create a Whop API key and company, then set WHOP_API_KEY and WHOP_COMPANY_ID.",
+      error: "Checkout is unavailable right now.",
     });
     return;
   }
 
   if (isProduction && !isWhopLiveMode() && !isWhopSandboxOnProductionAllowed()) {
-    sendJson(res, 503, { error: "Whop live mode is required before production checkout can be enabled." });
+    sendJson(res, 503, { error: "Checkout is not available in this deployment." });
     return;
   }
 
@@ -1032,7 +1010,7 @@ async function handleDodoWebhook(req, res) {
   const webhookSecret = process.env.DODO_WEBHOOK_SECRET;
 
   if (!webhookSecret) {
-    sendJson(res, 503, { error: "Dodo webhook secret is not configured." });
+    sendJson(res, 503, { error: "Webhook is not available." });
     return;
   }
 
@@ -1066,7 +1044,7 @@ async function handleDodoWebhook(req, res) {
   } catch (error) {
     const status = error instanceof WebhookValidationError ? error.statusCode : 500;
     console.error("Could not process Dodo webhook", error);
-    sendJson(res, status, { error: error instanceof Error ? error.message : "Could not process webhook." });
+    sendJson(res, status, { error: "Webhook could not be processed." });
   }
 }
 
@@ -1079,7 +1057,7 @@ async function handleLemonSqueezyWebhook(req, res) {
   const webhookSecret = process.env.LEMONSQUEEZY_WEBHOOK_SECRET;
 
   if (!webhookSecret) {
-    sendJson(res, 503, { error: "Lemon Squeezy webhook secret is not configured." });
+    sendJson(res, 503, { error: "Webhook is not available." });
     return;
   }
 
@@ -1113,7 +1091,7 @@ async function handleLemonSqueezyWebhook(req, res) {
   } catch (error) {
     const status = error instanceof WebhookValidationError ? error.statusCode : 500;
     console.error("Could not process Lemon Squeezy webhook", error);
-    sendJson(res, status, { error: error instanceof Error ? error.message : "Could not process webhook." });
+    sendJson(res, status, { error: "Webhook could not be processed." });
   }
 }
 
@@ -1126,7 +1104,7 @@ async function handleWhopWebhook(req, res) {
   const webhookSecret = process.env.WHOP_WEBHOOK_SECRET;
 
   if (!webhookSecret) {
-    sendJson(res, 503, { error: "Whop webhook secret is not configured." });
+    sendJson(res, 503, { error: "Webhook is not available." });
     return;
   }
 
@@ -1160,7 +1138,7 @@ async function handleWhopWebhook(req, res) {
   } catch (error) {
     const status = error instanceof WebhookValidationError ? error.statusCode : 500;
     console.error("Could not process Whop webhook", error);
-    sendJson(res, status, { error: error instanceof Error ? error.message : "Could not process webhook." });
+    sendJson(res, status, { error: "Webhook could not be processed." });
   }
 }
 
@@ -1181,62 +1159,49 @@ function getEscrowBreakdown(reward) {
 
 function getDodoCheckoutError(status, payload) {
   const code = isRecord(payload) ? parseString(payload.code, 80) : "";
-  const upstreamMessage = isRecord(payload) ? parseString(payload.message ?? payload.error, 240) : "";
 
   if (code === "MERCHANT_NOT_LIVE") {
     return {
       status: 503,
-      message: "Dodo live payments are not enabled for this merchant yet. Product review and payout verification must finish before posters can pay.",
+      message: "Checkout is not available right now. Please try again later.",
     };
   }
 
   if (status === 401) {
     return {
       status: 502,
-      message: "Dodo rejected the API key for the selected environment. Check that the API key, product id, and DODO_PAYMENTS_ENVIRONMENT all come from the same Dodo mode.",
+      message: "Checkout could not be started. Please contact support.",
     };
   }
 
   return {
     status: 502,
-    message:
-      upstreamMessage ||
-      "Dodo rejected the checkout request. Check that the API key and product id come from your Dodo account and the product supports custom amounts.",
+    message: "Checkout could not be started. Please try again.",
   };
 }
 
 function getLemonSqueezyCheckoutError(status, payload) {
-  const errors = isRecord(payload) && Array.isArray(payload.errors) ? payload.errors : [];
-  const firstError = errors.find(isRecord);
-  const title = isRecord(firstError) ? parseString(firstError.title, 160) : "";
-  const detail = isRecord(firstError) ? parseString(firstError.detail, 240) : "";
-  const fallback = detail || title;
-
   if (status === 401) {
-    return "Lemon Squeezy rejected the API key. Create a fresh API key and confirm it is stored in LEMONSQUEEZY_API_KEY.";
+    return "Checkout could not be started. Please contact support.";
   }
 
   if (status === 422) {
-    return fallback || "Lemon Squeezy rejected the checkout configuration. Check the store id, variant id, and custom price settings.";
+    return "Checkout could not be started. Please contact support.";
   }
 
-  return fallback || "Lemon Squeezy rejected the checkout request.";
+  return "Checkout could not be started. Please try again.";
 }
 
 function getWhopCheckoutError(status, payload) {
-  const message =
-    (isRecord(payload) && parseString(payload.message ?? payload.error, 240)) ||
-    (isRecord(payload) && isRecord(payload.error) ? parseString(payload.error.message, 240) : "");
-
   if (status === 401 || status === 403) {
-    return "Whop rejected the API key or permissions. Create a server-side API key with checkout configuration and plan creation permissions.";
+    return "Checkout could not be started. Please contact support.";
   }
 
   if (status === 422) {
-    return message || "Whop rejected the checkout configuration. Check WHOP_COMPANY_ID and one-time payment settings.";
+    return "Checkout could not be started. Please contact support.";
   }
 
-  return message || "Whop rejected the checkout request.";
+  return "Checkout could not be started. Please try again.";
 }
 
 function getLemonSqueezyErrorSummary(payload, responseText) {
@@ -2634,6 +2599,16 @@ async function serveStaticAsset(pathname, res) {
 
 function shouldServePublicStaticPath(pathname) {
   return pathname === "/pseo.css" || pathname.startsWith("/guides/") || pathname.startsWith("/requests/") || pathname.startsWith("/sitemaps/");
+}
+
+function isBlockedPublicPath(pathname) {
+  return (
+    pathname === "/llms.txt" ||
+    pathname === "/common-questions.md" ||
+    pathname === "/sitemaps/pseo.xml" ||
+    pathname.startsWith("/okf/") ||
+    pathname === "/okf"
+  );
 }
 
 async function tryServeStaticAsset(assetRoot, pathname, res) {

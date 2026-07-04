@@ -1348,7 +1348,7 @@ function usePublicRequestListings() {
 
 async function getCurrentSupabaseUser() {
   if (!supabase) {
-    throw new Error("Supabase is not configured.");
+    throw new Error("Sign in is not available right now.");
   }
 
   const {
@@ -4037,7 +4037,6 @@ function SiteFooter({
   const resourceLinks: Array<[string, string]> = [
     ["Guides", "/guides/"],
     ["Request categories", "/requests/"],
-    ["AI summary", "/llms.txt"],
     ["Pricing", "/pricing.md"],
     ["Use cases", "/use-cases.md"],
   ];

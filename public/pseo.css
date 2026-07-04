@@ -89,6 +89,10 @@ img {
   padding: 3.5rem 0;
 }
 
+.hero-inner-no-media {
+  grid-template-columns: minmax(0, 1fr);
+}
+
 .eyebrow {
   color: var(--clay);
   font-size: 0.78rem;
@@ -189,6 +193,40 @@ h3 {
 
 .section {
   margin-top: 2rem;
+}
+
+.answer-block {
+  display: grid;
+  gap: 1rem;
+  border-color: #b9d7c4;
+  background: linear-gradient(135deg, #ffffff 0%, #f1f8f3 100%);
+}
+
+.answer-label {
+  margin: 0;
+  color: var(--green-dark);
+  font-size: 0.78rem;
+  font-weight: 850;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.answer-block h2 {
+  margin: 0;
+}
+
+.answer-block p {
+  max-width: 62rem;
+  color: #203127;
+  font-size: 1.06rem;
+}
+
+.fact-list {
+  display: grid;
+  gap: 0.55rem;
+  margin: 0;
+  padding-left: 1.2rem;
+  color: var(--muted);
 }
 
 .grid {

@@ -33,7 +33,7 @@ const guidePages = [
     ],
     steps: [
       ["Crop around the actual item", "Remove background clutter and run separate searches for labels, tags, hardware, patterns, and connector ends."],
-      ["Describe what a machine cannot infer", "Write down material, scale, age, texture, finish, country, stitching, colorway, or any wear pattern that matters."],
+      ["Describe what the photo cannot show", "Write down material, scale, age, texture, finish, country, stitching, colorway, or any wear pattern that matters."],
       ["Search with clue stacks", "Combine color, material, shape, and item type. For example: green ribbed glass pendant light brass cap."],
       ["Check sold and archived listings", "Sold pages can reveal the exact title, model number, color name, or older retail listing even when the item is gone."],
       ["Require proof before buying", "Ask for photos of labels, dimensions, condition, serial numbers, or matching details before paying a third-party seller."],
@@ -317,7 +317,7 @@ const guidePages = [
     ],
     faqs: [
       ["Should I allow similar results?", "Only if you would actually buy them. Allowing similar matches can increase submissions, but it can also waste time if you need the exact item."],
-      ["Why does this matter for SEO pages?", "Exact, dupe, similar, and compatible are different search intents. Pages and requests should use the right word."],
+      ["Why does this matter when posting a request?", "Exact, dupe, similar, and compatible mean different things. Using the right word helps finders avoid wrong leads."],
     ],
   },
   {
@@ -587,6 +587,10 @@ img {
   padding: 3.5rem 0;
 }
 
+.hero-inner-no-media {
+  grid-template-columns: minmax(0, 1fr);
+}
+
 .eyebrow {
   color: var(--clay);
   font-size: 0.78rem;
@@ -687,6 +691,40 @@ h3 {
 
 .section {
   margin-top: 2rem;
+}
+
+.answer-block {
+  display: grid;
+  gap: 1rem;
+  border-color: #b9d7c4;
+  background: linear-gradient(135deg, #ffffff 0%, #f1f8f3 100%);
+}
+
+.answer-label {
+  margin: 0;
+  color: var(--green-dark);
+  font-size: 0.78rem;
+  font-weight: 850;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.answer-block h2 {
+  margin: 0;
+}
+
+.answer-block p {
+  max-width: 62rem;
+  color: #203127;
+  font-size: 1.06rem;
+}
+
+.fact-list {
+  display: grid;
+  gap: 0.55rem;
+  margin: 0;
+  padding-left: 1.2rem;
+  color: var(--muted);
 }
 
 .grid {
@@ -804,8 +842,7 @@ async function main() {
   for (const category of categoryPages) {
     await writeFile(`requests/${category.slug}/index.html`, renderCategoryPage(category));
   }
-
-  await writeFile("sitemaps/pseo.xml", renderSitemap());
+  await removePublicFile("sitemaps/pseo.xml");
 }
 
 function renderGuideIndex() {
@@ -821,7 +858,7 @@ function renderGuideIndex() {
     description:
       "Practical guides for finding exact items from photos, replacing discontinued products, avoiding scams, and using finder payouts safely.",
     h1: "Guides for finding exact items",
-    eyebrow: "Programmatic SEO hub",
+    eyebrow: "Search guides",
     image: "/og/creative-sprint-more/29-this-exact-thing.png",
     lede:
       "Use these guides when normal search, marketplace scrolling, and image search keep returning close matches, dead listings, or risky sellers.",
@@ -832,18 +869,8 @@ function renderGuideIndex() {
     breadcrumbs: [["Home", "/"], ["Guides", "/guides/"]],
     body: `
       <section class="section">
-        <h2>High-intent search guides</h2>
+        <h2>Guides</h2>
         ${renderCardGrid(items)}
-      </section>
-      <section class="section two-grid">
-        <div class="panel">
-          <h2>Why these pages exist</h2>
-          <p>People do not search for a marketplace first. They search for the exact problem: help me find this item, Google Lens is wrong, this was discontinued, or where can I buy this. These pages match that language and point users into a structured request workflow.</p>
-        </div>
-        <div class="panel">
-          <h2>Best conversion moment</h2>
-          <p>The best CTA is after the user has tried the checklist and still needs a human source. That is when a funded request and protected source lead are easier to understand.</p>
-        </div>
       </section>
     `,
     schema: collectionSchema("/guides/", "Guides For Finding Exact Items", items),
@@ -861,31 +888,22 @@ function renderCategoryIndex() {
     canonicalPath: "/requests/",
     title: "Hard-To-Find Item Request Categories",
     description:
-      "Browse crawlable request category hubs for sentimental replacements, plush toys, fashion, repair parts, cameras, watches, retro gaming, and home decor.",
+      "Browse request categories for sentimental replacements, plush toys, fashion, repair parts, cameras, watches, retro gaming, and home decor.",
     h1: "Hard-to-find item request categories",
-    eyebrow: "Category hubs",
+    eyebrow: "Request types",
     image: "/og/creative-sprint-more/22-one-bounty-less-noise.png",
     lede:
-      "Each category hub explains what to include in a request, why normal search fails, and how finders should verify a source before it is accepted.",
+      "Choose the closest category so your request asks for the right proof, details, and source type from the start.",
     cta: "/post/describe",
     ctaLabel: "Post a request",
     secondaryCta: "/browse/all",
     secondaryCtaLabel: "Browse live requests",
     breadcrumbs: [["Home", "/"], ["Request categories", "/requests/"]],
+    showHeroImage: false,
     body: `
       <section class="section">
-        <h2>Category hubs</h2>
+        <h2>Categories</h2>
         ${renderCardGrid(items)}
-      </section>
-      <section class="section two-grid">
-        <div class="panel">
-          <h2>Indexing rule</h2>
-          <p>These pages are useful because every category has unique request details, common search failures, and verification checks. Future generated request pages should only be indexed when they are funded, moderated, and content-rich.</p>
-        </div>
-        <div class="panel">
-          <h2>Internal links</h2>
-          <p>Category hubs link to guides, live browse pages, and the request form. As real funded requests and solved finds grow, each hub should link to those first-party examples.</p>
-        </div>
       </section>
     `,
     schema: collectionSchema("/requests/", "Hard-To-Find Item Request Categories", items),
@@ -922,9 +940,18 @@ function renderGuidePage(guide) {
     breadcrumbs: [["Home", "/"], ["Guides", "/guides/"], [guide.title, `/guides/${guide.slug}/`]],
     body: `
       <section class="section panel">
-        <h2>Search intent this page answers</h2>
+        <h2>When this guide helps</h2>
         ${renderTags(guide.intents)}
       </section>
+      ${renderAnswerBlock({
+        id: `${guide.slug}-answer`,
+        title: "Short answer",
+        answer: guideDirectAnswer(guide),
+        facts: [
+          `First checklist item: ${formatFactValue(guide.checklist[0])}.`,
+          `Best next step: ${guide.ctaLabel.toLowerCase()}.`,
+        ],
+      })}
       <section class="section">
         <h2>Step-by-step workflow</h2>
         ${renderStepGrid(guide.steps)}
@@ -994,11 +1021,21 @@ function renderCategoryPage(category) {
     secondaryCta: "/browse/all",
     secondaryCtaLabel: "Browse live requests",
     breadcrumbs: [["Home", "/"], ["Request categories", "/requests/"], [category.title, `/requests/${category.slug}/`]],
+    showHeroImage: false,
     body: `
       <section class="section panel">
-        <h2>Searches this category captures</h2>
+        <h2>What this category covers</h2>
         ${renderTags(category.searches)}
       </section>
+      ${renderAnswerBlock({
+        id: `${category.slug}-answer`,
+        title: "Short answer",
+        answer: categoryDirectAnswer(category),
+        facts: [
+          `First request detail to include: ${formatFactValue(category.requestDetails[0])}.`,
+          `First verification check: ${formatFactValue(category.verification[0])}.`,
+        ],
+      })}
       <section class="section">
         <h2>What to include in the request</h2>
         ${renderCardGrid(category.requestDetails.map((item) => ({ title: item, description: detailDescription(item) })))}
@@ -1012,11 +1049,6 @@ function renderCategoryPage(category) {
           <h2>Verification checks</h2>
           ${renderList(category.verification)}
         </div>
-      </section>
-      <section class="section panel">
-        <h2>Visual examples</h2>
-        <p>Use clear reference images and close-ups so finders can reject lookalikes before submitting a source.</p>
-        ${renderImageStrip(category.exampleImages, category.title)}
       </section>
       <section class="section">
         <h2>Helpful guides</h2>
@@ -1049,10 +1081,11 @@ function renderLayout({
   breadcrumbs,
   body,
   schema,
+  showHeroImage = true,
 }) {
   const canonicalUrl = absoluteUrl(canonicalPath);
   const imageUrl = absoluteUrl(image);
-  const schemas = Array.isArray(schema) ? schema : [schema];
+  const schemas = [siteEntitySchema(), ...normalizeSchemas(schema)];
 
   return `<!doctype html>
 <html lang="en">
@@ -1082,7 +1115,7 @@ function renderLayout({
     <div class="site-shell">
       ${renderTopbar()}
       <header class="hero">
-        <div class="hero-inner">
+        <div class="hero-inner${showHeroImage ? "" : " hero-inner-no-media"}">
           <div>
             <nav class="breadcrumbs" aria-label="Breadcrumbs">${renderBreadcrumbs(breadcrumbs)}</nav>
             <span class="eyebrow">${escapeHtml(eyebrow)}</span>
@@ -1093,9 +1126,13 @@ function renderLayout({
               <a class="button secondary" href="${attr(secondaryCta)}">${escapeHtml(secondaryCtaLabel)}</a>
             </div>
           </div>
-          <figure class="hero-image">
+          ${
+            showHeroImage
+              ? `<figure class="hero-image">
             <img src="${attr(image)}" alt="${attr(`${h1} reference image`)}" />
-          </figure>
+          </figure>`
+              : ""
+          }
         </div>
       </header>
       <main class="content">
@@ -1136,8 +1173,6 @@ function renderFooter() {
           <a href="/rules">Rules</a>
           <a href="/refunds">Refunds</a>
           <a href="/pricing.md">Pricing</a>
-          <a href="/llms.txt">AI summary</a>
-          <a href="/sitemaps/pseo.xml">pSEO sitemap</a>
         </nav>
       </footer>`;
 }
@@ -1181,10 +1216,34 @@ function renderFaqs(faqs) {
     .join("")}</div>`;
 }
 
+function renderAnswerBlock({ id, title, answer, facts }) {
+  return `
+      <section class="section panel answer-block" aria-labelledby="${attr(id)}">
+        <p class="answer-label">Quick summary</p>
+        <h2 id="${attr(id)}">${escapeHtml(title)}</h2>
+        <p>${escapeHtml(answer)}</p>
+        ${facts?.length ? `<ul class="fact-list">${facts.map((fact) => `<li>${escapeHtml(fact)}</li>`).join("")}</ul>` : ""}
+      </section>`;
+}
+
 function renderImageStrip(images, title) {
   return `<div class="image-strip">${images
     .map((image, index) => `<img src="${attr(image)}" alt="${attr(`${title} example ${index + 1}`)}" />`)
     .join("")}</div>`;
+}
+
+function guideDirectAnswer(guide) {
+  return `${guide.h1}: ${guide.intro[0]} A useful request names the exact match, the wrong matches already found, the buying constraints, and the proof a finder must provide before the source is accepted.`;
+}
+
+function categoryDirectAnswer(category) {
+  const details = category.requestDetails.slice(0, 3).join(", ").toLowerCase();
+  const checks = category.verification.slice(0, 2).join(" and ").toLowerCase();
+  return `${category.h1} requests work best when normal search misses the exact item and a human source may know the right listing, seller, shop, donor unit, or collector lead. Include ${details}; verify leads with ${checks}.`;
+}
+
+function formatFactValue(value) {
+  return String(value).trim().replace(/[.!?]+$/g, "");
 }
 
 function detailDescription(item) {
@@ -1202,7 +1261,19 @@ function detailDescription(item) {
     return "Exact identifiers reduce wrong leads and help search across marketplaces and old pages.";
   }
 
-  return "This detail helps separate an exact source from a close but unusable lookalike.";
+  if (lower.includes("condition") || lower.includes("size") || lower.includes("color") || lower.includes("fabric")) {
+    return "Small visual and condition differences often decide whether a source is useful or another near match.";
+  }
+
+  if (lower.includes("tag") || lower.includes("label") || lower.includes("mark")) {
+    return "Labels and marks can reveal older product names, manufacturer clues, and searchable listing terms.";
+  }
+
+  if (lower.includes("accessory") || lower.includes("bundle") || lower.includes("set")) {
+    return "List missing pieces early so finders do not submit a source that is correct but incomplete.";
+  }
+
+  return "Describe this constraint in plain language so finders can filter wrong leads before submission.";
 }
 
 function renderSitemap() {
@@ -1238,7 +1309,7 @@ function collectionSchema(pathname, name, items) {
       "@id": `${absoluteUrl(pathname)}#webpage`,
       url: absoluteUrl(pathname),
       name,
-      description: `Crawlable ${name.toLowerCase()} pages for ${siteName}.`,
+      description: `A collection of ${name.toLowerCase()} on ${siteName}.`,
       isPartOf: { "@id": `${siteUrl}/#website` },
       mainEntity: {
         "@type": "ItemList",
@@ -1266,6 +1337,64 @@ function collectionPageSchema(pathname, name, description) {
   };
 }
 
+function siteEntitySchema() {
+  const organizationId = `${siteUrl}/#organization`;
+  const websiteId = `${siteUrl}/#website`;
+  const serviceId = `${siteUrl}/#service`;
+
+  return {
+    "@context": "https://schema.org",
+    "@graph": [
+      {
+        "@type": "Organization",
+        "@id": organizationId,
+        name: siteName,
+        url: siteUrl,
+        logo: absoluteUrl("/magnifying-glass.png"),
+        description:
+          "pleasefindmethis.com is a hard-to-find item bounty marketplace for funded requests and protected source leads.",
+        contactPoint: [
+          {
+            "@type": "ContactPoint",
+            contactType: "customer support",
+            email: "support@pleasefindmethis.com",
+          },
+        ],
+        knowsAbout: [
+          "hard-to-find items",
+          "discontinued products",
+          "finder fees",
+          "protected source leads",
+          "rare camera gear",
+          "sentimental replacements",
+          "repair parts",
+        ],
+      },
+      {
+        "@type": "WebSite",
+        "@id": websiteId,
+        name: siteName,
+        url: siteUrl,
+        description:
+          "A public bounty board where posters fund requests for exact hard-to-find items and finders submit protected source leads.",
+        publisher: { "@id": organizationId },
+      },
+      {
+        "@type": "Service",
+        "@id": serviceId,
+        name: "Hard-to-find item bounty marketplace",
+        serviceType: "Funded request and protected source lead marketplace",
+        url: siteUrl,
+        provider: { "@id": organizationId },
+        areaServed: "Worldwide",
+        description:
+          "Posters create funded requests for exact items, and finders submit source links, seller contacts, local leads, clues, or handoff paths for accepted payouts.",
+        termsOfService: absoluteUrl("/terms"),
+      },
+    ],
+  };
+}
+
 function webpageSchema(pathname, name, description, type = "WebPage") {
   return {
     "@context": "https://schema.org",
@@ -1279,6 +1408,7 @@ function webpageSchema(pathname, name, description, type = "WebPage") {
     inLanguage: "en",
     isPartOf: { "@id": `${siteUrl}/#website` },
     publisher: { "@id": `${siteUrl}/#organization` },
+    author: { "@id": `${siteUrl}/#organization` },
   };
 }
 
@@ -1314,10 +1444,18 @@ function absoluteUrl(pathname) {
   return new URL(pathname, siteUrl).href;
 }
 
+function normalizeSchemas(schema) {
+  return (Array.isArray(schema) ? schema : [schema]).flat().filter(Boolean);
+}
+
 async function writeFile(relativePath, content) {
   const filePath = path.join(publicDir, relativePath);
   await fs.mkdir(path.dirname(filePath), { recursive: true });
   await fs.writeFile(filePath, content, "utf8");
+}
+
+async function removePublicFile(relativePath) {
+  await fs.rm(path.join(publicDir, relativePath), { force: true });
 }
 
 function jsonLd(value) {
