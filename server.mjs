@@ -573,17 +573,11 @@ async function handleJoinWaitlist(req, res) {
   const resendApiKey = parseString(process.env.RESEND_API_KEY, 240);
 
   if (!resendApiKey) {
-    console.info("Waitlist signup captured without email provider", notification);
-    if (!isProduction) {
-      sendJson(res, 200, {
-        ok: true,
-        emailQueued: false,
-        message: "Local waitlist signup logged. Configure RESEND_API_KEY in production to email the owner.",
-      });
-      return;
-    }
-
-    sendJson(res, 503, { error: "Waitlist email is not configured yet. Set RESEND_API_KEY before collecting production signups." });
+    console.warn("Waitlist signup captured but RESEND_API_KEY is not configured, so no owner email was sent", notification);
+    sendJson(res, 200, {
+      ok: true,
+      emailQueued: false,
+    });
     return;
   }
 

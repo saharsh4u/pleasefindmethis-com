@@ -23,6 +23,7 @@ import {
   LayoutDashboard,
   LockKeyhole,
   LogOut,
+  Mail,
   MapPin,
   Menu,
   MessageSquare,
@@ -3626,11 +3627,29 @@ function WaitlistDialog({
   const [remainingMs, setRemainingMs] = useState(() => Math.max(0, deadlineMs - Date.now()));
   const [submitStatus, setSubmitStatus] = useState<"idle" | "loading" | "success" | "error">("idle");
   const [message, setMessage] = useState("");
+  const [emailTouched, setEmailTouched] = useState(false);
+  const [buttonRipples, setButtonRipples] = useState<Array<{ id: number; size: number; x: number; y: number }>>([]);
   const title = intent === "post" ? "Posting opens soon." : "Open requests are almost ready.";
   const body =
     intent === "post"
       ? "Leave your email and we will notify you when paid find requests are ready to post."
       : "Leave your email and we will notify you when the open request board is ready.";
+  const normalizedEmail = email.trim().toLowerCase();
+  const emailHasValue = normalizedEmail.length > 0;
+  const emailIsValid = emailPattern.test(normalizedEmail);
+  const emailIsInvalid = (emailTouched || submitStatus === "error") && !emailIsValid;
+  const countdownText = formatWaitlistCountdown(remainingMs);
+  const [countdownHours, countdownMinutes, countdownSeconds] = countdownText.split(" ");
+  const countdownTiles = [
+    { label: "Hours", unit: "h", value: countdownHours.replace("h", "") },
+    { label: "Minutes", unit: "m", value: countdownMinutes.replace("m", "") },
+    { label: "Seconds", unit: "s", value: countdownSeconds.replace("s", "") },
+  ];
+  const isSuccess = submitStatus === "success";
+  const countdownProgress = Math.min(1, Math.max(0, (waitlistCountdownDurationMs - remainingMs) / waitlistCountdownDurationMs));
+  const formStateClass = submitStatus === "loading" ? "is-loading" : isSuccess ? "is-success" : "";
+  const emailFieldClass = `waitlist-email-field ${emailIsValid && emailHasValue ? "is-valid" : ""} ${emailIsInvalid ? "is-invalid" : ""}`.trim();
+  const statusId = "waitlist-status-message";
 
   useEffect(() => {
     const closeOnEscape = (event: KeyboardEvent) => {
@@ -3653,11 +3672,11 @@ function WaitlistDialog({
 
   const joinWaitlist = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
-    const normalizedEmail = email.trim().toLowerCase();
 
+    setEmailTouched(true);
     setMessage("");
 
-    if (!emailPattern.test(normalizedEmail)) {
+    if (!emailIsValid) {
       setSubmitStatus("error");
       setMessage("Enter a valid email address.");
       return;
@@ -3705,44 +3724,125 @@ function WaitlistDialog({
     }
   };
 
+  const updateEmail = (nextEmail: string) => {
+    setEmail(nextEmail);
+    if (submitStatus === "error") {
+      setSubmitStatus("idle");
+      setMessage("");
+    }
+  };
+
+  const createSubmitRipple = (event: React.PointerEvent<HTMLButtonElement>) => {
+    if (submitStatus === "loading" || isSuccess) {
+      return;
+    }
+
+    const rect = event.currentTarget.getBoundingClientRect();
+    const size = Math.max(rect.width, rect.height) * 1.08;
+    setButtonRipples((currentRipples) => [
+      ...currentRipples.slice(-3),
+      {
+        id: Date.now(),
+        size,
+        x: event.clientX - rect.left - size / 2,
+        y: event.clientY - rect.top - size / 2,
+      },
+    ]);
+  };
+
   return (
     <div className="dialog-backdrop waitlist-backdrop" role="presentation" onMouseDown={(event) => event.target === event.currentTarget && onClose()}>
-      <section className="starter-dialog waitlist-dialog" role="dialog" aria-modal="true" aria-labelledby="waitlist-title">
+      <section className={`starter-dialog waitlist-dialog ${isSuccess ? "is-success" : ""}`} role="dialog" aria-modal="true" aria-labelledby="waitlist-title">
+        <span className="waitlist-glow waitlist-glow-green" aria-hidden="true" />
+        <span className="waitlist-glow waitlist-glow-gold" aria-hidden="true" />
+        <div className="waitlist-scan-line" aria-hidden="true" />
         <button className="dialog-close" type="button" aria-label="Close waitlist form" onClick={onClose}>
           <X size={18} aria-hidden="true" />
         </button>
         <div className="waitlist-dialog-copy">
-          <p className="route-kicker">Early access</p>
+          <div className="waitlist-brand-row">
+            <span className="waitlist-logo-mark" aria-hidden="true">
+              <img src="/magnifying-glass.png" alt="" />
+            </span>
+            <span className="waitlist-brand-copy">
+              <strong>{siteName}</strong>
+              <small>Early access waitlist</small>
+            </span>
+          </div>
           <h2 id="waitlist-title">{title}</h2>
           <p>{body}</p>
         </div>
-        <form className="waitlist-form" onSubmit={joinWaitlist}>
-          <div className="waitlist-countdown" aria-label={`Countdown ${formatWaitlistCountdown(remainingMs)}`}>
-            <Clock3 size={20} aria-hidden="true" />
-            <span>Opening in</span>
-            <strong>{formatWaitlistCountdown(remainingMs)}</strong>
+        <form className={`waitlist-form ${formStateClass}`} onSubmit={joinWaitlist}>
+          <div className="waitlist-countdown" aria-label={`Countdown ${countdownText}`}>
+            <span className="countdown-progress" style={{ transform: `scaleX(${countdownProgress})` }} aria-hidden="true" />
+            <div className="countdown-label">
+              <Clock3 size={18} aria-hidden="true" />
+              <span>Opening in</span>
+            </div>
+            <div className="countdown-tiles" aria-hidden="true">
+              {countdownTiles.map((tile) => (
+                <span className="countdown-tile" key={tile.label}>
+                  <strong key={`${tile.label}-${tile.value}`}>{tile.value}</strong>
+                  <em>{tile.unit}</em>
+                  <small>{tile.label}</small>
+                </span>
+              ))}
+            </div>
+            <strong className="sr-only">{countdownText}</strong>
           </div>
-          <label>
-            Email address
-            <input
-              type="email"
-              value={email}
-              placeholder="you@example.com"
-              autoComplete="email"
-              autoFocus
-              disabled={submitStatus === "loading" || submitStatus === "success"}
-              onChange={(event) => setEmail(event.target.value)}
-            />
+          <label className={emailFieldClass}>
+            <span>Email address</span>
+            <span className="email-input-shell">
+              <Mail size={18} aria-hidden="true" />
+              <input
+                type="email"
+                value={email}
+                placeholder="you@example.com"
+                autoComplete="email"
+                autoFocus
+                disabled={submitStatus === "loading" || submitStatus === "success"}
+                aria-invalid={emailIsInvalid || undefined}
+                aria-describedby={message ? statusId : undefined}
+                onBlur={() => setEmailTouched(true)}
+                onChange={(event) => updateEmail(event.target.value)}
+              />
+              {emailHasValue ? (
+                <span className="email-state-icon" aria-hidden="true">
+                  {emailIsValid ? <CheckCircle2 size={17} /> : emailIsInvalid ? <ShieldAlert size={17} /> : null}
+                </span>
+              ) : null}
+            </span>
           </label>
-          <button className="primary-button wide-button" type="submit" disabled={submitStatus === "loading" || submitStatus === "success"}>
-            <Send size={17} aria-hidden="true" />
-            {submitStatus === "loading" ? "Joining..." : submitStatus === "success" ? "Joined" : "Join waitlist"}
+          <button
+            className={`primary-button wide-button ${submitStatus === "loading" ? "is-loading" : ""} ${isSuccess ? "is-success" : ""}`}
+            type="submit"
+            disabled={submitStatus === "loading" || submitStatus === "success"}
+            aria-busy={submitStatus === "loading" || undefined}
+            onPointerDown={createSubmitRipple}
+          >
+            {submitStatus === "loading" ? <span className="button-spinner" aria-hidden="true" /> : isSuccess ? <CheckCircle2 size={17} aria-hidden="true" /> : <Send size={17} aria-hidden="true" />}
+            <span>{submitStatus === "loading" ? "Joining..." : submitStatus === "success" ? "Joined" : "Join waitlist"}</span>
+            {submitStatus === "loading" ? <span className="waitlist-submit-progress" aria-hidden="true" /> : null}
+            {buttonRipples.map((ripple) => (
+              <span
+                className="waitlist-button-ripple"
+                key={ripple.id}
+                style={{ height: ripple.size, left: ripple.x, top: ripple.y, width: ripple.size }}
+                onAnimationEnd={() => setButtonRipples((currentRipples) => currentRipples.filter((item) => item.id !== ripple.id))}
+                aria-hidden="true"
+              />
+            ))}
           </button>
+          <p className="waitlist-privacy-note">
+            <ShieldCheck size={15} aria-hidden="true" />
+            We will only email you about early access.
+          </p>
         </form>
         {message ? (
-          <p className={submitStatus === "error" ? "dialog-error" : "dialog-success"} role="status">
-            {message}
-          </p>
+          <div className={submitStatus === "error" ? "dialog-error waitlist-status" : "dialog-success waitlist-status"} id={statusId} role={submitStatus === "error" ? "alert" : "status"} aria-live="polite">
+            {submitStatus === "success" ? <CheckCircle2 size={18} aria-hidden="true" /> : <ShieldAlert size={18} aria-hidden="true" />}
+            <span>{message}</span>
+          </div>
         ) : null}
       </section>
     </div>
