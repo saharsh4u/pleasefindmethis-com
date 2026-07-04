@@ -10277,3 +10277,88 @@ small {
     min-height: 13rem;
   }
 }
+
+/* Design review: keep the landing-page controls easy to hit and the hero easier to scan. */
+.landing-page .hero-copy {
+  max-width: 48rem;
+}
+
+.landing-page :is(a, button) {
+  min-width: 2.75rem;
+  min-height: 2.75rem;
+}
+
+.landing-page :is(.brand-button, .desktop-nav a, .text-button, .section-link, .finder-link, .mobile-browse-button) {
+  display: inline-flex;
+  align-items: center;
+}
+
+.landing-page .hero-search-form {
+  min-height: 3.1rem;
+}
+
+.landing-page .hero-search-form input {
+  min-height: 2.75rem;
+  line-height: 1.35;
+}
+
+.landing-page .hero-search-form button {
+  min-height: 2.75rem;
+}
+
+.landing-page .site-footer :is(a, button) {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 2.75rem;
+  min-height: 2.75rem;
+}
+
+.landing-page .save-button {
+  width: 2.875rem;
+  height: 2.875rem;
+}
+
+@media (min-width: 1181px) {
+  .landing-page .side-find-rail {
+    width: clamp(8.6rem, 9.4vw, 10.2rem);
+    opacity: 0.86;
+  }
+
+  .landing-page .side-find-rail-left {
+    left: max(0.75rem, calc((100vw - 1380px) / 2));
+  }
+
+  .landing-page .side-find-rail-right {
+    right: max(0.75rem, calc((100vw - 1380px) / 2));
+  }
+}
+
+@media (max-width: 760px) {
+  .landing-page .mobile-menu-button {
+    width: 2.75rem;
+    height: 2.75rem;
+  }
+
+  .landing-page .hero-search-form {
+    min-height: 3rem;
+  }
+
+  .landing-page .hero-search-form input {
+    min-height: 2.75rem;
+  }
+
+  .landing-page .save-button {
+    width: 2.875rem;
+    height: 2.875rem;
+  }
+
+  .landing-page .save-button svg {
+    width: 1.05rem;
+    height: 1.05rem;
+  }
+
+  .landing-page .site-footer nav {
+    gap: 0.25rem 0.85rem;
+  }
+}
