@@ -867,6 +867,7 @@ function renderGuideIndex() {
     secondaryCta: "/requests/",
     secondaryCtaLabel: "Browse categories",
     breadcrumbs: [["Home", "/"], ["Guides", "/guides/"]],
+    showHeroImage: false,
     body: `
       <section class="section">
         <h2>Guides</h2>
@@ -938,6 +939,7 @@ function renderGuidePage(guide) {
     secondaryCta: "/guides/",
     secondaryCtaLabel: "All guides",
     breadcrumbs: [["Home", "/"], ["Guides", "/guides/"], [guide.title, `/guides/${guide.slug}/`]],
+    showHeroImage: false,
     body: `
       <section class="section panel">
         <h2>When this guide helps</h2>
@@ -1172,7 +1174,6 @@ function renderFooter() {
         <nav class="nav" aria-label="Footer">
           <a href="/rules">Rules</a>
           <a href="/refunds">Refunds</a>
-          <a href="/pricing.md">Pricing</a>
         </nav>
       </footer>`;
 }

@@ -2711,7 +2711,6 @@ function createMarketplaceServiceSchema(organizationId: string): JsonLdNode {
       lowPrice: minimumReward + minimumPlatformFee + minimumTrustProtectionFee,
       description:
         "Poster checkout starts with a US$10 minimum finder payout plus a US$6 minimum platform service fee and a US$1 minimum payment handling and source review fee.",
-      url: `${siteOrigin}/pricing.md`,
     },
     termsOfService: `${siteOrigin}/terms`,
   };
@@ -4037,8 +4036,6 @@ function SiteFooter({
   const resourceLinks: Array<[string, string]> = [
     ["Guides", "/guides/"],
     ["Request categories", "/requests/"],
-    ["Pricing", "/pricing.md"],
-    ["Use cases", "/use-cases.md"],
   ];
 
   return (

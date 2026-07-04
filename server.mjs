@@ -2592,6 +2592,11 @@ async function serveStaticAsset(pathname, res) {
     return;
   }
 
+  if (path.extname(pathname)) {
+    sendText(res, 404, "Not found");
+    return;
+  }
+
   const indexFile = await fs.readFile(path.join(distRoot, "index.html"));
   res.writeHead(200, { "Content-Type": "text/html; charset=utf-8" });
   res.end(indexFile);
@@ -2605,6 +2610,10 @@ function isBlockedPublicPath(pathname) {
   return (
     pathname === "/llms.txt" ||
     pathname === "/common-questions.md" ||
+    pathname === "/pricing.md" ||
+    pathname === "/fees.md" ||
+    pathname === "/workflow.md" ||
+    pathname === "/use-cases.md" ||
     pathname === "/sitemaps/pseo.xml" ||
     pathname.startsWith("/okf/") ||
     pathname === "/okf"
