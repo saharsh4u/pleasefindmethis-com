@@ -6,6 +6,7 @@ const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const publicDir = path.join(root, "public");
 const siteUrl = "https://pleasefindmethis.com";
 const siteName = "pleasefindmethis.com";
+const titleBrand = "pleasefindmethis";
 const lastmod = "2026-07-03";
 
 const appSitemapPages = [
@@ -68,6 +69,7 @@ const guidePages = [
   {
     slug: "google-lens-similar-not-exact",
     title: "Google Lens Only Finds Similar Items? What To Try Next",
+    seoTitle: "Google Lens Similar Not Exact? Try Next",
     description:
       "A practical workflow for exact-item searches when Google Lens, Pinterest, Amazon, or image search keeps returning near matches.",
     h1: "Google Lens only finds similar items? What to try next",
@@ -101,6 +103,7 @@ const guidePages = [
   {
     slug: "how-to-ask-for-help-finding-discontinued-item",
     title: "How To Ask For Help Finding A Discontinued Item",
+    seoTitle: "Ask For Help Finding A Discontinued Item",
     description:
       "Write a better hard-to-find item request with the exact details, failed searches, and proof requirements that help people source it.",
     h1: "How to ask for help finding a discontinued item",
@@ -135,6 +138,7 @@ const guidePages = [
   {
     slug: "replace-childhood-blanket-plush-toy",
     title: "How To Replace A Lost Childhood Blanket Or Plush Toy",
+    seoTitle: "Replace A Lost Blanket Or Plush Toy",
     description:
       "Search terms, proof checks, and request details for finding an exact sentimental blanket, stuffed animal, plush toy, or comfort item.",
     h1: "How to replace a lost childhood blanket or plush toy",
@@ -168,6 +172,7 @@ const guidePages = [
   {
     slug: "pay-someone-to-find-an-item",
     title: "How To Pay Someone To Find A Hard-To-Find Item",
+    seoTitle: "Pay Someone To Find A Hard-To-Find Item",
     description:
       "Understand finder fees, funded requests, protected source leads, and safer ways to reward someone for finding an exact item.",
     h1: "How to pay someone to find a hard-to-find item",
@@ -201,6 +206,7 @@ const guidePages = [
   {
     slug: "avoid-scams-hard-to-find-items",
     title: "How To Avoid Scams When Buying Hard-To-Find Items",
+    seoTitle: "Avoid Scams Buying Hard-To-Find Items",
     description:
       "Scam checks for rare, discontinued, sentimental, and sold-out items before you trust a source, seller, private message, or storefront.",
     h1: "How to avoid scams when buying hard-to-find items",
@@ -235,6 +241,7 @@ const guidePages = [
   {
     slug: "find-discontinued-repair-parts",
     title: "How To Find Discontinued Repair Parts And Donor Units",
+    seoTitle: "Find Discontinued Repair Parts",
     description:
       "A search workflow for replacement parts, donor units, compatible assemblies, cables, covers, hinges, and other discontinued repair items.",
     h1: "How to find discontinued repair parts and donor units",
@@ -303,6 +310,7 @@ const guidePages = [
   {
     slug: "exact-match-vs-dupe-vs-compatible-replacement",
     title: "Exact Match Vs Dupe Vs Compatible Replacement",
+    seoTitle: "Exact Match Vs Dupe Or Replacement",
     description:
       "Decide whether your hard-to-find request needs the exact item, a similar style, a dupe, or a compatible replacement part.",
     h1: "Exact match vs dupe vs compatible replacement",
@@ -337,6 +345,7 @@ const guidePages = [
   {
     slug: "best-places-search-sold-out-items",
     title: "Best Places To Search For Sold-Out Items",
+    seoTitle: "Best Places To Search Sold-Out Items",
     description:
       "Where to look when an item is sold out everywhere: marketplaces, archived pages, niche forums, proxy markets, local sellers, and collector communities.",
     h1: "Best places to search for sold-out items",
@@ -391,6 +400,7 @@ const categoryPages = [
   {
     slug: "plush-toys",
     title: "Find Discontinued Plush Toys And Stuffed Animals",
+    seoTitle: "Find Discontinued Plush Toys",
     description:
       "Source exact plush toys, stuffed animals, retired comfort items, and older toy editions with tag, size, fabric, and face-shape clues.",
     h1: "Find discontinued plush toys and stuffed animals",
@@ -408,6 +418,7 @@ const categoryPages = [
   {
     slug: "fashion",
     title: "Find Exact Clothing, Shoes, Bags, And Accessories",
+    seoTitle: "Find Clothing, Shoes, Bags & Accessories",
     description:
       "Post exact-match fashion requests for sold-out clothing, discontinued colorways, screenshot outfits, shoes, bags, jewelry, and accessories.",
     h1: "Find exact clothing, shoes, bags, and accessories",
@@ -425,6 +436,7 @@ const categoryPages = [
   {
     slug: "repair-parts",
     title: "Find Discontinued Repair Parts And Donor Units",
+    seoTitle: "Find Repair Parts And Donor Units",
     description:
       "Source replacement parts, donor units, cables, hinges, covers, shells, plates, electronics components, and compatible assemblies.",
     h1: "Find discontinued repair parts and donor units",
@@ -442,6 +454,7 @@ const categoryPages = [
   {
     slug: "cameras",
     title: "Find Rare Cameras, Lenses, Parts, And Accessories",
+    seoTitle: "Find Rare Cameras And Lens Parts",
     description:
       "Post requests for hard-to-source camera bodies, lenses, finders, battery covers, chargers, straps, film accessories, and clean working examples.",
     h1: "Find rare cameras, lenses, parts, and accessories",
@@ -459,6 +472,7 @@ const categoryPages = [
   {
     slug: "watches",
     title: "Find Watch References, Bracelets, Parts, And Rare Models",
+    seoTitle: "Find Watch Parts And Rare Models",
     description:
       "Source hard-to-search watch references, JDM variants, bracelets, links, bezels, dials, straps, and parts with authenticity checks.",
     h1: "Find watch references, bracelets, parts, and rare models",
@@ -476,6 +490,7 @@ const categoryPages = [
   {
     slug: "retro-gaming",
     title: "Find Retro Gaming Parts, Shells, Cables, And Accessories",
+    seoTitle: "Find Retro Gaming Parts And Cables",
     description:
       "Post requests for console repair parts, handheld shells, battery covers, cables, controllers, manuals, adapters, and donor units.",
     h1: "Find retro gaming parts, shells, cables, and accessories",
@@ -493,6 +508,7 @@ const categoryPages = [
   {
     slug: "home-decor",
     title: "Find Discontinued Home Decor, Lamps, Mugs, Art, And Tableware",
+    seoTitle: "Find Discontinued Home Decor",
     description:
       "Source exact home goods, decor, lamps, mugs, plates, bowls, wallpaper, art prints, and discontinued collections from photos or fragments.",
     h1: "Find discontinued home decor, lamps, mugs, art, and tableware",
@@ -944,7 +960,7 @@ function renderGuidePage(guide) {
 
   return renderLayout({
     canonicalPath: `/guides/${guide.slug}/`,
-    title: `${guide.title} | ${siteName}`,
+    title: `${guide.seoTitle ?? guide.title} | ${titleBrand}`,
     description: guide.description,
     h1: guide.h1,
     eyebrow: guide.eyebrow,
@@ -1028,7 +1044,7 @@ function renderCategoryPage(category) {
 
   return renderLayout({
     canonicalPath: `/requests/${category.slug}/`,
-    title: `${category.title} | ${siteName}`,
+    title: `${category.seoTitle ?? category.title} | ${titleBrand}`,
     description: category.description,
     h1: category.h1,
     eyebrow: category.eyebrow,
@@ -1103,6 +1119,7 @@ function renderLayout({
 }) {
   const canonicalUrl = absoluteUrl(canonicalPath);
   const imageUrl = absoluteUrl(image);
+  const socialImage = getSocialImageMeta(image, h1);
   const schemas = [siteEntitySchema(), ...normalizeSchemas(schema)];
 
   return `<!doctype html>
@@ -1119,10 +1136,16 @@ function renderLayout({
     <meta property="og:description" content="${attr(description)}" />
     <meta property="og:url" content="${canonicalUrl}" />
     <meta property="og:image" content="${imageUrl}" />
+    <meta property="og:image:secure_url" content="${imageUrl}" />
+    <meta property="og:image:type" content="${socialImage.type}" />
+    <meta property="og:image:width" content="${socialImage.width}" />
+    <meta property="og:image:height" content="${socialImage.height}" />
+    <meta property="og:image:alt" content="${attr(socialImage.alt)}" />
     <meta name="twitter:card" content="summary_large_image" />
     <meta name="twitter:title" content="${attr(title)}" />
     <meta name="twitter:description" content="${attr(description)}" />
     <meta name="twitter:image" content="${imageUrl}" />
+    <meta name="twitter:image:alt" content="${attr(socialImage.alt)}" />
     <link rel="canonical" href="${canonicalUrl}" />
     <link rel="icon" type="image/png" href="/magnifying-glass.png" />
     <link rel="stylesheet" href="/pseo.css" />
@@ -1161,6 +1184,19 @@ function renderLayout({
   </body>
 </html>
 `;
+}
+
+function getSocialImageMeta(image, h1) {
+  const normalized = String(image).toLowerCase();
+  const isSquareRequestImage = normalized.includes("/find-requests/");
+  const isSvg = normalized.endsWith(".svg");
+
+  return {
+    width: isSquareRequestImage ? 900 : 1200,
+    height: isSquareRequestImage ? 900 : 630,
+    type: isSvg ? "image/svg+xml" : normalized.endsWith(".jpg") || normalized.endsWith(".jpeg") ? "image/jpeg" : "image/png",
+    alt: `${h1} reference image from ${siteName}`,
+  };
 }
 
 function renderTopbar() {

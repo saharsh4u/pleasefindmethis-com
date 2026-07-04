@@ -527,6 +527,28 @@ const indexablePages = new Set<Page>([
   "report",
 ]);
 
+const routesUsingPublicRequestFeed = new Set<Page>(["landing", "browse", "browse-all", "bounty-detail"]);
+const routesUsingCurrency = new Set<Page>([
+  "landing",
+  "browse",
+  "browse-all",
+  "bounty-detail",
+  "post-reward",
+  "post-pay",
+  "submit-find",
+  "poster-dashboard",
+  "finder-dashboard",
+  "profile",
+]);
+
+function routeUsesPublicRequestFeed(page: Page) {
+  return routesUsingPublicRequestFeed.has(page);
+}
+
+function routeUsesCurrency(page: Page) {
+  return routesUsingCurrency.has(page);
+}
+
 const pageSeoCopy: Record<Page, { title: string; description: string; socialDescription?: string }> = {
   landing: {
     title: "Find Sold-Out, Rare, and Vintage Items",
@@ -534,95 +556,95 @@ const pageSeoCopy: Record<Page, { title: string; description: string; socialDesc
     socialDescription: defaultSocialDescription,
   },
   auth: {
-    title: "Sign In | pleasefindmethis.com",
+    title: "Sign In | pleasefindmethis",
     description: "Sign in to post requests, submit protected sources, review protected sources, manage payouts, and keep marketplace actions tied to an account.",
   },
   "post-photo": {
-    title: "Add a Request Photo | pleasefindmethis.com",
+    title: "Add a Request Photo | pleasefindmethis",
     description: "Start a find request by taking a new item photo or choosing a reference image from your gallery.",
   },
   "post-describe": {
-    title: "Post a Hard-to-Find Item Request | pleasefindmethis.com",
+    title: "Post a Find Request | pleasefindmethis",
     description: "Describe the exact item, add reference photos, and tell finders what counts as a match before setting a reward.",
   },
   "post-reward": {
-    title: "Set a Finder Reward | pleasefindmethis.com",
+    title: "Set a Finder Reward | pleasefindmethis",
     description: "Choose the reward a finder can earn when you accept a valid source or complete a handoff.",
   },
   "post-pay": {
-    title: "Fund a Protected Request | pleasefindmethis.com",
+    title: "Fund a Protected Request | pleasefindmethis",
     description: "Fund the request before it goes live so finders know the reward is real and recorded.",
   },
   browse: {
-    title: "Featured Hard-to-Find Item Requests | pleasefindmethis.com",
+    title: "Featured Find Requests | pleasefindmethis",
     description: "Browse funded requests for rare, sold-out, discontinued, vintage, and replacement items that expert finders can help source.",
   },
   "browse-all": {
-    title: "Browse All Find Requests | pleasefindmethis.com",
+    title: "Browse All Find Requests | pleasefindmethis",
     description: "Search open find requests by item, category, reward, and location, then submit a protected source when you know where to find it.",
   },
   "bounty-detail": {
-    title: "Find Request Details | pleasefindmethis.com",
+    title: "Find Request Details | pleasefindmethis",
     description: "Review the item details, must-have criteria, finder reward, and source timeline for this protected find request.",
   },
   "submit-find": {
-    title: "Submit a Protected Source | pleasefindmethis.com",
+    title: "Submit a Protected Source | pleasefindmethis",
     description: "Submit a store link, seller contact, local source, or handoff option for a funded request.",
   },
   "poster-dashboard": {
-    title: "Poster Dashboard | pleasefindmethis.com",
+    title: "Poster Dashboard | pleasefindmethis",
     description: "Review protected sources, reveal sources, accept matches, and manage funded requests.",
   },
   "finder-dashboard": {
-    title: "Finder Dashboard | pleasefindmethis.com",
+    title: "Finder Dashboard | pleasefindmethis",
     description: "Find active opportunities, submit sources, and track protected source reviews.",
   },
   dispute: {
-    title: "Open a Source Dispute | pleasefindmethis.com",
+    title: "Open a Source Dispute | pleasefindmethis",
     description: "Open a dispute when a revealed source, contact, proof package, or handoff does not match the funded request.",
   },
   profile: {
-    title: "Finder Trust Profile Example | pleasefindmethis.com",
+    title: "Finder Trust Profile Example | pleasefindmethis",
     description: "See how finder ratings, accepted sources, verification, and review history build trust on pleasefindmethis.com.",
   },
   faq: {
-    title: "FAQ for Posters and Finders | pleasefindmethis.com",
+    title: "FAQ for Posters and Finders | pleasefindmethis",
     description: "Answers about payments, refunds, protected sources, finder rewards, public browsing, disputes, and how pleasefindmethis.com works.",
   },
   privacy: {
-    title: "Privacy Policy | pleasefindmethis.com",
+    title: "Privacy Policy | pleasefindmethis",
     description: "How pleasefindmethis.com handles account, request, source, image, support, and payment-related data.",
   },
   terms: {
-    title: "Terms of Service | pleasefindmethis.com",
+    title: "Terms of Service | pleasefindmethis",
     description: "Marketplace terms for posters, finders, funded rewards, protected sources, reviews, and payouts.",
   },
   refunds: {
-    title: "Refund and Cancellation Policy | pleasefindmethis.com",
+    title: "Refund and Cancellation Policy | pleasefindmethis",
     description: "How funded rewards, service fees, failed finds, disputes, and refund reviews work on pleasefindmethis.com.",
   },
   rules: {
-    title: "Marketplace Rules | pleasefindmethis.com",
+    title: "Marketplace Rules | pleasefindmethis",
     description: "Rules for what can be posted, what finders can submit, and what conduct is not allowed.",
   },
   support: {
-    title: "Support for Requests, Sources, and Payouts | pleasefindmethis.com",
+    title: "Support for Requests and Payouts | pleasefindmethis",
     description: "Get help with account access, checkout issues, source review, disputes, refunds, payout holds, and safety concerns.",
   },
   report: {
-    title: "Report a Listing, Source, or User | pleasefindmethis.com",
+    title: "Report a Listing or User | pleasefindmethis",
     description: "Report fraud, unsafe requests, prohibited goods, stolen images, impersonation, spam, or abusive behavior.",
   },
   "account-settings": {
-    title: "Account Settings | pleasefindmethis.com",
+    title: "Account Settings | pleasefindmethis",
     description: "Manage account access, privacy requests, notifications, and data requests.",
   },
   "admin-review": {
-    title: "Admin Review Queue | pleasefindmethis.com",
+    title: "Admin Review Queue | pleasefindmethis",
     description: "Operational review queue for disputes, reports, payout holds, refunds, and source moderation.",
   },
   "not-found": {
-    title: "Page Not Found | pleasefindmethis.com",
+    title: "Page Not Found | pleasefindmethis",
     description: "The page may be outdated, private, or typed incorrectly.",
   },
 };
@@ -1040,10 +1062,14 @@ async function loadUsdExchangeRates(): Promise<ExchangeRateCache | null> {
   }
 }
 
-function useViewerCurrencyPreference() {
+function useViewerCurrencyPreference(enabled = true) {
   const [preference, setPreference] = useState<CurrencyPreference>(() => resolveInitialCurrencyPreference());
 
   useEffect(() => {
+    if (!enabled) {
+      return undefined;
+    }
+
     let cancelled = false;
 
     loadUsdExchangeRates().then((cache) => {
@@ -1067,9 +1093,13 @@ function useViewerCurrencyPreference() {
     return () => {
       cancelled = true;
     };
-  }, [preference.currency]);
+  }, [enabled, preference.currency]);
 
   useEffect(() => {
+    if (!enabled) {
+      return undefined;
+    }
+
     if (!navigator.geolocation || !window.isSecureContext) {
       return undefined;
     }
@@ -1115,7 +1145,7 @@ function useViewerCurrencyPreference() {
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [enabled]);
 
   return preference;
 }
@@ -1308,12 +1338,19 @@ function mergeBounties(primary: BountyListing[], fallback: BountyListing[]) {
   return merged;
 }
 
-function usePublicRequestListings() {
+function usePublicRequestListings(enabled = true) {
   const [listings, setListings] = useState<BountyListing[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(enabled);
   const [error, setError] = useState("");
 
   useEffect(() => {
+    if (!enabled) {
+      setListings([]);
+      setLoading(false);
+      setError("");
+      return undefined;
+    }
+
     let mounted = true;
 
     const loadRequests = async () => {
@@ -1354,7 +1391,7 @@ function usePublicRequestListings() {
     return () => {
       mounted = false;
     };
-  }, []);
+  }, [enabled]);
 
   return { listings, loading, error };
 }
@@ -2644,7 +2681,7 @@ function getSeoMeta(page: Page, activeBounty?: BountyListing): SeoMeta {
     const description = `${activeBounty.description} Finder reward: ${activeBounty.reward}. ${activeBounty.category} request, ${activeBounty.closes} left.`;
 
     return {
-      title: `${activeBounty.name} Find Request | ${siteName}`,
+      title: `${activeBounty.name} Find Request | pleasefindmethis`,
       description: description.slice(0, 240),
       path: getBountyPath(activeBounty.id, activeBounty.name),
       robots: activeBounty.live ? "index,follow" : "noindex,follow",
@@ -3033,7 +3070,6 @@ function getCheckoutErrorMessage(error: unknown) {
 }
 
 function App() {
-  const currencyPreference = useViewerCurrencyPreference();
   const [route, setRoute] = useState<Page>(() => getInitialRoute());
   const [checkoutReturnStatus, setCheckoutReturnStatus] = useState<CheckoutReturnStatus>(() => parseCheckoutReturnStatus());
   const [menuOpen, setMenuOpen] = useState(false);
@@ -3046,11 +3082,13 @@ function App() {
   const [postDraft, setPostDraft] = useState<PostDraft>(() => getInitialPostDraft());
   const [waitlistModal, setWaitlistModal] = useState<WaitlistModalState | null>(null);
   const [activeBountyId, setActiveBountyId] = useState(() => getBountyIdFromCurrentRoute() || bountyListings[0].id);
+  const visibleRoute = !signedIn && protectedPages.has(route) ? "auth" : route;
+  const currencyPreference = useViewerCurrencyPreference(routeUsesCurrency(visibleRoute));
   const {
     listings: liveBounties,
     loading: publicRequestsLoading,
     error: publicRequestsError,
-  } = usePublicRequestListings();
+  } = usePublicRequestListings(routeUsesPublicRequestFeed(visibleRoute));
   const marketplaceBounties = useMemo(() => mergeBounties(liveBounties, bountyListings), [liveBounties]);
   const acquisitionStarter = getAcquisitionStarterFromUrl();
 
@@ -3082,8 +3120,6 @@ function App() {
     () => marketplaceBounties.find((bounty) => bounty.id === activeBountyId) ?? marketplaceBounties[0] ?? bountyListings[0],
     [activeBountyId, marketplaceBounties],
   );
-
-  const visibleRoute = !signedIn && protectedPages.has(route) ? "auth" : route;
 
   useEffect(() => {
     updateDocumentSeo(visibleRoute, marketplaceBounties, activeBounty);
@@ -4124,7 +4160,7 @@ function MobileFindTicker({ placement, requests }: { placement: "top" | "bottom"
       <div className="mobile-find-ticker-track">
         {[...requests, ...requests].map((request, index) => (
           <article className="mobile-find-ticker-card" key={`${placement}-mobile-find-${index}`}>
-            <img src={request.image} alt={request.copy} loading="lazy" />
+            <img src={request.image} alt={request.copy} loading="lazy" decoding="async" />
             <span>{request.copy}</span>
           </article>
         ))}
@@ -4156,7 +4192,7 @@ function BoardRequestCard({
         aria-label={`Open ${bounty.name}`}
       >
         <span className={`board-status ${activeStatus ? "active" : ""}`}>{formatBoardStatus(bounty.status)}</span>
-        <img src={bounty.image} alt={`${bounty.name} reference`} />
+        <img src={bounty.image} alt={`${bounty.name} reference`} loading="lazy" decoding="async" />
         <span className="board-card-copy">
           <strong>{bounty.name}</strong>
           <em>{formatBountyDetail(bounty, currencyPreference)}</em>
@@ -4196,7 +4232,7 @@ function FeaturedBountyCard({
 
   return (
     <article className={`bounty-card bounty-card-${index + 1} ${className}`.trim()}>
-      <img src={bounty.image} alt={`${bounty.name} reference`} />
+      <img src={bounty.image} alt={`${bounty.name} reference`} loading={index === 0 ? "eager" : "lazy"} decoding="async" />
       <a
         className="save-button"
         href={getBountyPath(bounty.id, bounty.name)}
@@ -4437,7 +4473,7 @@ function LandingPage({
             {[...leftFindRequests, ...leftFindRequests].map((request, index) => (
               <article className="side-find-card" key={`left-find-${index}`}>
                 <p>{request.copy}</p>
-                <img className="side-find-image" src={request.image} alt={request.copy} loading="lazy" />
+                <img className="side-find-image" src={request.image} alt={request.copy} loading="lazy" decoding="async" />
               </article>
             ))}
           </div>
@@ -4448,7 +4484,7 @@ function LandingPage({
             {[...rightFindRequests, ...rightFindRequests].map((request, index) => (
               <article className="side-find-card" key={`right-find-${index}`}>
                 <p>{request.copy}</p>
-                <img className="side-find-image" src={request.image} alt={request.copy} loading="lazy" />
+                <img className="side-find-image" src={request.image} alt={request.copy} loading="lazy" decoding="async" />
               </article>
             ))}
           </div>
@@ -5035,7 +5071,7 @@ function PostPhotoSourcePage({
           </label>
         </div>
         <div className={selectedImage ? "photo-preview-minimal has-selected-image" : "photo-preview-minimal"} aria-label="Photo preview">
-          {selectedImage ? <img src={selectedImage.url} alt={`${selectedImage.name} selected reference`} /> : <span>Photo preview</span>}
+          {selectedImage ? <img src={selectedImage.url} alt={`${selectedImage.name} selected reference`} decoding="async" /> : <span>Photo preview</span>}
         </div>
         <button className="primary-button post-photo-next-button" type="button" onClick={continueToDetails}>
           Next <ArrowRight size={17} />
@@ -5156,7 +5192,7 @@ function PostDescribePage({
         <aside className="side-panel">
           <h2>What finders see</h2>
           <div className="mini-bounty-card">
-            <img src={finderPreviewImageSrc} alt={finderPreviewImageAlt} />
+            <img src={finderPreviewImageSrc} alt={finderPreviewImageAlt} loading="lazy" decoding="async" />
             <div>
               <strong>{draft.itemName || "Your request"}</strong>
               <span>{getCategoryLabel(draft.category)} · Open to worldwide sources</span>
@@ -5836,7 +5872,7 @@ function BountySquareCard({
           </>
         )}
         <span className="square-image-wrap">
-          <img src={bounty.image} alt={`${bounty.name} reference`} />
+          <img src={bounty.image} alt={`${bounty.name} reference`} loading="lazy" decoding="async" />
         </span>
         <span className="square-copy">
           <strong>{bounty.name}</strong>
@@ -5888,7 +5924,7 @@ function BountyDetailPage({
       </button>
       <section className="detail-layout">
         <article className="detail-main">
-          <img className="detail-image" src={bounty.image} alt={bounty.name} />
+          <img className="detail-image" src={bounty.image} alt={bounty.name} decoding="async" />
           <div className="detail-copy">
             <div className="status-strip">
               <span>{bounty.status}</span>
@@ -6191,7 +6227,7 @@ function SubmitFindPage({
             </li>
           </ul>
           <div className="mini-bounty-card">
-            <img src={bounty.image} alt={`${bounty.name} reference`} />
+            <img src={bounty.image} alt={`${bounty.name} reference`} loading="lazy" decoding="async" />
             <div>
               <strong>{bounty.name}</strong>
               <span>{formatUsdMoney(bounty.rewardValue, currencyPreference, { compact: true })} reward · {bounty.closes} left</span>
@@ -6452,7 +6488,7 @@ function PosterDashboardPage({
           </div>
           {dashboardBounties.map((bounty) => (
             <button className="review-row" key={bounty.id} type="button" onClick={() => selectRequest(bounty.id)}>
-              <img src={bounty.image} alt={`${bounty.name} reference`} />
+              <img src={bounty.image} alt={`${bounty.name} reference`} loading="lazy" decoding="async" />
               <span>
                 <strong>{bounty.name}</strong>
                 <small>{bounty.submissions} submissions · {bounty.status}</small>
@@ -6752,7 +6788,7 @@ function FinderDashboardPage({
           </div>
           {availableBounties.map((bounty) => (
             <button className="review-row" key={bounty.id} type="button" onClick={() => onSubmit(bounty.id)}>
-              <img src={bounty.image} alt={`${bounty.name} reference`} />
+              <img src={bounty.image} alt={`${bounty.name} reference`} loading="lazy" decoding="async" />
               <span>
                 <strong>{bounty.name}</strong>
                 <small>{bounty.category} · {bounty.closes} left</small>
@@ -6995,6 +7031,10 @@ function TrustProfilePage({ onBrowse, onFinder }: { onBrowse: () => void; onFind
             <h2>Trust signals</h2>
             <ShieldCheck size={20} />
           </div>
+          <p>
+            Use profile signals to judge whether a finder has the right category knowledge before revealing a protected source or
+            relying on a private lead.
+          </p>
           <ul className="check-list">
             <li>
               <CheckCircle2 size={18} /> Example identity and payout checks
@@ -7012,12 +7052,41 @@ function TrustProfilePage({ onBrowse, onFinder }: { onBrowse: () => void; onFind
             <h2>Example reviews</h2>
             <MessageSquare size={20} />
           </div>
+          <p>Strong reviews mention exact-match proof, current availability, clear seller context, and whether the source saved time.</p>
           {finderReviews.map((review) => (
             <blockquote className="review-card" key={review[0]}>
               <p>{review[1]}</p>
               <cite>{review[0]}</cite>
             </blockquote>
           ))}
+        </div>
+        <div className="dashboard-panel">
+          <div className="panel-header">
+            <h2>How posters should read this</h2>
+            <BadgeCheck size={20} />
+          </div>
+          <p>
+            A trust profile is not a guarantee that a third-party seller is safe. It helps posters compare source quality,
+            communication history, category fit, and dispute record before acting on a lead.
+          </p>
+          <p>
+            For expensive, sentimental, or compatibility-sensitive items, posters should still confirm current photos, seller terms,
+            dimensions, condition, and return options before purchasing from the third-party source.
+          </p>
+        </div>
+        <div className="dashboard-panel">
+          <div className="panel-header">
+            <h2>How finders improve trust</h2>
+            <Trophy size={20} />
+          </div>
+          <p>
+            Finders build trust by submitting specific leads with proof, avoiding duplicates, documenting price and region, and
+            explaining risks such as missing parts, repairs, counterfeit concerns, or uncertain compatibility.
+          </p>
+          <p>
+            The best source notes make the poster's next action obvious: who to contact, what to verify, what it may cost, and why it
+            matches the original request.
+          </p>
         </div>
       </section>
     </main>
@@ -7237,6 +7306,10 @@ function SupportPage({ onReport }: { onReport: () => void }) {
           <p className="route-kicker">Support</p>
           <h1 id="support-title">Get help with a request, source, payment, or payout.</h1>
           <p>Use support for account access, checkout issues, source review, disputes, refunds, payout holds, and safety concerns.</p>
+          <p>
+            The fastest support requests include the page URL, request id, payment email if relevant, source id if available, and
+            the exact action you need reviewed.
+          </p>
         </div>
         <div className="head-actions">
           <a className="primary-button" href="mailto:support@pleasefindmethis.com">
@@ -7249,10 +7322,13 @@ function SupportPage({ onReport }: { onReport: () => void }) {
       </section>
       <section className="dashboard-grid">
         {[
-          ["Payments", "Include request id, receipt email, checkout provider, and the exact payment/refund problem."],
-          ["Sources", "Include submission id if available, source status, reveal timing, and why the match is disputed."],
-          ["Safety", "Report scams, counterfeit claims, prohibited goods, harassment, or impersonation immediately."],
-          ["Privacy", "Ask for data export, correction, deletion, or account access review."],
+          ["Payments", "Include request id, receipt email, checkout provider, charged amount, payment date, and the exact payment or refund problem so support can reconcile the checkout with request records."],
+          ["Sources", "Include submission id if available, source status, reveal timing, seller link, proof files, and why the match is disputed or unavailable."],
+          ["Safety", "Report scams, counterfeit claims, prohibited goods, harassment, impersonation, stolen images, or pressure to move to unsafe private payment immediately."],
+          ["Privacy", "Ask for data export, correction, deletion, account access review, or removal of sensitive request details that should not be public."],
+          ["Payouts", "Finders should include payout status, accepted source details, request id, and any processor message when asking about a held or delayed reward."],
+          ["Faster reviews", "Send concise evidence, not just a general complaint. Screenshots, timestamps, URLs, seller messages, and request criteria help support decide what happened and whether the saved review trail matches the claim."],
+          ["Before emailing", "Check the FAQ, refund policy, and marketplace rules first if the issue is about normal timing, source acceptance criteria, or what counts as a valid lead."],
         ].map(([title, copy]) => (
           <article className="dashboard-panel" key={title}>
             <div className="panel-header">
@@ -7277,6 +7353,7 @@ function ReportPage() {
           title: "What to include",
           copy: [
             "Send the request link or id, user profile if available, screenshots, messages, source links, and a clear reason for the report.",
+            "For source reports, include what was promised, what was revealed, why the lead appears invalid, and whether the same source was already submitted by someone else.",
             "For urgent safety issues, include the word URGENT in the subject line when emailing support@pleasefindmethis.com.",
           ],
         },
@@ -7284,6 +7361,21 @@ function ReportPage() {
           title: "What happens next",
           copy: [
             "Reports can lead to request removal, source invalidation, payout hold, refund review, account suspension, or a request for more evidence.",
+            "Support compares reports against the saved request, source, reveal, review, and dispute records before making a marketplace decision.",
+          ],
+        },
+        {
+          title: "Report categories",
+          copy: [
+            "Use reports for prohibited goods, fake listings, counterfeit claims, stolen photos, harassment, impersonation, off-platform payment pressure, spam, or unsafe seller behavior.",
+            "If a third-party seller may be fraudulent, include the seller page and payment method requested so posters and finders can avoid repeating the same risky source.",
+          ],
+        },
+        {
+          title: "Urgent safety reports",
+          copy: [
+            "If a request appears to involve illegal goods, personal data, stalking, unsafe medical or regulated products, or immediate harm, say that clearly and include only the evidence needed for review.",
+            "Do not send unnecessary private information about yourself or another person. A useful report explains the risk, points to the request or source, and preserves screenshots or URLs that may disappear.",
           ],
         },
       ]}

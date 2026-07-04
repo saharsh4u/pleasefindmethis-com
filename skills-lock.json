@@ -122,6 +122,12 @@
       "skillPath": "skills/personal/obsidian-vault/SKILL.md",
       "computedHash": "960437c7c2febc15cf9d49964f0c8bd889d90a56e81b6eaa33f3ac5b594291c3"
     },
+    "paywall-upgrade-cro": {
+      "source": "nexu-io/open-design",
+      "sourceType": "github",
+      "skillPath": "skills/paywall-upgrade-cro/SKILL.md",
+      "computedHash": "184d73fbe941b14404cb95b529b3d39a1c1bba45734ee491868e7217e6fab656"
+    },
     "prototype": {
       "source": "mattpocock/skills",
       "sourceType": "github",

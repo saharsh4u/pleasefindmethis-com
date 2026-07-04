@@ -11,6 +11,39 @@
         {
           "type": "host",
           "value": {
+            "eq": "www.pleasefindmethis.com"
+          }
+        }
+      ],
+      "destination": "https://pleasefindmethis.com/:path*",
+      "permanent": true
+    },
+    {
+      "source": "/guides",
+      "destination": "/guides/",
+      "permanent": true
+    },
+    {
+      "source": "/guides/:slug",
+      "destination": "/guides/:slug/",
+      "permanent": true
+    },
+    {
+      "source": "/requests",
+      "destination": "/requests/",
+      "permanent": true
+    },
+    {
+      "source": "/requests/:slug",
+      "destination": "/requests/:slug/",
+      "permanent": true
+    },
+    {
+      "source": "/:path((?!api/).*)",
+      "has": [
+        {
+          "type": "host",
+          "value": {
             "eq": "pleasefindmethis-com.vercel.app"
           }
         }

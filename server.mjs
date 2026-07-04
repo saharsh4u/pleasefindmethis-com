@@ -67,8 +67,9 @@ export async function handleRequest(req, res) {
   try {
     const requestUrl = new URL(req.url ?? "/", getRequestOrigin(req));
 
-    if (shouldRedirectToCanonicalAppUrl(req, requestUrl)) {
-      redirect(res, `${publicAppUrl}${requestUrl.pathname}${requestUrl.search}`, 308);
+    const canonicalRedirectUrl = getCanonicalRedirectUrl(req, requestUrl);
+    if (canonicalRedirectUrl) {
+      redirect(res, canonicalRedirectUrl, 308);
       return;
     }
 
@@ -2761,17 +2762,56 @@ function normalizeDeploymentAppUrl(value) {
   return normalizeAppUrl(/^https?:\/\//i.test(deploymentUrl) ? deploymentUrl : `https://${deploymentUrl}`);
 }
 
-function shouldRedirectToCanonicalAppUrl(req, requestUrl) {
-  if (!isProduction || !publicAppUrl || !["GET", "HEAD"].includes(req.method ?? "GET")) {
-    return false;
+function getCanonicalRedirectUrl(req, requestUrl) {
+  if (!["GET", "HEAD"].includes(req.method ?? "GET")) {
+    return "";
+  }
+
+  const canonicalHostRedirectUrl = getCanonicalHostRedirectUrl(req, requestUrl);
+  if (canonicalHostRedirectUrl) {
+    return canonicalHostRedirectUrl;
+  }
+
+  if (shouldRedirectStaticDirectoryToTrailingSlash(requestUrl.pathname)) {
+    const redirectedUrl = new URL(requestUrl);
+    redirectedUrl.pathname = `${requestUrl.pathname}/`;
+    return redirectedUrl.toString();
+  }
+
+  return "";
+}
+
+function getCanonicalHostRedirectUrl(req, requestUrl) {
+  if (!isProduction || !publicAppUrl) {
+    return "";
   }
 
   try {
     const canonicalUrl = new URL(publicAppUrl);
-    return requestUrl.hostname !== canonicalUrl.hostname;
+    const incomingHostname = getIncomingHostname(req) || requestUrl.hostname;
+    if (incomingHostname === canonicalUrl.hostname) {
+      return "";
+    }
+
+    return `${canonicalUrl.origin}${requestUrl.pathname}${requestUrl.search}`;
   } catch {
-    return false;
+    return "";
   }
+}
+
+function shouldRedirectStaticDirectoryToTrailingSlash(pathname) {
+  return pathname === "/guides" || pathname === "/requests" || /^\/guides\/[^/]+$/.test(pathname) || /^\/requests\/[^/]+$/.test(pathname);
+}
+
+function getIncomingHostname(req) {
+  const forwardedHost = firstHeader(req.headers["x-forwarded-host"]);
+  const requestHost = forwardedHost || firstHeader(req.headers.host);
+
+  if (!requestHost) {
+    return "";
+  }
+
+  return requestHost.split(":")[0].toLowerCase();
 }
 
 function parseJson(value) {

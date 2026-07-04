@@ -25,6 +25,23 @@ export default defineConfig(({ mode }) => {
 
   return {
     base: "/",
+    build: {
+      rollupOptions: {
+        output: {
+          manualChunks(id) {
+            if (!id.includes("/node_modules/")) {
+              return undefined;
+            }
+
+            if (id.includes("/node_modules/@supabase/")) {
+              return "supabase";
+            }
+
+            return "vendor";
+          },
+        },
+      },
+    },
     plugins: [react(), googleSiteVerificationPlugin(env.VITE_GOOGLE_SITE_VERIFICATION ?? "")],
   };
 });
