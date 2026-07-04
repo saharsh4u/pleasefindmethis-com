@@ -19,18 +19,18 @@ Goal: convert high-intent item searchers into posted requests on pleasefindmethi
 
 | ID | Priority | Community | Source | Intent | Product mention | Status |
 |---|---:|---|---|---|---|---|
-| B01-001 | 10 | r/HelpMeFind | Trudi Trudini fawn deer plush | Recent rare plush search, generous offer signal | Only if rules allow | Needs approval |
-| B01-002 | 10 | r/HelpMeFind | Vermont Teddy Bear Woodland Bear | Retired plush, active resale search | Only if rules allow | Needs approval |
-| B01-003 | 10 | r/HelpMeFind | 30-year-old Sanpaotai Gaiwan | Sentimental exact vintage item | Only if rules allow | Needs approval |
-| B01-004 | 9 | r/HelpMeFind | Solyn plush / Calamity fan project | Custom plush, recent, niche sourcing | Only if rules allow | Needs approval |
-| B01-005 | 9 | r/HelpMeFind | Stuffed bunny thrown out | Sentimental replacement, willing to pay | Only if rules allow | Needs approval |
+| B01-001 | 10 | r/HelpMeFind | Trudi Trudini fawn deer plush | Recent rare plush search, generous offer signal | Only if rules allow | Approved for live review |
+| B01-002 | 10 | r/HelpMeFind | Vermont Teddy Bear Woodland Bear | Retired plush, active resale search | Only if rules allow | Approved for live review |
+| B01-003 | 10 | r/HelpMeFind | 30-year-old Sanpaotai Gaiwan | Sentimental exact vintage item | Only if rules allow | Approved for live review |
+| B01-004 | 9 | r/HelpMeFind | Solyn plush / Calamity fan project | Custom plush, recent, niche sourcing | Only if rules allow | Approved for live review |
+| B01-005 | 9 | r/HelpMeFind | Stuffed bunny thrown out | Sentimental replacement, willing to pay | Only if rules allow | Approved for live review |
 | B01-006 | 5 | r/HelpMeFind | Lost tiger/lion plush travel route | Lost-item recovery; rule-sensitive | Do not mention platform | Manual review only |
-| B01-007 | 8 | r/HelpMeFind | Dad's LL Bean shirt | Exact apparel replacement | Only if rules allow | Needs approval |
-| B01-008 | 8 | r/HelpMeFind | Childhood plush bunny | Sentimental plush, recent thread | Only if rules allow | Needs approval |
-| B01-009 | 7 | r/HelpMeFind | Thin bomber jacket | Replacement apparel, small reward | No platform mention first | Needs approval |
-| B01-010 | 7 | r/wherecanibuythis | Waffle/textured henley | Exact apparel search | Usually avoid | Needs approval |
-| B01-011 | 8 | r/wherecanibuythis | Discontinued giraffe cat toy | Discontinued pet toy, willing to pay | Usually avoid | Needs approval |
-| B01-012 | 7 | r/wherecanibuythis | SoBe drinks | Discontinued/low-stock consumable search | Avoid unless rules allow | Needs approval |
+| B01-007 | 8 | r/HelpMeFind | Dad's LL Bean shirt | Exact apparel replacement | Only if rules allow | Approved for live review |
+| B01-008 | 8 | r/HelpMeFind | Childhood plush bunny | Sentimental plush, recent thread | Only if rules allow | Approved for live review |
+| B01-009 | 7 | r/HelpMeFind | Thin bomber jacket | Replacement apparel, small reward | No platform mention first | Approved for live review |
+| B01-010 | 7 | r/wherecanibuythis | Waffle/textured henley | Exact apparel search | Usually avoid | Approved for live review |
+| B01-011 | 8 | r/wherecanibuythis | Discontinued giraffe cat toy | Discontinued pet toy, willing to pay | Usually avoid | Approved for live review |
+| B01-012 | 7 | r/wherecanibuythis | SoBe drinks | Discontinued/low-stock consumable search | Avoid unless rules allow | Manual review only |
 
 ## Drafts
 

@@ -33,9 +33,32 @@ const minimumTrustProtectionFee = 1;
 const ga4MeasurementId = parseString(process.env.GA4_MEASUREMENT_ID ?? process.env.VITE_GA4_MEASUREMENT_ID ?? process.env.VITE_GOOGLE_TAG_ID, 40);
 const ga4ApiSecret = parseString(process.env.GA4_API_SECRET, 160);
 const ga4MeasurementTimeoutMs = 6000;
+const homeMarketCountry = sanitizeCountryCode(process.env.HOME_MARKET_COUNTRY) || "IN";
 const waitlistRecipientEmail = parseString(process.env.WAITLIST_TO_EMAIL ?? process.env.OWNER_EMAIL ?? "saharashsharma3@gmail.com", 160);
 const waitlistFromEmail = parseString(process.env.WAITLIST_FROM_EMAIL ?? process.env.RESEND_FROM_EMAIL ?? "pleasefindmethis <waitlist@pleasefindmethis.com>", 220);
 const waitlistNotificationTimeoutMs = 10000;
+const attributionAnalyticsKeys = [
+  "first_landing_page",
+  "first_referrer_host",
+  "first_landed_at",
+  "first_source",
+  "first_channel",
+  "first_utm_source",
+  "first_utm_medium",
+  "first_utm_campaign",
+  "first_utm_content",
+  "first_utm_term",
+  "latest_landing_page",
+  "latest_referrer_host",
+  "latest_landed_at",
+  "latest_source",
+  "latest_channel",
+  "latest_utm_source",
+  "latest_utm_medium",
+  "latest_utm_campaign",
+  "latest_utm_content",
+  "latest_utm_term",
+];
 
 const vite = isProduction ? null : await createDevViteServer();
 
@@ -551,6 +574,7 @@ async function handleJoinWaitlist(req, res) {
   const source = sanitizeWaitlistString(body.source, 80) || "unknown";
   const pagePath = sanitizePagePath(body.pagePath) || "/";
   const referrer = sanitizeWaitlistString(body.referrer, 240);
+  const accessNote = sanitizeWaitlistString(body.accessNote, 500);
   const userAgent = sanitizeWaitlistString(req.headers["user-agent"], 240);
   const submittedAt = new Date().toISOString();
 
@@ -567,6 +591,7 @@ async function handleJoinWaitlist(req, res) {
   const notification = {
     email,
     intent,
+    accessNote,
     source,
     pagePath,
     referrer,
@@ -589,6 +614,7 @@ async function handleJoinWaitlist(req, res) {
     "New pleasefindmethis waitlist signup",
     "",
     `Email: ${email}`,
+    accessNote ? `Access note: ${accessNote}` : "",
     `Intent: ${intent}`,
     `Source: ${source}`,
     `Page: ${pagePath}`,
@@ -1290,6 +1316,7 @@ async function syncDodoEventToRequest(eventType, eventData, rawEvent, req) {
   if (paymentUpdate.payment_status === "paid") {
     await sendPaidRequestAnalytics({
       analytics: getAnalyticsContextFromPaymentMetadata(metadata),
+      countryContext: getPaymentCountryContext(eventData, rawEvent),
       provider: "dodo",
       providerEventId,
       request,
@@ -1348,6 +1375,7 @@ async function syncLemonSqueezyEventToRequest(eventType, eventData, rawEvent) {
   if (paymentUpdate.payment_status === "paid") {
     await sendPaidRequestAnalytics({
       analytics: getAnalyticsContextFromPaymentMetadata(customData),
+      countryContext: getPaymentCountryContext(eventData, rawEvent),
       provider: "lemonsqueezy",
       providerEventId,
       request,
@@ -1407,6 +1435,7 @@ async function syncWhopEventToRequest(eventType, eventData, rawEvent, req) {
   if (paymentUpdate.payment_status === "paid") {
     await sendPaidRequestAnalytics({
       analytics: getAnalyticsContextFromPaymentMetadata(metadata),
+      countryContext: getPaymentCountryContext(eventData, rawEvent),
       provider: "whop",
       providerEventId,
       request,
@@ -1970,6 +1999,7 @@ function sanitizeCheckoutAnalyticsContext(value) {
     utm_campaign: sanitizeAnalyticsString(value.utm_campaign, 160),
     utm_content: sanitizeAnalyticsString(value.utm_content, 160),
     utm_term: sanitizeAnalyticsString(value.utm_term, 160),
+    ...sanitizeAttributionAnalyticsContext(value),
   });
 }
 
@@ -1984,6 +2014,7 @@ function getPaymentAnalyticsMetadata(analytics) {
     utm_campaign: analytics.utm_campaign,
     utm_content: analytics.utm_content,
     utm_term: analytics.utm_term,
+    ...getAttributionAnalyticsMetadata(analytics),
   });
 }
 
@@ -1998,10 +2029,144 @@ function getAnalyticsContextFromPaymentMetadata(metadata) {
     utm_campaign: sanitizeAnalyticsString(metadata.utm_campaign, 160),
     utm_content: sanitizeAnalyticsString(metadata.utm_content, 160),
     utm_term: sanitizeAnalyticsString(metadata.utm_term, 160),
+    ...sanitizeAttributionAnalyticsContext(metadata),
   });
 }
 
-async function sendPaidRequestAnalytics({ analytics, provider, providerEventId, request, transactionId }) {
+function getPaymentCountryContext(...payloads) {
+  const customerCountry = payloads.map((payload) => findPaymentCountry(payload)).find(Boolean);
+
+  if (!customerCountry) {
+    return {};
+  }
+
+  return {
+    customer_country: customerCountry,
+    customer_country_source: "payment_billing_country",
+  };
+}
+
+function findPaymentCountry(value) {
+  if (!isRecord(value)) {
+    return undefined;
+  }
+
+  const preferredPaths = [
+    ["billing_country"],
+    ["billingCountry"],
+    ["customer_country"],
+    ["customerCountry"],
+    ["user_country"],
+    ["userCountry"],
+    ["tax_country"],
+    ["taxCountry"],
+    ["billing_address", "country"],
+    ["billingAddress", "country"],
+    ["customer", "country"],
+    ["customer", "billing_country"],
+    ["customer", "billingCountry"],
+    ["customer", "billing_address", "country"],
+    ["customer", "billingAddress", "country"],
+    ["attributes", "user_country"],
+    ["attributes", "billing_country"],
+    ["attributes", "customer_country"],
+    ["attributes", "tax_country"],
+    ["data", "attributes", "user_country"],
+    ["data", "attributes", "billing_country"],
+    ["data", "attributes", "customer_country"],
+  ];
+
+  for (const pathParts of preferredPaths) {
+    const country = sanitizeCountryCode(getNestedValue(value, pathParts));
+
+    if (country) {
+      return country;
+    }
+  }
+
+  return findPaymentCountryByKey(value);
+}
+
+function getNestedValue(value, pathParts) {
+  let current = value;
+
+  for (const part of pathParts) {
+    if (!isRecord(current)) {
+      return undefined;
+    }
+
+    current = current[part];
+  }
+
+  return current;
+}
+
+function findPaymentCountryByKey(value, depth = 0) {
+  if (depth > 4 || !value || typeof value !== "object") {
+    return undefined;
+  }
+
+  if (Array.isArray(value)) {
+    for (const entry of value) {
+      const country = findPaymentCountryByKey(entry, depth + 1);
+
+      if (country) {
+        return country;
+      }
+    }
+
+    return undefined;
+  }
+
+  for (const [key, entry] of Object.entries(value)) {
+    const normalizedKey = key.toLowerCase().replace(/[^a-z]/g, "");
+    const isCountryKey =
+      normalizedKey.includes("billingcountry") ||
+      normalizedKey.includes("customercountry") ||
+      normalizedKey.includes("usercountry") ||
+      normalizedKey.includes("taxcountry");
+
+    if (isCountryKey) {
+      const country = sanitizeCountryCode(entry);
+
+      if (country) {
+        return country;
+      }
+    }
+
+    if (entry && typeof entry === "object") {
+      const country = findPaymentCountryByKey(entry, depth + 1);
+
+      if (country) {
+        return country;
+      }
+    }
+  }
+
+  return undefined;
+}
+
+function sanitizeAttributionAnalyticsContext(value) {
+  return Object.fromEntries(
+    attributionAnalyticsKeys
+      .map((key) => {
+        const isPagePath = key.endsWith("_landing_page");
+        const sanitized = isPagePath ? sanitizePagePath(value[key]) : sanitizeAnalyticsString(value[key], 160);
+        return [key, sanitized];
+      })
+      .filter(([, entry]) => entry !== undefined && entry !== ""),
+  );
+}
+
+function getAttributionAnalyticsMetadata(analytics) {
+  return Object.fromEntries(
+    attributionAnalyticsKeys
+      .map((key) => [key, analytics[key]])
+      .filter(([, entry]) => entry !== undefined && entry !== ""),
+  );
+}
+
+async function sendPaidRequestAnalytics({ analytics, countryContext = {}, provider, providerEventId, request, transactionId }) {
   if (!ga4MeasurementId || !ga4ApiSecret) {
     return;
   }
@@ -2024,6 +2189,14 @@ async function sendPaidRequestAnalytics({ analytics, provider, providerEventId, 
     total_due: Number(request.total_due),
     payment_provider: provider,
     provider_event_id: providerEventId,
+    simple_event: "customer_paid_for_request",
+    what_happened: "Customer paid for request",
+    action_type: "payment",
+    funnel_step: "paid_request",
+    home_market_country: homeMarketCountry,
+    customer_country: countryContext.customer_country,
+    customer_country_source: countryContext.customer_country_source,
+    is_outside_home_market: countryContext.customer_country ? String(countryContext.customer_country !== homeMarketCountry) : undefined,
     page_path: analytics.page_path,
     referrer_host: analytics.referrer_host,
     utm_source: analytics.utm_source,
@@ -2031,6 +2204,11 @@ async function sendPaidRequestAnalytics({ analytics, provider, providerEventId, 
     utm_campaign: analytics.utm_campaign,
     utm_content: analytics.utm_content,
     utm_term: analytics.utm_term,
+    ...getAttributionAnalyticsMetadata(analytics),
+    first_source: getReadableAnalyticsSource(analytics.first_source, analytics.first_utm_source, analytics.first_referrer_host),
+    first_channel: getReadableAnalyticsChannel(analytics.first_channel, analytics.first_utm_source, analytics.first_referrer_host),
+    latest_source: getReadableAnalyticsSource(analytics.latest_source, analytics.latest_utm_source, analytics.latest_referrer_host),
+    latest_channel: getReadableAnalyticsChannel(analytics.latest_channel, analytics.latest_utm_source, analytics.latest_referrer_host),
     engagement_time_msec: 1,
     session_id: parseNumericString(analytics.ga_session_id),
   });
@@ -2039,6 +2217,11 @@ async function sendPaidRequestAnalytics({ analytics, provider, providerEventId, 
     sendGa4MeasurementEvent({
       clientId: analytics.ga_client_id,
       name: "bounty_funded",
+      params: commonParams,
+    }),
+    sendGa4MeasurementEvent({
+      clientId: analytics.ga_client_id,
+      name: "customer_paid_for_request",
       params: commonParams,
     }),
     sendGa4MeasurementEvent({
@@ -2059,6 +2242,83 @@ async function sendPaidRequestAnalytics({ analytics, provider, providerEventId, 
       },
     }),
   ]);
+}
+
+function getReadableAnalyticsSource(readableSource, utmSource, referrerHost) {
+  const source = sanitizeAnalyticsString(readableSource, 160) || sanitizeAnalyticsString(utmSource, 160) || sanitizeAnalyticsString(referrerHost, 160);
+  return source || "direct";
+}
+
+function getReadableAnalyticsChannel(readableChannel, utmSource, referrerHost) {
+  const providedChannel = sanitizeAnalyticsString(readableChannel, 160);
+
+  if (providedChannel) {
+    return providedChannel;
+  }
+
+  const combined = `${utmSource ?? ""} ${referrerHost ?? ""}`.toLowerCase();
+
+  if (!combined.trim()) {
+    return "Direct";
+  }
+
+  if (combined.includes("reddit")) {
+    return "Reddit";
+  }
+
+  if (combined.includes("google")) {
+    return "Google";
+  }
+
+  if (combined.includes("bing")) {
+    return "Bing";
+  }
+
+  if (combined.includes("pinterest")) {
+    return "Pinterest";
+  }
+
+  if (combined.includes("tiktok")) {
+    return "TikTok";
+  }
+
+  if (combined.includes("instagram")) {
+    return "Instagram";
+  }
+
+  if (combined.includes("facebook") || combined.includes("fb.")) {
+    return "Facebook";
+  }
+
+  if (combined.includes("youtube") || combined.includes("youtu.be")) {
+    return "YouTube";
+  }
+
+  if (combined.includes("twitter") || combined.includes("x.com") || combined.includes("t.co")) {
+    return "X / Twitter";
+  }
+
+  if (combined.includes("linkedin")) {
+    return "LinkedIn";
+  }
+
+  if (combined.includes("newsletter") || combined.includes("email")) {
+    return "Email";
+  }
+
+  return titleCaseAnalyticsValue(utmSource || referrerHost || "Other");
+}
+
+function titleCaseAnalyticsValue(value) {
+  const sanitized = sanitizeAnalyticsString(value, 160)?.replace(/^www\./i, "").replace(/\.[a-z]{2,}$/i, "") ?? "";
+  const title = sanitized
+    .split(/[\s._-]+/)
+    .filter(Boolean)
+    .slice(0, 3)
+    .map((part) => part.charAt(0).toUpperCase() + part.slice(1).toLowerCase())
+    .join(" ");
+
+  return title || "Other";
 }
 
 async function sendGa4MeasurementEvent({ clientId, name, params }) {
@@ -2109,6 +2369,11 @@ function sanitizeAnalyticsString(value, maxLength) {
   return sanitized || undefined;
 }
 
+function sanitizeCountryCode(value) {
+  const country = parseString(value, 40).toUpperCase();
+  return /^[A-Z]{2}$/.test(country) ? country : undefined;
+}
+
 function sanitizeWaitlistString(value, maxLength) {
   return parseString(firstHeader(value), maxLength).replace(/[\r\n\t]/g, " ").trim();
 }
@@ -2135,6 +2400,7 @@ function stripEmpty(value) {
 function renderWaitlistEmailHtml(notification) {
   const rows = [
     ["Email", notification.email],
+    ["Access note", notification.accessNote],
     ["Intent", notification.intent],
     ["Source", notification.source],
     ["Page", notification.pagePath],

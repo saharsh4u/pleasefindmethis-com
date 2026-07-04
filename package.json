@@ -9,6 +9,7 @@
   "scripts": {
     "dev": "node server.mjs",
     "generate:pseo": "node scripts/generate-pseo-pages.mjs",
+    "submit:indexnow": "node scripts/submit-indexnow.mjs",
     "prebuild": "npm run generate:pseo",
     "build": "vite build",
     "preview": "NODE_ENV=production node server.mjs",

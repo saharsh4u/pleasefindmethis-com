@@ -8,6 +8,20 @@ const siteUrl = "https://pleasefindmethis.com";
 const siteName = "pleasefindmethis.com";
 const lastmod = "2026-07-03";
 
+const appSitemapPages = [
+  { loc: "/", changefreq: "daily", priority: "1.0" },
+  { loc: "/browse", changefreq: "daily", priority: "0.9" },
+  { loc: "/browse/all", changefreq: "daily", priority: "0.8" },
+  { loc: "/faq", changefreq: "monthly", priority: "0.7" },
+  { loc: "/profile", changefreq: "monthly", priority: "0.6" },
+  { loc: "/support", changefreq: "monthly", priority: "0.6" },
+  { loc: "/rules", changefreq: "monthly", priority: "0.5" },
+  { loc: "/refunds", changefreq: "monthly", priority: "0.5" },
+  { loc: "/terms", changefreq: "monthly", priority: "0.4" },
+  { loc: "/privacy", changefreq: "monthly", priority: "0.4" },
+  { loc: "/report", changefreq: "monthly", priority: "0.3" },
+];
+
 const starterLinks = {
   sentimental: "/post/describe?starter=sentimental",
   parts: "/post/describe?starter=parts",
@@ -842,6 +856,8 @@ async function main() {
   for (const category of categoryPages) {
     await writeFile(`requests/${category.slug}/index.html`, renderCategoryPage(category));
   }
+
+  await writeFile("sitemap.xml", renderSitemap());
   await removePublicFile("sitemaps/pseo.xml");
 }
 
@@ -1279,10 +1295,11 @@ function detailDescription(item) {
 
 function renderSitemap() {
   const urls = [
-    { loc: "/guides/", priority: "0.8" },
-    ...guidePages.map((guide) => ({ loc: `/guides/${guide.slug}/`, priority: "0.7" })),
-    { loc: "/requests/", priority: "0.8" },
-    ...categoryPages.map((category) => ({ loc: `/requests/${category.slug}/`, priority: "0.7" })),
+    ...appSitemapPages,
+    { loc: "/guides/", changefreq: "monthly", priority: "0.8" },
+    ...guidePages.map((guide) => ({ loc: `/guides/${guide.slug}/`, changefreq: "monthly", priority: "0.7" })),
+    { loc: "/requests/", changefreq: "monthly", priority: "0.8" },
+    ...categoryPages.map((category) => ({ loc: `/requests/${category.slug}/`, changefreq: "monthly", priority: "0.7" })),
   ];
 
   return `<?xml version="1.0" encoding="UTF-8"?>
@@ -1292,7 +1309,7 @@ ${urls
     (url) => `  <url>
     <loc>${absoluteUrl(url.loc)}</loc>
     <lastmod>${lastmod}</lastmod>
-    <changefreq>monthly</changefreq>
+    <changefreq>${url.changefreq}</changefreq>
     <priority>${url.priority}</priority>
   </url>`,
   )

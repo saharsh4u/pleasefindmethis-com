@@ -16,16 +16,16 @@ Source basis: public Reddit search results reviewed on July 3, 2026.
 
 | ID | Priority | Community | Source | Intent | Product mention | Status |
 |---|---:|---|---|---|---|---|
-| B03-001 | 10 | r/HelpMeFind | Abercrombie lace-trim tie-front top | Recent exact apparel, high willingness to pay | Only with mod approval | Needs approval |
-| B03-002 | 9 | r/HelpMeFind | Blue down comforter | Recent near-exact home textile replacement | Only with mod approval | Needs approval |
-| B03-003 | 9 | r/HelpMeFind | Siaki mug | Recent discontinued mug, reward offered | Only with mod approval | Needs approval |
-| B03-004 | 8 | r/HelpMeFind | 2005-2006 tossed-bear fleece blanket | Sentimental blanket, finder fee | Only with mod approval | Needs approval |
-| B03-005 | 7 | r/wherecanibuythis | Exact sentimental spatula replacement | Exact kitchen item, long-running replacement search | Avoid by default | Needs approval |
-| B03-006 | 7 | r/HelpMeFind | 2001 Barbie Nutcracker hardcover book | Exact out-of-print book, shipping constraint | No platform mention first | Needs approval |
-| B03-007 | 7 | r/wherecanibuythis | Tic-Tac-Tome book | Out-of-print unusual book | Avoid by default | Needs approval |
-| B03-008 | 6 | r/wherecanibuythis | Days of Our Lives sweater | Exact TV wardrobe/fashion source | Avoid by default | Needs approval |
-| B03-009 | 6 | r/wherecanibuythis | Less Than Zero paperback same cover | Exact edition/source search | Avoid by default | Needs approval |
-| B03-010 | 6 | r/HelpMeFind | Discontinued product thread | Discontinued item research target | Manual review before drafting | Needs approval |
+| B03-001 | 10 | r/HelpMeFind | Abercrombie lace-trim tie-front top | Recent exact apparel, high willingness to pay | Only with mod approval | Approved for live review |
+| B03-002 | 9 | r/HelpMeFind | Blue down comforter | Recent near-exact home textile replacement | Only with mod approval | Approved for live review |
+| B03-003 | 9 | r/HelpMeFind | Siaki mug | Recent discontinued mug, reward offered | Only with mod approval | Approved for live review |
+| B03-004 | 8 | r/HelpMeFind | 2005-2006 tossed-bear fleece blanket | Sentimental blanket, finder fee | Only with mod approval | Approved for live review |
+| B03-005 | 7 | r/wherecanibuythis | Exact sentimental spatula replacement | Exact kitchen item, long-running replacement search | Avoid by default | Approved for live review |
+| B03-006 | 7 | r/HelpMeFind | 2001 Barbie Nutcracker hardcover book | Exact out-of-print book, shipping constraint | No platform mention first | Approved for live review |
+| B03-007 | 7 | r/wherecanibuythis | Tic-Tac-Tome book | Out-of-print unusual book | Avoid by default | Manual review only |
+| B03-008 | 6 | r/wherecanibuythis | Days of Our Lives sweater | Exact TV wardrobe/fashion source | Avoid by default | Manual review only |
+| B03-009 | 6 | r/wherecanibuythis | Less Than Zero paperback same cover | Exact edition/source search | Avoid by default | Manual review only |
+| B03-010 | 6 | r/HelpMeFind | Discontinued product thread | Discontinued item research target | Manual review before drafting | Manual review only |
 
 ## Drafts
 

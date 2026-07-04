@@ -1,47 +1,47 @@
 Directory,Tier,URL,Fit,Status,Positioning Variant,Notes
-Product Hunt,1,https://www.producthunt.com/posts/new,High,Draft,Startup launch,Do not ask for upvotes; launch only after DNS and full product flow are verified
-Hacker News Show HN,1,https://news.ycombinator.com/submit,Medium,Draft,Technical/community,Use only if the product is live and usable; lead with trust mechanics and marketplace design
-BetaList,1,https://betalist.com/submit,High,Draft,Startup launch,Good if still beta or waitlist-friendly
-Fazier,1,https://fazier.com/submit,High,Draft,Startup launch,Lower competition launch surface
-Uneed,1,https://www.uneed.best/submit-a-tool,High,Draft,Startup launch,Curated launch/discovery
-Microlaunch,1,https://microlaunch.net/submit,High,Draft,Startup launch,Sustained launch visibility
-OpenHunts,1,https://openhunts.com/submit,High,Draft,Startup launch,Indie-maker fit
-Launching Next,1,https://www.launchingnext.com/submit,Medium,Draft,Startup launch,Needs crisp founder story
-PitchWall,1,https://pitchwall.co/submit,High,Draft,Startup launch,Indie-friendly
-AlternativeTo,2,https://alternativeto.net/software/_/add/,Medium,Draft,Marketplace/community,Position against informal alternatives like HelpMeFind and marketplace search, not as direct inventory
+Product Hunt,1,https://www.producthunt.com/posts/new,High,Approved,Startup launch,Do not ask for upvotes; launch only after DNS and full product flow are verified
+Hacker News Show HN,1,https://news.ycombinator.com/submit,Medium,Manual review,Technical/community,Use only if the product is live and usable; lead with trust mechanics and marketplace design
+BetaList,1,https://betalist.com/submit,High,Approved,Startup launch,Good if still beta or waitlist-friendly
+Fazier,1,https://fazier.com/submit,High,Approved,Startup launch,Lower competition launch surface
+Uneed,1,https://www.uneed.best/submit-a-tool,High,Approved,Startup launch,Curated launch/discovery
+Microlaunch,1,https://microlaunch.net/submit,High,Approved,Startup launch,Sustained launch visibility
+OpenHunts,1,https://openhunts.com/submit,High,Approved,Startup launch,Indie-maker fit
+Launching Next,1,https://www.launchingnext.com/submit,Medium,Approved,Startup launch,Needs crisp founder story
+PitchWall,1,https://pitchwall.co/submit,High,Approved,Startup launch,Indie-friendly
+AlternativeTo,2,https://alternativeto.net/software/_/add/,Medium,Manual review,Marketplace/community,Position against informal alternatives like HelpMeFind and marketplace search, not as direct inventory
 SaaSHub,2,https://www.saashub.com/submit,Low,Skip,Marketplace/community,Skip unless the directory accepts consumer marketplace/community products without SaaS framing
 G2,2,https://my.g2.com/sellers/welcome,Low,Deferred,B2B review,Only useful after enough real users/reviews
 Capterra,2,https://www.capterra.com/vendors,Low,Deferred,B2B review,Only useful after enough real users/reviews
 GetApp,2,https://www.getapp.com/vendors,Low,Deferred,B2B review,Review-driven
 SourceForge,2,https://sourceforge.net/user/register,Low,Skip,Marketplace/community,Skip unless publishing real open-source tooling or docs
-Slashdot,2,https://slashdot.org/submission,Medium,Draft,Marketplace/community,Company profile or launch submission without SaaS framing
-Startup Stash,2,https://startupstash.com/submit,High,Draft,Startup,Startup/tool discovery
-SideProjectors,2,https://www.sideprojectors.com/project/new,High,Draft,Startup,Good indie project fit
-F6S,2,https://www.f6s.com/company/create,High,Draft,Startup,Company profile and accelerator discovery
-StackShare,2,https://stackshare.io/new-product,Medium,Draft,Dev,Use if tech stack story is public
+Slashdot,2,https://slashdot.org/submission,Medium,Manual review,Marketplace/community,Company profile or launch submission without SaaS framing
+Startup Stash,2,https://startupstash.com/submit,High,Approved,Startup,Startup/tool discovery
+SideProjectors,2,https://www.sideprojectors.com/project/new,High,Approved,Startup,Good indie project fit
+F6S,2,https://www.f6s.com/company/create,High,Approved,Startup,Company profile and accelerator discovery
+StackShare,2,https://stackshare.io/new-product,Medium,Manual review,Dev,Use if tech stack story is public
 TrustRadius,2,https://www.trustradius.com/vendors,Low,Deferred,B2B review,Needs reviews and B2B category fit
 Crozdesk,2,https://crozdesk.com/vendors,Low,Skip,Marketplace/community,Skip unless the directory accepts consumer marketplace/community products
-Indie Hackers,2,https://www.indiehackers.com,High,Draft,Startup/community,Build-in-public and product listing
-Slant,2,https://www.slant.co,Medium,Draft,Marketplace/community,Can fit as recommendation alternative if accepted
+Indie Hackers,2,https://www.indiehackers.com,High,Approved,Startup/community,Build-in-public and product listing
+Slant,2,https://www.slant.co,Medium,Manual review,Marketplace/community,Can fit as recommendation alternative if accepted
 SaaSWorthy,2,https://www.saasworthy.com,Low,Skip,Marketplace/community,Skip unless marketplace category is explicitly accepted without SaaS framing
-Promote Project,2,https://www.promoteproject.com,High,Draft,Startup,Good project promotion surface
-BetaBound,2,https://betabound.com,Medium,Draft,Beta,Useful if recruiting beta users
-Dev.to,8,https://dev.to,High,Draft,Content/profile,Publish technical/community post with canonical link
-Hashnode,8,https://hashnode.com,High,Draft,Content/profile,Cross-post build story and SEO roadmap
-Substack,8,https://substack.com,High,Draft,Newsletter/profile,Start bounty-board weekly digest
-GitHub,8,https://github.com,Medium,Draft,Profile,Add profile/repo link if any public repo or docs exist
-LinkedIn Company Page,8,https://www.linkedin.com/company/setup/new/,High,Draft,Profile,Claim brand identity and AI citation surface
-Crunchbase,8,https://www.crunchbase.com/add-new,Medium,Draft,Profile,Useful entity citation surface
-About.me,8,https://about.me,Medium,Draft,Profile,Founder/product profile backlink
-WordPress.com,8,https://wordpress.com,Medium,Draft,Content/profile,Use for republished founder story only if maintained
-Blogger,8,https://www.blogger.com,Medium,Draft,Content/profile,Google property; use sparingly
-Tumblr,8,https://www.tumblr.com,Medium,Draft,Content/profile,Visual bounty cards can fit
-Pinterest Business,8,https://business.pinterest.com,High,Draft,Visual/profile,High fit for image-search, decor, fashion, plush, camera pins
-YouTube,8,https://www.youtube.com,High,Draft,Video/profile,Shorts and demo video
-TikTok,8,https://www.tiktok.com,High,Draft,Video/profile,Short-form bounty stories
-Instagram,8,https://www.instagram.com,High,Draft,Visual/profile,Reels and bounty cards
-X/Twitter,8,https://x.com,High,Draft,Founder/social,Build-in-public and finder calls
-Bluesky,8,https://bsky.app,Medium,Draft,Founder/social,Indie and collector audience test
+Promote Project,2,https://www.promoteproject.com,High,Approved,Startup,Good project promotion surface
+BetaBound,2,https://betabound.com,Medium,Approved,Beta,Useful if recruiting beta users
+Dev.to,8,https://dev.to,High,Approved,Content/profile,Publish technical/community post with canonical link
+Hashnode,8,https://hashnode.com,High,Approved,Content/profile,Cross-post build story and SEO roadmap
+Substack,8,https://substack.com,High,Approved,Newsletter/profile,Start bounty-board weekly digest
+GitHub,8,https://github.com,Medium,Manual review,Profile,Add profile/repo link if any public repo or docs exist
+LinkedIn Company Page,8,https://www.linkedin.com/company/setup/new/,High,Approved,Profile,Claim brand identity and AI citation surface
+Crunchbase,8,https://www.crunchbase.com/add-new,Medium,Approved,Profile,Useful entity citation surface
+About.me,8,https://about.me,Medium,Approved,Profile,Founder/product profile backlink
+WordPress.com,8,https://wordpress.com,Medium,Approved,Content/profile,Use for republished founder story only if maintained
+Blogger,8,https://www.blogger.com,Medium,Approved,Content/profile,Google property; use sparingly
+Tumblr,8,https://www.tumblr.com,Medium,Approved,Content/profile,Visual bounty cards can fit
+Pinterest Business,8,https://business.pinterest.com,High,Approved,Visual/profile,High fit for image-search, decor, fashion, plush, camera pins
+YouTube,8,https://www.youtube.com,High,Approved,Video/profile,Shorts and demo video
+TikTok,8,https://www.tiktok.com,High,Approved,Video/profile,Short-form bounty stories
+Instagram,8,https://www.instagram.com,High,Approved,Visual/profile,Reels and bounty cards
+X/Twitter,8,https://x.com,High,Approved,Founder/social,Build-in-public and finder calls
+Bluesky,8,https://bsky.app,Medium,Approved,Founder/social,Indie and collector audience test
 Reddit Ads,Ads,https://ads.reddit.com,High,Deferred,Paid,Use paid ads instead of organic spam for direct promotion
 Google Ads,Ads,https://ads.google.com,High,Deferred,Paid,Launch only after conversion tracking and DNS are verified
 Meta Ads,Ads,https://business.facebook.com,Medium,Deferred,Paid,Retargeting and broad demand creative

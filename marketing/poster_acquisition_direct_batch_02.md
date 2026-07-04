@@ -16,16 +16,16 @@ Source basis: current/recent Reddit search results and public subreddit pages re
 
 | ID | Priority | Community | Source | Intent | Product mention | Status |
 |---|---:|---|---|---|---|---|
-| B02-001 | 9 | r/HelpMeFind | Current open baby blanket post | Sentimental exact replacement | Only with mod approval | Needs approval |
-| B02-002 | 9 | r/HelpMeFind | France 1997-1999 baby blanket | Sentimental exact replacement | Only with mod approval | Needs approval |
-| B02-003 | 7 | r/HelpMeFind | Childhood stuffed unicorn photos | Sentimental research, lower purchase intent | No platform mention | Needs approval |
-| B02-004 | 8 | r/HelpMeFind | 27 Dresses Jane hair clip | Exact fashion/accessory | No platform mention first | Needs approval |
-| B02-005 | 7 | r/HelpMeFind | New Year's Evil jacket | Exact film wardrobe item | No platform mention first | Needs approval |
-| B02-006 | 7 | r/HelpMeFind | Richard Ayoade headphones | Product ID/source verification | No platform mention | Needs approval |
-| B02-007 | 8 | r/findfashion | Exact blanket model online | Exact model/source search | Avoid by default | Needs approval |
-| B02-008 | 7 | r/findfashion | Exact design search | Fashion exact-match search | Avoid by default | Needs approval |
-| B02-009 | 7 | r/findfashion | T.I. 2026 cardigan | Celebrity outfit ID/source | Avoid by default | Needs approval |
-| B02-010 | 8 | r/wherecanibuythis | Discontinued Ugg shepra boots | Discontinued fashion item | Avoid by default | Needs approval |
+| B02-001 | 9 | r/HelpMeFind | Current open baby blanket post | Sentimental exact replacement | Only with mod approval | Approved for live review |
+| B02-002 | 9 | r/HelpMeFind | France 1997-1999 baby blanket | Sentimental exact replacement | Only with mod approval | Approved for live review |
+| B02-003 | 7 | r/HelpMeFind | Childhood stuffed unicorn photos | Sentimental research, lower purchase intent | No platform mention | Manual review only |
+| B02-004 | 8 | r/HelpMeFind | 27 Dresses Jane hair clip | Exact fashion/accessory | No platform mention first | Approved for live review |
+| B02-005 | 7 | r/HelpMeFind | New Year's Evil jacket | Exact film wardrobe item | No platform mention first | Approved for live review |
+| B02-006 | 7 | r/HelpMeFind | Richard Ayoade headphones | Product ID/source verification | No platform mention | Approved for live review |
+| B02-007 | 8 | r/findfashion | Exact blanket model online | Exact model/source search | Avoid by default | Approved for live review |
+| B02-008 | 7 | r/findfashion | Exact design search | Fashion exact-match search | Avoid by default | Approved for live review |
+| B02-009 | 7 | r/findfashion | T.I. 2026 cardigan | Celebrity outfit ID/source | Avoid by default | Approved for live review |
+| B02-010 | 8 | r/wherecanibuythis | Discontinued Ugg shepra boots | Discontinued fashion item | Avoid by default | Approved for live review |
 
 ## Drafts
 

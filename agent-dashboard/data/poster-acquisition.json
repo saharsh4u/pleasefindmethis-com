@@ -1,5 +1,5 @@
 {
-  "updatedAt": "2026-07-03T09:57:41.000Z",
+  "updatedAt": "2026-07-04T00:00:00.000Z",
   "goal": 100,
   "summary": {
     "pipelineRows": 100,
@@ -7,8 +7,11 @@
     "contacted": 0,
     "replied": 0,
     "acquired": 0,
-    "approvalRequired": 32
+    "approvedForLiveReview": 25,
+    "manualReviewRequired": 7,
+    "approvalRequired": 0
   },
+  "approvalDecisionFile": "../marketing/acquisition_approval_decisions_2026-07-04.md",
   "topTargets": [
     {
       "id": "B01-005",
@@ -172,9 +175,9 @@
     }
   ],
   "approvalQueue": [
-    "Approve or reject the 32 direct comment drafts in marketing/poster_acquisition_direct_batch_01.md, marketing/poster_acquisition_direct_batch_02.md, and marketing/poster_acquisition_direct_batch_03.md.",
+    "Use marketing/acquisition_approval_decisions_2026-07-04.md as the approval source.",
     "Confirm current subreddit rules and unresolved status before each public comment.",
-    "Choose no-platform or disclosed product-mention variant for each approved Reddit target.",
+    "Use no-platform helpful comments by default; product mentions require rules/mod approval plus disclosure.",
     "Approve owned founder post #1 and #2 from marketing/poster_acquisition_outreach_queue.md.",
     "Provide account access or personally send approved comments/posts.",
     "Update each row only when a real touch is sent, replied to, or converted."
