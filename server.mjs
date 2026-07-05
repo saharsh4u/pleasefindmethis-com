@@ -93,6 +93,11 @@ export async function handleRequest(req, res) {
       return;
     }
 
+    if (requestUrl.pathname === "/api/razorpay/checkout") {
+      await handleCreateRazorpayCheckout(req, res);
+      return;
+    }
+
     if (requestUrl.pathname === "/api/payments/checkout") {
       await handleCreatePaymentCheckout(req, res);
       return;
@@ -125,6 +130,11 @@ export async function handleRequest(req, res) {
 
     if (requestUrl.pathname === "/api/whop/webhook") {
       await handleWhopWebhook(req, res);
+      return;
+    }
+
+    if (requestUrl.pathname === "/api/razorpay/webhook") {
+      await handleRazorpayWebhook(req, res);
       return;
     }
 
@@ -444,7 +454,151 @@ async function handleCreatePaymentCheckout(req, res) {
     return;
   }
 
+  if (provider === "razorpay") {
+    await handleCreateRazorpayCheckout(req, res);
+    return;
+  }
+
   await handleCreateDodoCheckout(req, res);
+}
+
+async function handleCreateRazorpayCheckout(req, res) {
+  if (req.method !== "POST") {
+    sendJson(res, 405, { error: "Method not allowed." });
+    return;
+  }
+
+  if (getPaymentProvider() !== "razorpay") {
+    sendJson(res, 409, {
+      error: "This checkout option is not available.",
+    });
+    return;
+  }
+
+  const keyId = process.env.RAZORPAY_KEY_ID;
+  const keySecret = process.env.RAZORPAY_KEY_SECRET;
+
+  if (!keyId || !keySecret) {
+    sendJson(res, 503, {
+      error: "Checkout is unavailable right now.",
+    });
+    return;
+  }
+
+  if (isProduction && !isRazorpayLiveMode()) {
+    sendJson(res, 503, { error: "Checkout is not available in this deployment." });
+    return;
+  }
+
+  const origin = ensureCheckoutRedirectOrigin(req, res);
+
+  if (!origin) {
+    return;
+  }
+
+  const checkoutRequest = await readCheckoutRequest(req, res);
+
+  if (!checkoutRequest) {
+    return;
+  }
+
+  const { analytics, breakdown, category, durationDays, email, itemName, name, requestId } = checkoutRequest;
+  const claimed = await claimCheckoutRequest(requestId, "razorpay");
+
+  if (!claimed) {
+    sendJson(res, 409, { error: "Checkout is already in progress for this request. Refresh your dashboard for the latest payment link." });
+    return;
+  }
+
+  const checkoutPayload = {
+    amount: breakdown.total * 100,
+    currency: "USD",
+    accept_partial: false,
+    expire_by: getRazorpayPaymentLinkExpiry(),
+    reference_id: requestId,
+    description: `pleasefindmethis request: ${itemName}`.slice(0, 2048),
+    customer: stripEmpty({
+      email,
+      name,
+    }),
+    notify: {
+      sms: false,
+      email: false,
+    },
+    reminder_enable: false,
+    notes: getRazorpayPaymentNotes({
+      analytics,
+      category,
+      durationDays,
+      itemName,
+      requestId,
+    }),
+    callback_url: `${origin}/poster-dashboard?checkout=success`,
+    callback_method: "get",
+  };
+
+  let razorpayResponse;
+
+  try {
+    razorpayResponse = await fetchWithTimeout(
+      `${getRazorpayApiBase()}/payment_links`,
+      {
+        method: "POST",
+        headers: {
+          Authorization: getRazorpayAuthorizationHeader(keyId, keySecret),
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(checkoutPayload),
+      },
+      paymentProviderTimeoutMs,
+    );
+  } catch (error) {
+    console.error("Razorpay payment link creation timed out or failed", error);
+    await markCheckoutFailed(requestId, true);
+    sendJson(res, 504, { error: "The payment provider took too long to create checkout. Please try again." });
+    return;
+  }
+
+  const responseText = await razorpayResponse.text();
+  const razorpayPayload = parseJson(responseText);
+
+  if (!razorpayResponse.ok) {
+    console.error("Razorpay payment link creation failed", razorpayResponse.status, getRazorpayErrorSummary(razorpayPayload, responseText));
+    await markCheckoutFailed(requestId, razorpayResponse.status >= 500 || razorpayResponse.status === 429);
+    sendJson(res, getRazorpayCheckoutErrorStatus(razorpayResponse.status), {
+      error: getRazorpayCheckoutError(razorpayResponse.status, razorpayPayload),
+    });
+    return;
+  }
+
+  if (!isRecord(razorpayPayload) || typeof razorpayPayload.short_url !== "string") {
+    console.error("Razorpay payment link response did not include short_url", getRazorpayErrorSummary(razorpayPayload, responseText));
+    await markCheckoutFailed(requestId, false);
+    sendJson(res, 502, { error: "Checkout could not be started." });
+    return;
+  }
+
+  const paymentLinkId = parseString(razorpayPayload.id, 160);
+  await updateRequestPaymentState(requestId, {
+    payment_provider: "razorpay",
+    ...(paymentLinkId ? { checkout_session_id: paymentLinkId, razorpay_payment_link_id: paymentLinkId } : {}),
+    checkout_url: razorpayPayload.short_url,
+    status: "checkout_started",
+    payment_status: "checkout_started",
+  });
+
+  sendJson(res, 200, {
+    provider: "razorpay",
+    checkoutUrl: razorpayPayload.short_url,
+    sessionId: paymentLinkId || null,
+    total: breakdown.total,
+    split: {
+      finderPayout: breakdown.reward,
+      platformServiceFee: breakdown.platformFee,
+      refundProtectionReserve: breakdown.protection,
+      platformShare: breakdown.platformShare,
+    },
+  });
 }
 
 async function handlePublicRequests(req, res) {
@@ -1185,6 +1339,53 @@ async function handleWhopWebhook(req, res) {
   }
 }
 
+async function handleRazorpayWebhook(req, res) {
+  if (req.method !== "POST") {
+    sendJson(res, 405, { error: "Method not allowed." });
+    return;
+  }
+
+  const webhookSecret = process.env.RAZORPAY_WEBHOOK_SECRET;
+
+  if (!webhookSecret) {
+    sendJson(res, 503, { error: "Webhook is not available." });
+    return;
+  }
+
+  const rawBody = await readRawBody(req);
+  const signature = firstHeader(req.headers["x-razorpay-signature"]);
+
+  if (!verifyRazorpaySignature(rawBody, signature, webhookSecret)) {
+    console.error("Invalid Razorpay webhook signature");
+    sendJson(res, 400, { error: "Invalid webhook signature." });
+    return;
+  }
+
+  const event = parseJson(rawBody.toString("utf8"));
+
+  if (!isRecord(event)) {
+    sendJson(res, 400, { error: "Webhook body must be valid JSON." });
+    return;
+  }
+
+  try {
+    const eventType = getRazorpayEventType(event);
+    const eventData = getRazorpayEventData(event);
+    await syncRazorpayEventToRequest(eventType, eventData, event, req);
+    console.log("Verified Razorpay webhook", {
+      type: eventType,
+      paymentId: eventData.payment.id,
+      paymentLinkId: eventData.paymentLink.id,
+    });
+
+    sendJson(res, 200, { received: true });
+  } catch (error) {
+    const status = error instanceof WebhookValidationError ? error.statusCode : 500;
+    console.error("Could not process Razorpay webhook", error);
+    sendJson(res, status, { error: "Webhook could not be processed." });
+  }
+}
+
 function getEscrowBreakdown(reward) {
   const normalizedReward = Math.max(minimumReward, Math.round(reward));
   const platformFee = Math.max(minimumPlatformFee, Math.round(normalizedReward * platformServiceFeeRate));
@@ -1247,6 +1448,31 @@ function getWhopCheckoutError(status, payload) {
   return "Checkout could not be started. Please try again.";
 }
 
+function getRazorpayCheckoutError(status, payload) {
+  if (status === 401 || status === 403) {
+    return "Checkout could not be started. Please contact support.";
+  }
+
+  if (status === 400) {
+    const error = isRecord(payload?.error) ? payload.error : {};
+    const description = parseString(error.description, 220);
+
+    if (description) {
+      return "Checkout could not be started. Please contact support.";
+    }
+  }
+
+  return "Checkout could not be started. Please try again.";
+}
+
+function getRazorpayCheckoutErrorStatus(status) {
+  if (status === 429) {
+    return 503;
+  }
+
+  return 502;
+}
+
 function getLemonSqueezyErrorSummary(payload, responseText) {
   if (!isRecord(payload)) {
     return responseText.slice(0, 500);
@@ -1270,6 +1496,14 @@ function getLemonSqueezyErrorSummary(payload, responseText) {
 }
 
 function getWhopErrorSummary(payload, responseText) {
+  if (isRecord(payload)) {
+    return payload;
+  }
+
+  return responseText.slice(0, 500);
+}
+
+function getRazorpayErrorSummary(payload, responseText) {
   if (isRecord(payload)) {
     return payload;
   }
@@ -1461,12 +1695,79 @@ async function syncWhopEventToRequest(eventType, eventData, rawEvent, req) {
   }
 }
 
+async function syncRazorpayEventToRequest(eventType, eventData, rawEvent, req) {
+  if (!supabaseAdmin) {
+    throw new Error("Supabase admin client is not configured.");
+  }
+
+  const notes = getRazorpayEventNotes(eventData);
+  const requestId = parseString(notes.request_id, 64);
+
+  if (!requestId) {
+    return;
+  }
+
+  const request = await loadPaymentRequest(requestId);
+  const providerEventId = getRazorpayProviderEventId(rawEvent, req, eventType, eventData, requestId);
+  const providerEnvironment = getRazorpayWebhookEnvironment(eventData);
+  const paymentId = parseString(eventData.payment.id, 160);
+  const paymentLinkId = parseString(eventData.paymentLink.id, 160);
+
+  validateWebhookEnvironment("razorpay", providerEnvironment);
+  validateRequestProviderState("razorpay", request, { paymentId, paymentLinkId });
+
+  if (eventType === "payment_link.paid" || eventType === "payment.captured") {
+    validatePaidWebhookAmount("razorpay", request, eventData, rawEvent);
+  }
+
+  await recordPaymentEvent({
+    provider: "razorpay",
+    request_id: requestId,
+    event_type: eventType,
+    provider_event_id: providerEventId,
+    provider_environment: providerEnvironment,
+    razorpay_payment_id: paymentId || null,
+    razorpay_payment_link_id: paymentLinkId || null,
+    checkout_session_id: paymentLinkId || null,
+    payload: rawEvent,
+  });
+
+  const paymentUpdate = getRazorpayPaymentUpdateForEvent(eventType, eventData, request);
+
+  if (!paymentUpdate) {
+    return;
+  }
+
+  await updateRequestPaymentState(requestId, paymentUpdate);
+
+  if (paymentUpdate.payment_status === "paid") {
+    await sendPaidRequestAnalytics({
+      analytics: getAnalyticsContextFromPaymentMetadata(notes),
+      countryContext: getPaymentCountryContext(eventData.payment, rawEvent),
+      provider: "razorpay",
+      providerEventId,
+      request,
+      transactionId: paymentId || paymentLinkId || providerEventId,
+    });
+  }
+}
+
 async function loadPaymentRequest(requestId) {
-  const { data, error } = await supabaseAdmin
+  const selectWithRazorpayIds =
+    "id,category,reward,service_fee,protection_reserve,total_due,finder_payout,currency,status,payment_status,payout_status,platform_fee_status,payment_provider,checkout_session_id,checkout_url,dodo_payment_id,lemon_squeezy_order_id,whop_payment_id,razorpay_payment_id,razorpay_payment_link_id,paid_at,customer_email";
+  const selectBase =
+    "id,category,reward,service_fee,protection_reserve,total_due,finder_payout,currency,status,payment_status,payout_status,platform_fee_status,payment_provider,checkout_session_id,checkout_url,dodo_payment_id,lemon_squeezy_order_id,whop_payment_id,paid_at,customer_email";
+  let { data, error } = await supabaseAdmin
     .from("requests")
-    .select("id,category,reward,service_fee,protection_reserve,total_due,finder_payout,currency,status,payment_status,payout_status,platform_fee_status,payment_provider,checkout_session_id,checkout_url,dodo_payment_id,lemon_squeezy_order_id,whop_payment_id,paid_at,customer_email")
+    .select(selectWithRazorpayIds)
     .eq("id", requestId)
     .single();
+
+  if (error && (error.code === "PGRST204" || error.code === "42703" || /razorpay_payment/.test(error.message ?? ""))) {
+    const fallback = await supabaseAdmin.from("requests").select(selectBase).eq("id", requestId).single();
+    data = fallback.data;
+    error = fallback.error;
+  }
 
   if (error || !data) {
     throw new WebhookValidationError("Request referenced by webhook was not found.", 404);
@@ -1489,7 +1790,7 @@ async function recordPaymentEvent(eventRow) {
   const missingNewColumns =
     error.code === "PGRST204" ||
     error.code === "42703" ||
-    /provider_event_id|provider_environment/.test(error.message ?? "");
+    /provider_event_id|provider_environment|razorpay_payment/.test(error.message ?? "");
 
   if (!missingNewColumns) {
     throw new Error(`Could not record payment event: ${error.message}`);
@@ -1498,6 +1799,8 @@ async function recordPaymentEvent(eventRow) {
   const fallbackRow = { ...eventRow };
   delete fallbackRow.provider_event_id;
   delete fallbackRow.provider_environment;
+  delete fallbackRow.razorpay_payment_id;
+  delete fallbackRow.razorpay_payment_link_id;
   const { error: fallbackError } = await supabaseAdmin.from("request_payment_events").insert(fallbackRow);
 
   if (fallbackError && fallbackError.code !== "23505") {
@@ -1587,6 +1890,10 @@ function validateWebhookEnvironment(provider, providerEnvironment) {
     throw new WebhookValidationError("Whop production webhooks are disabled until WHOP_ENVIRONMENT is live.", 409);
   }
 
+  if (provider === "razorpay" && !isRazorpayLiveMode()) {
+    throw new WebhookValidationError("Razorpay production webhooks are disabled until RAZORPAY_ENVIRONMENT is live.", 409);
+  }
+
   if (providerEnvironment === "test" && !(provider === "whop" && isWhopSandboxOnProductionAllowed())) {
     throw new WebhookValidationError("Test-mode payment webhooks cannot update production marketplace state.", 409);
   }
@@ -1623,6 +1930,20 @@ function validateRequestProviderState(provider, request, ids) {
     }
 
     if (request.checkout_session_id && ids.checkoutId && request.checkout_session_id !== ids.checkoutId) {
+      throw new WebhookValidationError("Webhook checkout session does not match the request.", 409);
+    }
+  }
+
+  if (provider === "razorpay") {
+    if (request.razorpay_payment_id && ids.paymentId && request.razorpay_payment_id !== ids.paymentId) {
+      throw new WebhookValidationError("Webhook payment id does not match the request.", 409);
+    }
+
+    if (request.razorpay_payment_link_id && ids.paymentLinkId && request.razorpay_payment_link_id !== ids.paymentLinkId) {
+      throw new WebhookValidationError("Webhook payment link does not match the request.", 409);
+    }
+
+    if (request.checkout_session_id && ids.paymentLinkId && request.checkout_session_id !== ids.paymentLinkId) {
       throw new WebhookValidationError("Webhook checkout session does not match the request.", 409);
     }
   }
@@ -1691,6 +2012,14 @@ function getPaymentCurrency(provider, eventData, rawEvent) {
     return (parseString(eventData.currency, 10) || parseString(eventData.settlement_currency, 10)).toUpperCase();
   }
 
+  if (provider === "razorpay") {
+    return (
+      parseString(eventData.paymentLink.currency, 10) ||
+      parseString(eventData.order.currency, 10) ||
+      parseString(eventData.payment.currency, 10)
+    ).toUpperCase();
+  }
+
   return (
     parseString(eventData.currency, 10) ||
     parseString(eventData.billing_currency, 10) ||
@@ -1712,6 +2041,16 @@ function getPaymentAmountCents(provider, eventData, rawEvent) {
 
   if (provider === "whop") {
     return parseDecimalAmountCents(eventData.usd_total ?? eventData.total ?? eventData.subtotal);
+  }
+
+  if (provider === "razorpay") {
+    return parseAmountCents(
+      eventData.paymentLink.amount_paid ||
+        eventData.payment.amount ||
+        eventData.order.amount_paid ||
+        eventData.paymentLink.amount ||
+        eventData.order.amount,
+    );
   }
 
   return parseAmountCents(eventData.total_amount ?? eventData.amount ?? eventData.payment_amount ?? eventData.total);
@@ -1754,6 +2093,16 @@ function parseAmountCents(value) {
   return value.includes(".") ? Math.round(numeric * 100) : Math.round(numeric);
 }
 
+function getIsoFromUnixSeconds(value) {
+  const seconds = Number(value);
+
+  if (!Number.isFinite(seconds) || seconds <= 0) {
+    return null;
+  }
+
+  return new Date(seconds * 1000).toISOString();
+}
+
 function getDodoProviderEventId(rawEvent, req, eventType, eventData, requestId) {
   return (
     firstHeader(req.headers["webhook-id"]) ||
@@ -1777,6 +2126,14 @@ function getWhopProviderEventId(rawEvent, req, eventType, eventData, requestId) 
     firstHeader(req.headers["webhook-id"]) ||
     parseString(rawEvent?.id, 160) ||
     `${eventType}:${requestId}:${parseString(eventData.id, 160) || parseString(eventData.checkout_configuration_id, 160) || "unknown"}`
+  );
+}
+
+function getRazorpayProviderEventId(rawEvent, req, eventType, eventData, requestId) {
+  return (
+    firstHeader(req.headers["x-razorpay-event-id"]) ||
+    parseString(rawEvent?.id, 160) ||
+    `${eventType}:${requestId}:${parseString(eventData.payment.id, 160) || parseString(eventData.paymentLink.id, 160) || "unknown"}`
   );
 }
 
@@ -1813,6 +2170,12 @@ function getLemonSqueezyWebhookEnvironment(rawEvent, attributes) {
 function getWhopWebhookEnvironment(eventData, rawEvent) {
   const metadata = isRecord(eventData.metadata) ? eventData.metadata : {};
   const value = parseString(metadata.payment_environment, 20) || parseString(rawEvent?.environment, 20) || getWhopEnvironment();
+  return normalizePaymentEnvironment(value);
+}
+
+function getRazorpayWebhookEnvironment(eventData) {
+  const notes = getRazorpayEventNotes(eventData);
+  const value = parseString(notes.payment_environment, 20) || getRazorpayEnvironment();
   return normalizePaymentEnvironment(value);
 }
 
@@ -2005,6 +2368,81 @@ function getWhopPaymentUpdateForEvent(eventType, eventData, request) {
   return null;
 }
 
+function getRazorpayPaymentUpdateForEvent(eventType, eventData, request) {
+  const paymentId = parseString(eventData.payment.id, 160);
+  const paymentLinkId = parseString(eventData.paymentLink.id, 160);
+  const paymentStatus = parseString(eventData.payment.status, 80).toLowerCase();
+  const paymentLinkStatus = parseString(eventData.paymentLink.status, 80).toLowerCase();
+  const paymentFields = {
+    payment_provider: "razorpay",
+    ...(paymentId ? { razorpay_payment_id: paymentId } : {}),
+    ...(paymentLinkId ? { checkout_session_id: paymentLinkId, razorpay_payment_link_id: paymentLinkId } : {}),
+  };
+
+  if (eventType === "payment_link.paid" || eventType === "payment.captured" || paymentLinkStatus === "paid" || paymentStatus === "captured") {
+    if (isTerminalPaymentState(request.payment_status)) {
+      return null;
+    }
+
+    return {
+      ...paymentFields,
+      status: "paid",
+      payment_status: "paid",
+      payout_status: request.payout_status === "not_ready" ? "pending_acceptance" : request.payout_status,
+      platform_fee_status: request.platform_fee_status === "unearned" ? "earned" : request.platform_fee_status,
+      paid_at: request.paid_at ?? getIsoFromUnixSeconds(eventData.payment.created_at) ?? new Date().toISOString(),
+    };
+  }
+
+  if (eventType === "payment.failed" || paymentStatus === "failed") {
+    if (request.payment_status !== "unpaid" && request.payment_status !== "checkout_started") {
+      return null;
+    }
+
+    return {
+      ...paymentFields,
+      status: "checkout_failed",
+      payment_status: "failed",
+    };
+  }
+
+  if (eventType === "payment_link.cancelled" || eventType === "payment_link.expired" || ["cancelled", "expired"].includes(paymentLinkStatus)) {
+    if (request.payment_status !== "unpaid" && request.payment_status !== "checkout_started") {
+      return null;
+    }
+
+    return {
+      ...paymentFields,
+      status: eventType === "payment_link.expired" || paymentLinkStatus === "expired" ? "checkout_failed" : "cancelled",
+      payment_status: eventType === "payment_link.expired" || paymentLinkStatus === "expired" ? "failed" : "cancelled",
+      payout_status: "cancelled",
+      platform_fee_status: "unearned",
+    };
+  }
+
+  if (eventType.startsWith("refund.")) {
+    return {
+      ...paymentFields,
+      status: "refunded",
+      payment_status: "refunded",
+      payout_status: "refunded",
+      platform_fee_status: "refunded",
+    };
+  }
+
+  if (eventType.startsWith("payment.dispute.") || eventType.startsWith("dispute.")) {
+    return {
+      ...paymentFields,
+      status: "disputed",
+      payment_status: "disputed",
+      payout_status: "disputed",
+      platform_fee_status: "disputed",
+    };
+  }
+
+  return null;
+}
+
 function sanitizeCheckoutAnalyticsContext(value) {
   return stripEmpty({
     ga_client_id: sanitizeAnalyticsString(value.ga_client_id, 80),
@@ -2033,6 +2471,31 @@ function getPaymentAnalyticsMetadata(analytics) {
     utm_term: analytics.utm_term,
     ...getAttributionAnalyticsMetadata(analytics),
   });
+}
+
+function getRazorpayPaymentNotes({ analytics, category, durationDays, itemName, requestId }) {
+  return stripEmpty({
+    request_id: sanitizeRazorpayNote(requestId),
+    item_name: sanitizeRazorpayNote(itemName),
+    category: sanitizeRazorpayNote(category),
+    duration_days: sanitizeRazorpayNote(String(durationDays)),
+    payment_provider: "razorpay",
+    payment_environment: getRazorpayEnvironment(),
+    source: "pleasefindmethis-post-paywall",
+    ga_client_id: sanitizeRazorpayNote(analytics.ga_client_id),
+    ga_session_id: sanitizeRazorpayNote(analytics.ga_session_id),
+    utm_source: sanitizeRazorpayNote(analytics.utm_source),
+    utm_medium: sanitizeRazorpayNote(analytics.utm_medium),
+    utm_campaign: sanitizeRazorpayNote(analytics.utm_campaign),
+    first_channel: sanitizeRazorpayNote(analytics.first_channel),
+    latest_channel: sanitizeRazorpayNote(analytics.latest_channel),
+    latest_source: sanitizeRazorpayNote(analytics.latest_source),
+  });
+}
+
+function sanitizeRazorpayNote(value) {
+  const sanitized = parseString(value, 256).replace(/[\r\n\t]/g, " ").trim();
+  return sanitized || undefined;
 }
 
 function getAnalyticsContextFromPaymentMetadata(metadata) {
@@ -2602,6 +3065,14 @@ function getPaymentProvider() {
     return "whop";
   }
 
+  if (configuredProvider === "razorpay" || configuredProvider === "razor_pay") {
+    return "razorpay";
+  }
+
+  if (process.env.RAZORPAY_KEY_ID && process.env.RAZORPAY_KEY_SECRET) {
+    return "razorpay";
+  }
+
   if (process.env.LEMONSQUEEZY_API_KEY && process.env.LEMONSQUEEZY_STORE_ID && process.env.LEMONSQUEEZY_VARIANT_ID) {
     return "lemonsqueezy";
   }
@@ -2622,6 +3093,10 @@ function isConfiguredPaymentProviderLive() {
 
   if (provider === "whop") {
     return isWhopLiveMode();
+  }
+
+  if (provider === "razorpay") {
+    return isRazorpayLiveMode();
   }
 
   return isDodoLiveMode();
@@ -2660,6 +3135,38 @@ function getWhopApiBase() {
   return isWhopLiveMode() ? "https://api.whop.com/api/v1" : "https://sandbox-api.whop.com/api/v1";
 }
 
+function getRazorpayApiBase() {
+  return "https://api.razorpay.com/v1";
+}
+
+function getRazorpayEnvironment() {
+  const normalized = parseString(process.env.RAZORPAY_ENVIRONMENT ?? process.env.RAZORPAY_MODE ?? "", 40).toLowerCase();
+
+  if (["live", "production", "prod"].includes(normalized)) {
+    return "live";
+  }
+
+  if (["test", "sandbox"].includes(normalized)) {
+    return "test";
+  }
+
+  return parseString(process.env.RAZORPAY_KEY_ID, 80).startsWith("rzp_live_") ? "live" : "test";
+}
+
+function isRazorpayLiveMode() {
+  return getRazorpayEnvironment() === "live";
+}
+
+function getRazorpayAuthorizationHeader(keyId, keySecret) {
+  return `Basic ${Buffer.from(`${keyId}:${keySecret}`).toString("base64")}`;
+}
+
+function getRazorpayPaymentLinkExpiry() {
+  const minutes = Number(process.env.RAZORPAY_PAYMENT_LINK_EXPIRE_MINUTES ?? 60);
+  const safeMinutes = Number.isFinite(minutes) ? Math.min(Math.max(minutes, 10), 60 * 24 * 30) : 60;
+  return Math.floor(Date.now() / 1000) + safeMinutes * 60;
+}
+
 function getWhopFrontendBase() {
   return isWhopLiveMode() ? "https://whop.com" : "https://sandbox.whop.com";
 }
@@ -2692,6 +3199,22 @@ function parseBooleanEnv(key, fallback) {
 }
 
 function verifyLemonSqueezySignature(rawBody, signature, webhookSecret) {
+  if (!signature) {
+    return false;
+  }
+
+  const expectedSignature = crypto.createHmac("sha256", webhookSecret).update(rawBody).digest("hex");
+  const expected = Buffer.from(expectedSignature, "hex");
+  const received = Buffer.from(signature, "hex");
+
+  if (expected.length !== received.length) {
+    return false;
+  }
+
+  return crypto.timingSafeEqual(expected, received);
+}
+
+function verifyRazorpaySignature(rawBody, signature, webhookSecret) {
   if (!signature) {
     return false;
   }
@@ -2872,6 +3395,43 @@ function getWhopEventData(event) {
   }
 
   return isRecord(event.data) ? event.data : {};
+}
+
+function getRazorpayEventType(event) {
+  if (!isRecord(event)) {
+    return "unknown";
+  }
+
+  return parseString(event.event, 100) || "unknown";
+}
+
+function getRazorpayEventData(event) {
+  if (!isRecord(event) || !isRecord(event.payload)) {
+    return {
+      order: {},
+      payment: {},
+      paymentLink: {},
+    };
+  }
+
+  const orderContainer = isRecord(event.payload.order) ? event.payload.order : {};
+  const paymentContainer = isRecord(event.payload.payment) ? event.payload.payment : {};
+  const paymentLinkContainer = isRecord(event.payload.payment_link) ? event.payload.payment_link : {};
+
+  return {
+    order: isRecord(orderContainer.entity) ? orderContainer.entity : {},
+    payment: isRecord(paymentContainer.entity) ? paymentContainer.entity : {},
+    paymentLink: isRecord(paymentLinkContainer.entity) ? paymentLinkContainer.entity : {},
+  };
+}
+
+function getRazorpayEventNotes(eventData) {
+  const paymentLinkNotes = isRecord(eventData.paymentLink.notes) ? eventData.paymentLink.notes : {};
+  const paymentNotes = isRecord(eventData.payment.notes) ? eventData.payment.notes : {};
+  return {
+    ...paymentLinkNotes,
+    ...paymentNotes,
+  };
 }
 
 async function fetchWithTimeout(url, options, timeoutMs) {
@@ -3066,5 +3626,7 @@ function getContentType(filePath) {
 
 export const __securityTest = {
   getCheckoutRedirectOrigin,
+  getPaymentProvider,
   normalizeDeploymentAppUrl,
+  verifyRazorpaySignature,
 };

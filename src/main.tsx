@@ -240,11 +240,19 @@ type SourceDisputeRow = {
 
 type RequestCategory = "home" | "audio" | "camera" | "watch" | "gaming" | "parts" | "fashion";
 type PostStarterId = "sentimental" | "rare-gear" | "parts" | "fashion";
-type RequestDuration = 14 | 30 | 60;
+type RequestDuration = 7 | 14 | 30 | 60;
+type ReferenceImageCrop = {
+  zoom: number;
+  x: number;
+  y: number;
+};
 type ReferenceImageDraft = {
   file: File;
   name: string;
   url: string;
+  originalFile: File;
+  originalUrl: string;
+  crop: ReferenceImageCrop;
 };
 
 type PostDraft = {
@@ -312,8 +320,8 @@ const siteName = "pleasefindmethis.com";
 const siteOrigin = "https://pleasefindmethis.com";
 const configuredPublicAppOrigin = normalizeClientAppOrigin(import.meta.env.VITE_PUBLIC_APP_URL) || siteOrigin;
 const defaultSeoDescription =
-  "pleasefindmethis.com helps people find sold-out, rare, vintage, and hard-to-find items by posting a request and offering a finder reward.";
-const defaultSocialDescription = "Post the item you want found. Offer a reward. Review protected sources from people who know where to look.";
+  "pleasefindmethis.com helps people source exact sold-out, rare, vintage, and hard-to-find items with funded requests and protected finder leads.";
+const defaultSocialDescription = "Post the exact item. Fund a reward. Review protected links, contacts, and local leads from people who know where to look.";
 const organizationLogo = `${siteOrigin}/magnifying-glass.png`;
 const defaultSeoImage = `${siteOrigin}/og/pleasefindmethis-vintage-tee-fullscreen-v3.png`;
 const requestSingular = "request";
@@ -338,7 +346,7 @@ const requestCategories: Array<{ value: RequestCategory; label: string }> = [
 ];
 
 const initialPostDraft: PostDraft = {
-  itemName: "Help me find this art",
+  itemName: "Help me find this exact wall art",
   category: "home",
   details: "",
   referenceImages: [],
@@ -355,7 +363,7 @@ const posterStarterPrompts: PostStarterPrompt[] = [
     itemName: "Help me find this exact sentimental item",
     category: "home",
     details:
-      "I need the exact same item, not a close match. Must match the reference photo, color, size, pattern, label, and condition closely enough to buy with confidence.",
+      "I need the same item, not a lookalike. It should match the reference photo, color, size, pattern, label, and condition closely enough to buy with confidence.",
     reward: 75,
     durationDays: 30,
   },
@@ -367,7 +375,7 @@ const posterStarterPrompts: PostStarterPrompt[] = [
     itemName: "Help me find this exact sold-out model",
     category: "camera",
     details:
-      "I am looking for the exact model or reference. Include condition, price, seller/source, shipping region, and any authenticity or compatibility details before I reveal the source.",
+      "I am looking for the exact model or reference. Include condition, price, seller or source, shipping region, and any authenticity or compatibility details before I reveal the full lead.",
     reward: 120,
     durationDays: 30,
   },
@@ -379,7 +387,7 @@ const posterStarterPrompts: PostStarterPrompt[] = [
     itemName: "Help me find this replacement part",
     category: "parts",
     details:
-      "I need a compatible part or donor unit. Please include model numbers, compatibility proof, condition, source link or seller contact, and any fitment risks.",
+      "I need a compatible part or donor unit. Include model numbers, compatibility proof, condition, source link or seller contact, and any fitment risks.",
     reward: 60,
     durationDays: 30,
   },
@@ -391,7 +399,7 @@ const posterStarterPrompts: PostStarterPrompt[] = [
     itemName: "Help me find this exact clothing or accessory item",
     category: "fashion",
     details:
-      "I need the exact item or a source for the same style. Please include brand, size, colorway, condition, listing/source, and the details that prove it is not just a similar lookalike.",
+      "I need the exact item or a source for the same style. Include brand, size, colorway, condition, listing or source, and the details that prove it is not just a similar lookalike.",
     reward: 50,
     durationDays: 30,
   },
@@ -401,17 +409,17 @@ const findSourceOptions: Array<{ value: FindSourceType; label: string; copy: str
   {
     value: "source-link",
     label: "I found a link or listing",
-    copy: "Use this when the poster can review a public marketplace, store, auction, or product page.",
+    copy: "Use this for a public marketplace, store, auction, or product page the poster can review directly.",
   },
   {
     value: "private-source",
     label: "A friend, shop, or local source has it",
-    copy: "Use this when there is no public link, but you can connect the poster with the source.",
+    copy: "Use this when there is no public listing, but you can connect the poster to a real source.",
   },
   {
     value: "finder-has-it",
     label: "I have it",
-    copy: "Use this when you personally have access to the item and want the poster to contact you.",
+    copy: "Use this when you personally have access to the item and can handle the next step with the poster.",
   },
 ];
 
@@ -557,87 +565,87 @@ const pageSeoCopy: Record<Page, { title: string; description: string; socialDesc
   },
   auth: {
     title: "Sign In | pleasefindmethis",
-    description: "Sign in to post requests, submit protected sources, review protected sources, manage payouts, and keep marketplace actions tied to an account.",
+    description: "Sign in to post requests, submit protected leads, review sources, manage payouts, and keep marketplace actions tied to an accountable profile.",
   },
   "post-photo": {
     title: "Add a Request Photo | pleasefindmethis",
-    description: "Start a find request by taking a new item photo or choosing a reference image from your gallery.",
+    description: "Start a find request with a fresh photo or a saved reference image so finders can match the exact item.",
   },
   "post-describe": {
     title: "Post a Find Request | pleasefindmethis",
-    description: "Describe the exact item, add reference photos, and tell finders what counts as a match before setting a reward.",
+    description: "Describe the exact item, add reference photos, and define what counts as a valid match before setting the finder reward.",
   },
   "post-reward": {
     title: "Set a Finder Reward | pleasefindmethis",
-    description: "Choose the reward a finder can earn when you accept a valid source or complete a handoff.",
+    description: "Choose the reward a finder can earn when a valid source is accepted or a direct handoff is completed.",
   },
   "post-pay": {
     title: "Fund a Protected Request | pleasefindmethis",
-    description: "Fund the request before it goes live so finders know the reward is real and recorded.",
+    description: "Fund the request before it goes live so finders know the reward is real, visible, and recorded.",
   },
   browse: {
     title: "Featured Find Requests | pleasefindmethis",
-    description: "Browse funded requests for rare, sold-out, discontinued, vintage, and replacement items that expert finders can help source.",
+    description: "Browse funded requests for rare, sold-out, discontinued, vintage, and replacement items that knowledgeable finders can source.",
   },
   "browse-all": {
     title: "Browse All Find Requests | pleasefindmethis",
-    description: "Search open find requests by item, category, reward, and location, then submit a protected source when you know where to find it.",
+    description: "Search open find requests by item, category, reward, and location, then submit a protected lead when you know where to find it.",
   },
   "bounty-detail": {
     title: "Find Request Details | pleasefindmethis",
-    description: "Review the item details, must-have criteria, finder reward, and source timeline for this protected find request.",
+    description: "Review the item details, must-have criteria, finder reward, and source timeline for this protected request.",
   },
   "submit-find": {
     title: "Submit a Protected Source | pleasefindmethis",
-    description: "Submit a store link, seller contact, local source, or handoff option for a funded request.",
+    description: "Submit a store link, seller contact, local lead, or handoff option for a funded request.",
   },
   "poster-dashboard": {
     title: "Poster Dashboard | pleasefindmethis",
-    description: "Review protected sources, reveal sources, accept matches, and manage funded requests.",
+    description: "Review protected leads, reveal full source details, accept matches, and manage funded requests.",
   },
   "finder-dashboard": {
     title: "Finder Dashboard | pleasefindmethis",
-    description: "Find active opportunities, submit sources, and track protected source reviews.",
+    description: "Find active opportunities, submit protected leads, and track source review status.",
   },
   dispute: {
     title: "Open a Source Dispute | pleasefindmethis",
-    description: "Open a dispute when a revealed source, contact, proof package, or handoff does not match the funded request.",
+    description: "Open a dispute when a revealed source, seller contact, proof package, or handoff does not match the funded request.",
   },
   profile: {
     title: "Finder Trust Profile Example | pleasefindmethis",
-    description: "See how finder ratings, accepted sources, verification, and review history build trust on pleasefindmethis.com.",
+    description: "See how finder ratings, accepted sources, verification, and review history help posters judge protected leads.",
   },
   faq: {
     title: "FAQ for Posters and Finders | pleasefindmethis",
-    description: "Answers about payments, refunds, protected sources, finder rewards, public browsing, disputes, and how pleasefindmethis.com works.",
+    description: "Answers about payments, refunds, protected sources, finder rewards, public browsing, disputes, and marketplace reviews.",
   },
   privacy: {
     title: "Privacy Policy | pleasefindmethis",
-    description: "How pleasefindmethis.com handles account, request, source, image, support, and payment-related data.",
+    description: "How pleasefindmethis.com handles account, request, source, image, support, dispute, and payment-related data.",
   },
   terms: {
     title: "Terms of Service | pleasefindmethis",
-    description: "Marketplace terms for posters, finders, funded rewards, protected sources, reviews, and payouts.",
+    description: "Marketplace terms for posters, finders, funded rewards, protected leads, source reviews, and payouts.",
   },
   refunds: {
     title: "Refund and Cancellation Policy | pleasefindmethis",
-    description: "How funded rewards, service fees, failed finds, disputes, and refund reviews work on pleasefindmethis.com.",
+    description: "How funded rewards, service fees, failed searches, disputes, and refund reviews work on pleasefindmethis.com.",
   },
   rules: {
     title: "Marketplace Rules | pleasefindmethis",
-    description: "Rules for what can be posted, what finders can submit, and what conduct is not allowed.",
+    description: "Rules for what can be posted, what finders can submit, and which requests or conduct are not allowed.",
   },
   support: {
     title: "Support for Requests and Payouts | pleasefindmethis",
-    description: "Get help with account access, checkout issues, source review, disputes, refunds, payout holds, and safety concerns.",
+    description: "Get help with account access, checkout issues, source reviews, disputes, refunds, payout holds, and safety concerns.",
   },
   report: {
     title: "Report a Listing or User | pleasefindmethis",
-    description: "Report fraud, unsafe requests, prohibited goods, stolen images, impersonation, spam, or abusive behavior.",
+    description: "Report fraud, unsafe requests, prohibited goods, stolen images, impersonation, spam, or abusive marketplace behavior.",
   },
   "account-settings": {
     title: "Account Settings | pleasefindmethis",
-    description: "Manage account access, privacy requests, notifications, and data requests.",
+    description: "Manage account access, privacy requests, notification preferences, and data requests.",
   },
   "admin-review": {
     title: "Admin Review Queue | pleasefindmethis",
@@ -699,6 +707,8 @@ const CurrencyContext = React.createContext<CurrencyPreference>(defaultCurrencyP
 const exchangeRateCacheKey = "pleasefindmethis-usd-exchange-rates";
 const exchangeRateCacheTtlMs = 12 * 60 * 60 * 1000;
 const exchangeRateApiUrl = "https://open.er-api.com/v6/latest/USD";
+const defaultReferenceImageCrop: ReferenceImageCrop = { zoom: 1, x: 0, y: 0 };
+const croppedReferenceImageSize = 1200;
 const fallbackUsdExchangeRates: Record<string, number> = {
   USD: 1,
   AED: 3.67,
@@ -879,23 +889,23 @@ const coordinateRegions: CoordinateRegion[] = [
 ];
 const heroPlaceholderExamples = [
   "What do you want found?",
-  "Find me this mug - $20 reward",
-  "Help me find this blanket",
+  "Find this exact mug - $20 reward",
+  "Replace this childhood blanket",
   "Find this sold-out hoodie",
-  "Find me this pair of socks",
-  "Find me this date night dress",
+  "Track down these exact socks",
+  "Find this date-night dress",
   "Find this plush toy for my kid",
-  "Help me find this cat mug",
+  "Source this cat mug",
   "Find this old wallet",
   "Find this retired Jellycat",
   "Find this discontinued pillow",
   "Where can I buy this bag?",
   "Find this watch - $50 reward",
-  "Find me a cheaper version",
+  "Find a verified cheaper source",
   "Find this replacement plate",
-  "Help me track down these shoes",
+  "Track down these exact shoes",
   "Find this vintage tee",
-  "Find this camera part",
+  "Source this camera part",
   "Find this wall art print",
 ];
 
@@ -1571,7 +1581,7 @@ const bountyListings: BountyListing[] = [
   {
     id: "childhood-rose-blanket",
     name: "Help me find this blanket",
-    detail: "I can pay $50",
+    detail: "Finder reward $50",
     reward: "US$50",
     rewardValue: 50,
     closes: "14 days",
@@ -1583,14 +1593,14 @@ const bountyListings: BountyListing[] = [
     submissions: 4,
     image: "/find-requests/childhood-blanket.jpg",
     description:
-      "Help me find a replacement for this pink rose childhood blanket. It does not have to be new, just the same print.",
+      "Help me find a replacement for this pink rose childhood blanket. It does not have to be new, but the print needs to match.",
     mustHaves: ["Pink rose print", "Same soft blanket style", "Good photo of the match", "Seller or source link"],
     timeline: ["Reward funded", "Four people helping", "Latest source received today"],
   },
   {
     id: "seiko-wired-w543",
     name: "Does anyone know this watch?",
-    detail: "I can pay $20",
+    detail: "Finder reward $20",
     reward: "US$20",
     rewardValue: 20,
     closes: "10 days",
@@ -1602,14 +1612,14 @@ const bountyListings: BountyListing[] = [
     submissions: 2,
     image: "/find-requests/seiko-wired-watch.jpg",
     description:
-      "Looking for this Seiko Wired W543-0AA0 or a close dupe. A shop link, model number, or used listing would help.",
+      "Looking for this Seiko Wired W543-0AA0 or the closest verified match. A shop link, model number, or used listing would help.",
     mustHaves: ["Digital Seiko Wired style", "Silver bracelet", "Clear listing photos", "Working condition preferred"],
     timeline: ["Reward funded", "Two sources received", "Model number being checked"],
   },
   {
     id: "yellow-stay-home-pillow",
     name: "Help me find this pillow",
-    detail: "I will pay $35",
+    detail: "Finder reward $35",
     reward: "US$35",
     rewardValue: 35,
     closes: "18 days",
@@ -1621,14 +1631,14 @@ const bountyListings: BountyListing[] = [
     submissions: 3,
     image: "/find-requests/yellow-home-pillow.jpg",
     description:
-      "Trying to find the yellow Threshold pillow that says Let's Stay Home. A Target resale link is perfect.",
+      "Trying to find the yellow Threshold pillow that says Let's Stay Home. A current resale link would be perfect.",
     mustHaves: ["Yellow lumbar pillow", "Let's Stay Home text", "Threshold or close match", "Seller can ship"],
     timeline: ["Reward funded", "Three people searching", "One similar listing reviewed"],
   },
   {
     id: "living-and-co-cat-mug",
     name: "Find this cat mug",
-    detail: "I can pay $20",
+    detail: "Finder reward $20",
     reward: "US$20",
     rewardValue: 20,
     closes: "7 days",
@@ -1640,14 +1650,14 @@ const bountyListings: BountyListing[] = [
     submissions: 0,
     image: "/find-requests/living-and-co-mug.jpg",
     description:
-      "My mum gave me this Living & Co cat mug and I want another one. Please share any shop or resale listing.",
+      "My mum gave me this Living & Co cat mug and I want another one. Please share any shop or resale listing that still has it.",
     mustHaves: ["Living & Co mug", "Black cat line art", "Same shape if possible", "Uncracked condition"],
     timeline: ["Reward funded", "New request", "Finders can submit links"],
   },
   {
     id: "duck-wall-art",
     name: "Help me find this art",
-    detail: "I will give $50",
+    detail: "Finder reward $50",
     reward: "US$50",
     rewardValue: 50,
     closes: "21 days",
@@ -1659,7 +1669,7 @@ const bountyListings: BountyListing[] = [
     submissions: 9,
     image: "/find-requests/duck-wall-art-reddit.jpg",
     description:
-      "Looking for this silly framed duck art because we want one for our home. Any artist name or buying link helps.",
+      "Looking for this framed duck art because we want one for our home. Any artist name, print source, or buying link helps.",
     mustHaves: ["Same duck artwork", "Artist or print source", "Framed or unframed is fine", "Clear buying link"],
     timeline: ["Reward funded", "Finder shared a source", "Source marked found"],
   },
@@ -2122,32 +2132,32 @@ const problemItems = [
   {
     icon: Store,
     tag: "Near matches",
-    title: "Search shows the wrong one",
-    copy: "Google Lens gives you dupes, close matches, and things you do not want.",
+    title: "Search keeps showing the almost-right one",
+    copy: "Image search is good at lookalikes. It is weaker at the exact edition, size, colorway, or seller you actually need.",
   },
   {
     icon: Globe2,
     tag: "Hidden sellers",
-    title: "The seller is somewhere else",
-    copy: "The right shop, collector, or local listing may be outside your feed.",
+    title: "The real source is off your usual path",
+    copy: "The right shop, collector, repair bench, or local listing may never appear in your feed.",
   },
   {
     icon: Search,
     tag: "Dead links",
-    title: "The good source vanished",
-    copy: "The one useful listing is sold out, archived, or gone before you can act.",
+    title: "The useful listing disappeared",
+    copy: "The best clue is often sold, archived, mislabeled, or gone before you can act on it.",
   },
   {
     icon: ShieldAlert,
     tag: "Risky DMs",
-    title: "Paying strangers feels risky",
-    copy: "Off-platform deals can cost you money and leave no useful record.",
+    title: "Private offers leave you exposed",
+    copy: "A random message with no proof can cost money and leave no reliable trail if the source is wrong.",
   },
   {
     icon: Clock3,
     tag: "Search fatigue",
-    title: "You are tired of looking",
-    copy: "Stop opening the same bad results. Post one clear request instead.",
+    title: "You have already checked the obvious places",
+    copy: "Stop reopening the same bad results. Turn the search into one clear brief people can work from.",
   },
 ];
 
@@ -2155,17 +2165,17 @@ const workSteps = [
   {
     icon: Search,
     title: "1. Post the item",
-    copy: "Add photos and the must-have details that separate the right item from lookalikes.",
+    copy: "Add photos and the details that separate the exact item from convincing lookalikes.",
   },
   {
     icon: LockKeyhole,
     title: "2. Offer a reward",
-    copy: "Choose what a finder can earn for a valid link, seller contact, local source, or handoff.",
+    copy: "Choose what a finder can earn for a valid listing, seller contact, local lead, or direct handoff.",
   },
   {
     icon: BadgeCheck,
     title: "3. Review protected sources",
-    copy: "Preview each source, reveal the full source when you are ready, then accept it if it works.",
+    copy: "Preview each lead, reveal the full source when you are ready, then accept it when it matches.",
   },
 ];
 
@@ -2242,27 +2252,27 @@ const safetySteps = [
   {
     icon: LockKeyhole,
     title: "Fund the finder reward",
-    copy: "Your request goes live after checkout, so finders know the reward is real.",
+    copy: "Checkout records the reward before the request goes live, so finders know the offer is real.",
   },
   {
     icon: Search,
     title: "Source details stay private",
-    copy: "The link, contact, notes, and proof are saved before you reveal the full details.",
+    copy: "Links, contacts, notes, and proof are saved before the poster reveals the full source.",
   },
   {
     icon: ShieldCheck,
     title: "Reveal creates a record",
-    copy: "When you open the full source, that moment is logged for both sides.",
+    copy: "Opening the full source creates a timestamped record for both sides.",
   },
   {
     icon: CheckCircle2,
     title: "Accept or reject clearly",
-    copy: "Accept a match, or reject it with a reason such as wrong item, sold out, bad condition, or price mismatch.",
+    copy: "Accept the match, or reject it with a concrete reason such as wrong item, sold out, bad condition, or price mismatch.",
   },
   {
     icon: Headphones,
     title: "Review handles disputes",
-    copy: "If a revealed source is used or disputed, the saved record helps decide the reward.",
+    copy: "If a revealed source is used or disputed, the saved trail helps decide what happens to the reward.",
   },
 ];
 
@@ -2270,22 +2280,22 @@ const reviewProtectionSteps = [
   {
     icon: ShieldCheck,
     title: "Source details are saved before reveal",
-    copy: "The source, notes, proof, and time submitted are kept so the story cannot change later.",
+    copy: "The source, notes, proof, and submission time are recorded before anyone sees the full lead.",
   },
   {
     icon: BadgeCheck,
     title: "First good source gets priority",
-    copy: "If two finders send the same source, the earlier valid submission gets priority.",
+    copy: "If two finders submit the same valid source, the earlier submission gets priority.",
   },
   {
     icon: ShieldAlert,
     title: "Rejections need a reason",
-    copy: "Wrong item, unavailable listing, fake seller, bad condition, or price mismatch are valid review reasons.",
+    copy: "Wrong item, unavailable listing, fake seller, bad condition, and price mismatch are clear review reasons.",
   },
   {
     icon: Scale,
     title: "A used valid source can still be paid",
-    copy: "If a poster reveals and uses a correct source, review can still release the reward to the finder.",
+    copy: "If a poster reveals and uses a correct source, review can still make the reward payable to the finder.",
   },
 ];
 
@@ -2302,65 +2312,65 @@ const answerBlocks = [
   {
     question: "What is pleasefindmethis.com?",
     answer:
-      "pleasefindmethis.com is a request board for hard-to-find items. A poster funds a reward for one specific item, then finders submit protected source links, seller contacts, local availability, or handoff paths that match the request.",
+      "pleasefindmethis.com is a request board for exact hard-to-find items. A poster funds a reward for one specific item, then finders submit protected links, seller contacts, local availability, or handoff paths that match the brief.",
   },
   {
     question: "When should someone post a find request?",
     answer:
-      "Post a find request when normal search keeps returning near matches, dead listings, unclear model names, or risky DMs. It fits exact sentimental replacements, discontinued goods, rare gear, watches, repair parts, collectibles, and other items where a human source matters.",
+      "Post a find request when normal search keeps returning near matches, dead listings, unclear model names, or risky DMs. It fits sentimental replacements, discontinued goods, rare gear, watches, repair parts, collectibles, and any search where a human source matters.",
   },
   {
     question: "What is a protected source?",
     answer:
-      "A protected source is a saved submission the poster cannot fully see until reveal. The link, contact, proof, notes, and timestamp create a review record so a finder can get credit when the source is accepted or wins review.",
+      "A protected source is a saved submission the poster cannot fully see until reveal. The link, contact, proof, notes, and timestamp create a review record so the finder can get credit when the source is accepted or wins review.",
   },
   {
     question: "What can finders submit?",
     answer:
-      "Finders can submit a public listing, shop page, seller contact, local source, direct handoff option, model number, source clue, or compatibility proof. A strong submission explains why the item matches the poster's photos, must-have details, location, price, and condition requirements.",
+      "Finders can submit a public listing, shop page, seller contact, local lead, direct handoff option, model number, source clue, or compatibility proof. A strong submission explains why the item matches the poster's photos, must-have details, location, price, and condition requirements.",
   },
 ];
 
 const useCaseBlocks = [
   {
     title: "Sentimental replacements",
-    copy: "Lost blankets, plush toys, mugs, art, decor, family items, and exact-photo replacements where a close dupe is not enough.",
+    copy: "Lost blankets, plush toys, mugs, art, decor, family items, and exact-photo replacements where a close dupe still feels wrong.",
   },
   {
     title: "Collector gear",
-    copy: "Cult cameras, watches, vintage electronics, handhelds, audio gear, and model references where naming varies by market.",
+    copy: "Cult cameras, watches, vintage electronics, handhelds, audio gear, and model references with names that vary by market.",
   },
   {
     title: "Repair parts",
-    copy: "Discontinued parts, donor units, hinges, shells, cables, battery covers, appliance components, and compatibility details.",
+    copy: "Discontinued parts, donor units, hinges, shells, cables, battery covers, appliance components, and compatibility proof.",
   },
   {
     title: "Sold-out fashion",
-    copy: "Exact clothing, accessories, colorways, sizes, labels, and discontinued styles that visual search keeps matching incorrectly.",
+    copy: "Exact clothing, accessories, colorways, sizes, labels, and discontinued styles that visual search keeps misreading.",
   },
 ];
 
 const finderReviews = [
-  ["Ari P.", "Maya found the exact cap in two days and included the seller link plus what to ask before buying."],
-  ["Theo N.", "The source review made it easy to avoid a risky listing and choose the right part."],
-  ["June R.", "The finder already had the lens and left an email so we could agree on shipping directly."],
+  ["Ari P.", "Maya found the exact cap in two days and included the seller link, condition notes, and what to ask before buying."],
+  ["Theo N.", "The source review made it easy to skip a risky listing and choose the part that actually fit."],
+  ["June R.", "The finder already had the lens and left a clear contact path so we could agree on shipping directly."],
 ];
 
 const faqItems = [
   {
     question: "How does pleasefindmethis.com work?",
     answer:
-      "A poster creates a request with photos, must-have details, location, duration, and a funded finder reward. Finders submit protected sources, the poster reveals and reviews promising protected sources, and an accepted source or review decision can make the reward payable to the finder.",
+      "A poster creates a request with photos, must-have details, location, duration, and a funded finder reward. Finders submit protected leads, the poster reveals and reviews promising sources, and an accepted source or review decision can make the reward payable to the finder.",
   },
   {
     question: "What is a protected source?",
     answer:
-      "A protected source is a saved submission that stays private until the poster reveals it. The platform records the link or contact, notes, proof, and timestamp before reveal so duplicate priority, acceptance, rejection, and review can use a clear trail.",
+      "A protected source is a saved submission that stays private until the poster reveals it. The platform records the link or contact, notes, proof, and timestamp before reveal so duplicate priority, acceptance, rejection, and review decisions have a clear trail.",
   },
   {
     question: "When do I pay?",
     answer:
-      "You pay before the request goes live. Checkout shows the finder reward, platform service fee, and source review fee before you pay. If a source works, you buy the item separately from the third-party seller or source.",
+      "You pay before the request goes live. Checkout shows the finder reward, platform service fee, and source review fee before payment. If a source works, you buy the item separately from the third-party seller or source.",
   },
   {
     question: "What happens if nobody finds it?",
@@ -2380,7 +2390,7 @@ const faqItems = [
   {
     question: "What should I include in a good find request?",
     answer:
-      "A good request includes clear reference photos, item name or suspected brand, size, color, condition, location, budget, must-have details, and what counts as an acceptable source. Mention wrong matches you already found so finders do not repeat the same dead ends.",
+      "A strong request includes clear reference photos, item name or suspected brand, size, color, condition, location, budget, must-have details, and what counts as an acceptable source. Mention wrong matches you already found so finders do not repeat the same dead ends.",
   },
   {
     question: "What can a finder submit?",
@@ -2405,7 +2415,7 @@ const faqItems = [
   {
     question: "Is the browse feed public?",
     answer:
-      "Yes. Anyone can browse public requests and detail pages. Posting, submitting sources, dashboards, payment, and disputes require sign up or log in.",
+      "Yes. Anyone can browse public requests and detail pages. Posting, submitting sources, dashboards, payments, and disputes require sign up or log in.",
   },
 ];
 
@@ -2569,7 +2579,7 @@ function isRequestCategory(value: unknown): value is RequestCategory {
 }
 
 function isRequestDuration(value: unknown): value is RequestDuration {
-  return value === 14 || value === 30 || value === 60;
+  return value === 7 || value === 14 || value === 30 || value === 60;
 }
 
 function postDraftToStoredDraft(draft: PostDraft): StoredPostDraft {
@@ -2625,15 +2635,92 @@ function writeStoredPostDraft(draft: PostDraft) {
 }
 
 function createReferenceImageDrafts(files: File[]): ReferenceImageDraft[] {
-  return files.map((file) => ({
-    file,
-    name: file.name,
-    url: URL.createObjectURL(file),
-  }));
+  return files.map((file) => {
+    const url = URL.createObjectURL(file);
+
+    return {
+      file,
+      name: file.name,
+      url,
+      originalFile: file,
+      originalUrl: url,
+      crop: defaultReferenceImageCrop,
+    };
+  });
 }
 
 function revokeReferenceImageDrafts(images: ReferenceImageDraft[]) {
-  images.forEach((image) => URL.revokeObjectURL(image.url));
+  images.forEach((image) => {
+    URL.revokeObjectURL(image.url);
+
+    if (image.originalUrl && image.originalUrl !== image.url) {
+      URL.revokeObjectURL(image.originalUrl);
+    }
+  });
+}
+
+function loadImageForCrop(src: string) {
+  return new Promise<HTMLImageElement>((resolve, reject) => {
+    const image = new Image();
+    image.onload = () => resolve(image);
+    image.onerror = () => reject(new Error("Could not load this photo for editing."));
+    image.src = src;
+  });
+}
+
+function getCropOutputType(file: File) {
+  return file.type === "image/png" || file.type === "image/webp" || file.type === "image/jpeg" ? file.type : "image/jpeg";
+}
+
+function getCroppedFileName(name: string, type: string) {
+  const extension = type === "image/png" ? "png" : type === "image/webp" ? "webp" : "jpg";
+  const baseName = name.replace(/\.[^.]+$/, "") || "reference-image";
+  return `${baseName}-card-crop.${extension}`;
+}
+
+async function cropReferenceImageDraft(image: ReferenceImageDraft, crop: ReferenceImageCrop): Promise<ReferenceImageDraft> {
+  const sourceImage = await loadImageForCrop(image.originalUrl || image.url);
+  const canvas = document.createElement("canvas");
+  const outputSize = croppedReferenceImageSize;
+  const safeZoom = Math.min(3, Math.max(1, crop.zoom));
+  const scale = Math.max(outputSize / sourceImage.naturalWidth, outputSize / sourceImage.naturalHeight) * safeZoom;
+  const drawWidth = sourceImage.naturalWidth * scale;
+  const drawHeight = sourceImage.naturalHeight * scale;
+  const extraX = Math.max(0, drawWidth - outputSize);
+  const extraY = Math.max(0, drawHeight - outputSize);
+  const offsetX = Math.max(-25, Math.min(25, crop.x));
+  const offsetY = Math.max(-25, Math.min(25, crop.y));
+  const dx = (outputSize - drawWidth) / 2 + (offsetX / 25) * (extraX / 2);
+  const dy = (outputSize - drawHeight) / 2 + (offsetY / 25) * (extraY / 2);
+  const context = canvas.getContext("2d");
+
+  if (!context) {
+    throw new Error("Photo editing is not available in this browser.");
+  }
+
+  canvas.width = outputSize;
+  canvas.height = outputSize;
+  context.drawImage(sourceImage, dx, dy, drawWidth, drawHeight);
+
+  const type = getCropOutputType(image.originalFile);
+  const blob = await new Promise<Blob>((resolve, reject) => {
+    canvas.toBlob((nextBlob) => {
+      if (nextBlob) {
+        resolve(nextBlob);
+        return;
+      }
+
+      reject(new Error("Could not save the edited photo."));
+    }, type, 0.92);
+  });
+  const file = new File([blob], getCroppedFileName(image.name, type), { type });
+
+  return {
+    ...image,
+    file,
+    url: URL.createObjectURL(file),
+    crop: { zoom: safeZoom, x: offsetX, y: offsetY },
+  };
 }
 
 function getInitialPostDraft() {
@@ -3459,13 +3546,16 @@ function App() {
   };
 
   const continueFromDescribe = () => {
+    const breakdown = getPaymentBreakdown(postDraft.reward);
     trackAcquisitionEvent("post_describe_completed", {
       category: getCategoryLabel(postDraft.category),
       has_item_name: Boolean(postDraft.itemName.trim()),
-      has_details: Boolean(postDraft.details.trim()),
+      duration_days: postDraft.durationDays,
       reference_image_count: postDraft.referenceImages.length,
+      reward: breakdown.reward,
+      total_due: breakdown.total,
     });
-    navigate("post-reward");
+    navigate("post-pay");
   };
 
   const continueFromReward = () => {
@@ -3608,7 +3698,7 @@ function App() {
           {visibleRoute === "post-reward" ? (
             <PostRewardPage draft={postDraft} onBack={() => navigate("post-describe")} onDraftChange={updatePostDraft} onNext={continueFromReward} />
           ) : null}
-          {visibleRoute === "post-pay" ? <PostPayPage checkoutReturnStatus={checkoutReturnStatus} draft={postDraft} onBack={() => navigate("post-reward")} /> : null}
+          {visibleRoute === "post-pay" ? <PostPayPage checkoutReturnStatus={checkoutReturnStatus} draft={postDraft} onBack={() => navigate("post-describe")} /> : null}
           {visibleRoute === "browse" ? (
             <BrowsePage
               bounties={marketplaceBounties}
@@ -4495,9 +4585,9 @@ function LandingPage({
           <h1>Can&apos;t find that one item anywhere?</h1>
           <p className="mobile-hero-title" aria-hidden="true">Can&apos;t find that one item anywhere?</p>
           <p className="micro-line">
-            <span>Post a photo</span>
+            <span>Post the clue</span>
             <ArrowRight size={16} />
-            <span>set a reward</span>
+            <span>fund the reward</span>
             <ArrowRight size={16} />
             <span>review protected sources</span>
           </p>
@@ -4542,7 +4632,7 @@ function LandingPage({
 
         <div className="hero-lower">
           <p className="hero-subline">
-            Post a photo, set a reward, and get links, seller contacts, or local tips from people who know where to look.
+            Post a photo, fund a reward, and get protected links, seller contacts, local leads, or handoff options from people who know where to look.
           </p>
           <button className="primary-button hero-cta" type="button" onClick={() => onPost("hero_primary")}>
             Post a find request
@@ -4559,18 +4649,18 @@ function LandingPage({
             </div>
           ) : null}
           <a className="finder-link finder-button hero-secondary-link" href={routeHref("finder-dashboard")} onClick={(event) => handleRoutedAnchorClick(event, onFinders)}>
-            Know where to find rare items? Submit sources for rewards <ArrowRight size={18} />
+            Know the source? Submit valid leads for rewards <ArrowRight size={18} />
           </a>
           <p className="trust-line">
             <LockKeyhole size={18} />
-            Your reward is recorded. If no valid source is accepted, the finder reward can be returned under the refund policy.
+            Finder rewards are recorded. If no valid source is accepted, the reward can be returned under the refund policy.
           </p>
         </div>
 
         <section className="poster-prompt-strip" aria-label="Start a request from a common use case">
           <div>
-            <p className="route-kicker">Start from the situation</p>
-            <h2>Pick the kind of item you need found.</h2>
+            <p className="route-kicker">Start with the situation</p>
+            <h2>Choose the search you need solved.</h2>
           </div>
           <div className="poster-prompt-grid">
             {posterStarterPrompts.map((prompt) => {
@@ -4591,7 +4681,7 @@ function LandingPage({
         <div className="landing-recent-board board-rails" aria-label="Request board preview">
           <section className="board-row" aria-labelledby="recent-board-title">
             <div className="board-row-head">
-              <h2 id="recent-board-title">Example find requests</h2>
+              <h2 id="recent-board-title">Live-style find requests</h2>
               <button className="board-view-all" type="button" onClick={onBrowse}>
                 Browse open requests <ArrowRight size={18} />
               </button>
@@ -4608,9 +4698,9 @@ function LandingPage({
       <section className="problem-section" aria-labelledby="problem-title">
         <div className="problem-section-head">
           <p className="route-kicker">When normal search stops working</p>
-          <h2 id="problem-title">The right source may be outside your search results.</h2>
+          <h2 id="problem-title">The right source is often outside your search results.</h2>
           <p>
-            Listings expire, sellers use different names, and local sources rarely show up in search. A clear request gives people a reason to follow clues you would not know to check.
+            Listings expire, sellers use different names, and local sources rarely surface in public search. A clear funded request gives people a reason to follow clues you would not know to check.
           </p>
         </div>
         <div className="problem-grid">
@@ -4635,7 +4725,7 @@ function LandingPage({
       <section className="answer-section" aria-labelledby="answer-title">
         <div className="answer-section-head">
           <p className="route-kicker">Hard-to-find item requests</p>
-          <h2 id="answer-title">A funded request is for the exact item normal search missed.</h2>
+          <h2 id="answer-title">A funded request turns a dead-end search into a precise brief.</h2>
           <p>
             Use {siteName} when the right match depends on a collector, shop, seller contact, local source, model clue, or repair-part
             compatibility detail that search engines and marketplaces keep missing.
@@ -4663,7 +4753,7 @@ function LandingPage({
       <section className="how-section" id="how" aria-labelledby="how-title">
         <h2 id="how-title">How it works</h2>
         <p className="how-intro">
-          Post what you are looking for, offer a reward, and review protected sources from people who know where to look.
+          Post the item, fund the reward, and review protected leads from people who know the category.
         </p>
         <div className="how-steps">
           {workSteps.map((step, index) => {
@@ -4685,10 +4775,10 @@ function LandingPage({
         <div className="review-protection-panel" aria-label="How source review protects posters and finders">
           <div className="review-protection-copy">
             <p className="route-kicker">Protected source review</p>
-            <h3>Your best source should not vanish in a comment thread.</h3>
+            <h3>The best lead should not vanish in a comment thread.</h3>
             <p>
               When a finder submits a source, the platform saves what they sent and when they sent it. If the poster reveals the source,
-              that reveal is recorded too. This makes the reward decision easier to review if something goes wrong.
+              that reveal is recorded too. If something goes wrong, the reward decision has a trail to review.
             </p>
           </div>
           <div className="review-protection-grid">
@@ -4709,7 +4799,7 @@ function LandingPage({
       </section>
 
       <section className="safety-section" id="safety" aria-labelledby="safety-title">
-        <h2 id="safety-title">How payment and source review work</h2>
+        <h2 id="safety-title">Payment and source review, without the guesswork</h2>
         <div className="safety-flow">
           {safetySteps.map((step, index) => {
             const StepIcon = step.icon;
@@ -4759,13 +4849,13 @@ function LandingPage({
 
       <section className="finder-section" id="finders" aria-labelledby="finder-title">
         <div className="finder-copy">
-          <h2 id="finder-title">Know where to find hard-to-find things? Get paid for the source.</h2>
+          <h2 id="finder-title">Know where hard-to-find things hide? Get paid for the source.</h2>
           <ul>
             <li>
               <CheckCircle2 size={18} /> Browse funded requests with clear photos, criteria, and rewards
             </li>
             <li>
-              <CheckCircle2 size={18} /> Submit a source link, seller contact, local source, or handoff path
+              <CheckCircle2 size={18} /> Submit a source link, seller contact, local lead, or handoff path
             </li>
             <li>
               <CheckCircle2 size={18} /> Get paid when your valid source is accepted or wins review
@@ -4795,7 +4885,7 @@ function LandingPage({
             <Headphones size={28} />
             <span>
               <strong>A review path for disputes</strong>
-              Saved proof helps resolve unfair rejections or used valid sources.
+              Saved proof helps resolve unfair rejections and used valid sources.
             </span>
           </div>
         </div>
@@ -4805,10 +4895,10 @@ function LandingPage({
         <div className="founder-copy">
           <h2 id="founder-title">From the founder</h2>
           <p>
-            Hi, I am Saharsh. I started {siteName} after going through the same frustration this platform is built to solve. There were times I needed something urgently, searched for hours, asked around, opened every listing I could find, and still ended the day with dead links, wrong products, and sellers I could not trust.
+            Hi, I am Saharsh. I started {siteName} after hitting the same dead ends this platform is built to solve. I needed specific items, searched for hours, asked around, opened every listing I could find, and still ended up with dead links, wrong products, and sellers I could not trust.
           </p>
           <p>
-            I realized the problem was not that these things were impossible to find. The problem was that the right person, shop, collector, or local source was usually outside my own reach. This is why {siteName} exists: you post what you need, offer a reward, and real people who know where to look can help you find a safer path forward.
+            The problem was not that these things were impossible to find. The problem was that the right person, shop, collector, or local source was outside my reach. That is why {siteName} exists: you post the exact thing you need, fund a reward, and real people help you find a safer path forward.
           </p>
           <strong>- Saharsh, Founder</strong>
         </div>
@@ -4816,8 +4906,8 @@ function LandingPage({
 
       <section className="closing-section" id="faq" aria-labelledby="closing-title">
         <h2 id="closing-title">
-          Ready to post the thing you cannot find?
-          <span> Someone out there knows exactly where it is.</span>
+          Post the thing you cannot find.
+          <span> Someone out there may know exactly where it is.</span>
         </h2>
         <button className="primary-button" type="button" onClick={() => onPost("closing")}>
           Post a find request
@@ -4878,10 +4968,10 @@ function AuthPage({
     <main className="route-page auth-route" aria-labelledby="auth-title">
       <section className="route-hero auth-hero">
         <div>
-          <p className="route-kicker">Sign in to keep the marketplace trustworthy</p>
-          <h1 id="auth-title">{mode === "signup" ? "Create your account to continue." : "Log in to continue."}</h1>
+          <p className="route-kicker">Accountable requests and sources</p>
+          <h1 id="auth-title">{mode === "signup" ? "Create an account to continue." : "Log in to continue."}</h1>
           <p>
-            Public browsing is open. Posting a request, submitting a source, reviewing protected sources, making payments, and opening disputes need a signed-in account.
+            Public browsing is open. Posting a request, submitting a source, reviewing protected leads, making payments, and opening disputes require a signed-in account.
           </p>
         </div>
         <div className="auth-panel">
@@ -5007,15 +5097,27 @@ function PostPhotoSourcePage({
   onNext: () => void;
 }) {
   const selectedImage = draft.referenceImages[0];
+  const [photoEditOpen, setPhotoEditOpen] = useState(false);
+  const [photoCrop, setPhotoCrop] = useState<ReferenceImageCrop>(defaultReferenceImageCrop);
+  const [photoEditStatus, setPhotoEditStatus] = useState("");
 
-  const handleReferenceImagesChange = (event: React.ChangeEvent<HTMLInputElement>, source: "camera" | "gallery") => {
+  useEffect(() => {
+    setPhotoCrop(selectedImage?.crop ?? defaultReferenceImageCrop);
+    setPhotoEditOpen(false);
+    setPhotoEditStatus("");
+  }, [selectedImage?.url]);
+
+  const handleReferenceImagesChange = async (event: React.ChangeEvent<HTMLInputElement>, source: "camera" | "gallery") => {
     const files = Array.from(event.target.files ?? []);
     if (!files.length) {
       return;
     }
 
     revokeReferenceImageDrafts(draft.referenceImages);
-    const referenceImages = createReferenceImageDrafts(files);
+    const referenceImageDrafts = createReferenceImageDrafts(files);
+    const referenceImages = await Promise.all(
+      referenceImageDrafts.map((image) => cropReferenceImageDraft(image, defaultReferenceImageCrop).catch(() => image)),
+    );
     onDraftChange({ referenceImages });
     trackAcquisitionEvent("post_photo_source_selected", {
       source,
@@ -5023,6 +5125,33 @@ function PostPhotoSourcePage({
       reference_image_count: referenceImages.length,
     });
     event.target.value = "";
+  };
+
+  const updatePhotoCrop = (updates: Partial<ReferenceImageCrop>) => {
+    setPhotoEditStatus("");
+    setPhotoCrop((crop) => ({ ...crop, ...updates }));
+  };
+
+  const applyPhotoCrop = async () => {
+    if (!selectedImage) {
+      return;
+    }
+
+    setPhotoEditStatus("Applying crop...");
+
+    try {
+      const croppedImage = await cropReferenceImageDraft(selectedImage, photoCrop);
+
+      if (selectedImage.url && selectedImage.url !== selectedImage.originalUrl) {
+        URL.revokeObjectURL(selectedImage.url);
+      }
+
+      onDraftChange({ referenceImages: [croppedImage, ...draft.referenceImages.slice(1)] });
+      setPhotoEditOpen(false);
+      setPhotoEditStatus("Crop applied.");
+    } catch (error) {
+      setPhotoEditStatus(error instanceof Error ? error.message : "Could not edit this photo.");
+    }
   };
 
   const continueToDetails = () => {
@@ -5071,8 +5200,76 @@ function PostPhotoSourcePage({
           </label>
         </div>
         <div className={selectedImage ? "photo-preview-minimal has-selected-image" : "photo-preview-minimal"} aria-label="Photo preview">
-          {selectedImage ? <img src={selectedImage.url} alt={`${selectedImage.name} selected reference`} decoding="async" /> : <span>Photo preview</span>}
+          {selectedImage ? (
+            <>
+              <div className="photo-preview-frame">
+                <img
+                  src={photoEditOpen ? selectedImage.originalUrl : selectedImage.url}
+                  alt={`${selectedImage.name} selected reference`}
+                  decoding="async"
+                  style={
+                    photoEditOpen
+                      ? {
+                          transform: `translate(${photoCrop.x}%, ${photoCrop.y}%) scale(${photoCrop.zoom})`,
+                        }
+                      : undefined
+                  }
+                />
+              </div>
+              <button className="photo-edit-toggle" type="button" onClick={() => setPhotoEditOpen((value) => !value)}>
+                {photoEditOpen ? "Close editor" : "Edit photo"}
+              </button>
+            </>
+          ) : (
+            <span>Photo preview</span>
+          )}
         </div>
+        {selectedImage && photoEditOpen ? (
+          <div className="photo-edit-panel" aria-label="Photo crop controls">
+            <label>
+              Zoom
+              <input
+                type="range"
+                min="1"
+                max="3"
+                step="0.05"
+                value={photoCrop.zoom}
+                onChange={(event) => updatePhotoCrop({ zoom: Number(event.target.value) })}
+              />
+            </label>
+            <label>
+              Horizontal
+              <input
+                type="range"
+                min="-25"
+                max="25"
+                step="1"
+                value={photoCrop.x}
+                onChange={(event) => updatePhotoCrop({ x: Number(event.target.value) })}
+              />
+            </label>
+            <label>
+              Vertical
+              <input
+                type="range"
+                min="-25"
+                max="25"
+                step="1"
+                value={photoCrop.y}
+                onChange={(event) => updatePhotoCrop({ y: Number(event.target.value) })}
+              />
+            </label>
+            <div className="photo-edit-actions">
+              <button className="photo-edit-button" type="button" onClick={applyPhotoCrop}>
+                Apply crop
+              </button>
+              <button className="photo-edit-button secondary" type="button" onClick={() => updatePhotoCrop(defaultReferenceImageCrop)}>
+                Reset
+              </button>
+            </div>
+          </div>
+        ) : null}
+        {photoEditStatus ? <p className="photo-edit-status" role="status">{photoEditStatus}</p> : null}
         <button className="primary-button post-photo-next-button" type="button" onClick={continueToDetails}>
           Next <ArrowRight size={17} />
         </button>
@@ -5093,15 +5290,16 @@ function PostDescribePage({
   onNext: () => void;
 }) {
   const [draftError, setDraftError] = useState("");
+  const currencyPreference = useCurrencyPreference();
 
   const continueWithDetails = () => {
     if (!draft.itemName.trim()) {
-      setDraftError("Add the item name so finders know what to search for.");
+      setDraftError("Add a title so finders know what to search for.");
       return;
     }
 
-    if (!draft.details.trim()) {
-      setDraftError("Add must-have details so finders can avoid lookalikes.");
+    if (!Number.isFinite(draft.reward) || draft.reward < minimumReward) {
+      setDraftError(`Set a finder reward of at least ${formatUsdMoney(minimumReward, currencyPreference)}.`);
       return;
     }
 
@@ -5110,10 +5308,22 @@ function PostDescribePage({
   };
 
   const finderPreviewImage = draft.referenceImages[0];
-  const finderPreviewImageSrc = finderPreviewImage?.url || bountyListings[5].image;
+  const catMugBounty = bountyListings.find((bounty) => bounty.id === "living-and-co-cat-mug") ?? bountyListings[3];
+  const finderPreviewImageSrc = finderPreviewImage?.url || catMugBounty.image;
   const finderPreviewImageAlt = finderPreviewImage
     ? `${finderPreviewImage.name} reference preview`
-    : `${bountyListings[5].name} reference`;
+    : `${catMugBounty.name} reference`;
+  const rewardText = formatUsdMoney(draft.reward, currencyPreference, { compact: true });
+  const titlePreview = draft.itemName.trim() || "Find this cat mug";
+  const durationPreview = `${draft.durationDays} day${draft.durationDays === 1 ? "" : "s"}`;
+  const setReward = (value: string) => {
+    const nextReward = Number(value);
+
+    if (Number.isFinite(nextReward)) {
+      setDraftError("");
+      onDraftChange({ reward: Math.max(minimumReward, Math.round(nextReward)) });
+    }
+  };
 
   return (
     <main className="route-page post-wizard-page" aria-labelledby="describe-title">
@@ -5124,18 +5334,18 @@ function PostDescribePage({
             <ArrowLeft size={17} /> Photo
           </button>
           <div className="post-flow-intro">
-            <h1 id="describe-title">Add the details finders need.</h1>
-            <p>Each card turns the request into clear matching rules so finders know exactly what to source.</p>
+            <h1 id="describe-title">Build the request card finders will see.</h1>
+            <p>Set the title, reward, and time window. The preview updates as you type.</p>
           </div>
           <div className="post-question-card is-active">
             <span className="post-question-label">
-              <FileText size={15} /> Item basics
+              <FileText size={15} /> Finder card
             </span>
             <label>
-              Item name
+              Title
               <input
                 value={draft.itemName}
-                placeholder="Yellow pillow, cat mug, duck wall art"
+                placeholder="Find this cat mug"
                 onChange={(event) => {
                   setDraftError("");
                   onDraftChange({ itemName: event.target.value });
@@ -5143,42 +5353,24 @@ function PostDescribePage({
               />
             </label>
             <label>
-              Category
+              Reward
+              <input type="number" min={minimumReward} value={draft.reward} onChange={(event) => setReward(event.target.value)} />
+            </label>
+            <label>
+              Time
               <select
-                value={draft.category}
+                value={draft.durationDays}
                 onChange={(event) => {
-                  const category = event.target.value as RequestCategory;
                   setDraftError("");
-                  onDraftChange({ category });
-                  trackAcquisitionEvent("category_selected", {
-                    category: getCategoryLabel(category),
-                  });
+                  onDraftChange({ durationDays: Number(event.target.value) as RequestDuration });
                 }}
               >
-                {requestCategories.map((category) => (
-                  <option value={category.value} key={category.value}>
-                    {category.label}
-                  </option>
-                ))}
+                <option value={7}>7 days</option>
+                <option value={14}>14 days</option>
+                <option value={30}>30 days</option>
+                <option value={60}>60 days</option>
               </select>
             </label>
-          </div>
-          <div className="post-question-card">
-            <span className="post-question-label">
-              <CircleHelp size={15} /> Match rules
-            </span>
-            <label>
-              Must-have details
-              <textarea
-                value={draft.details}
-                placeholder="Brand or model, color, size, condition, budget, shipping limits, and what should be rejected"
-                onChange={(event) => {
-                  setDraftError("");
-                  onDraftChange({ details: event.target.value });
-                }}
-              />
-            </label>
-            <p className="field-hint">Include what counts as a match and what would be a clear no.</p>
           </div>
           {draftError ? (
             <p className="dialog-error" role="alert">
@@ -5186,29 +5378,29 @@ function PostDescribePage({
             </p>
           ) : null}
           <button className="primary-button" type="button" onClick={continueWithDetails}>
-            Next: Set reward <ArrowRight size={18} />
+            Next: Review payment <ArrowRight size={18} />
           </button>
         </div>
         <aside className="side-panel">
           <h2>What finders see</h2>
-          <div className="mini-bounty-card">
+          <article className="finder-preview-card" aria-label="Live request preview">
             <img src={finderPreviewImageSrc} alt={finderPreviewImageAlt} loading="lazy" decoding="async" />
-            <div>
-              <strong>{draft.itemName || "Your request"}</strong>
-              <span>{getCategoryLabel(draft.category)} · Open to worldwide sources</span>
+            <span className="finder-preview-check" aria-hidden="true">
+              <BadgeCheck size={15} />
+            </span>
+            <h3>{titlePreview}</h3>
+            <p>Finder reward {rewardText}</p>
+            <div className="finder-preview-meta">
+              <span>
+                <small>Reward</small>
+                <strong>{rewardText}</strong>
+              </span>
+              <span>
+                <small>Closes in</small>
+                <strong>{durationPreview}</strong>
+              </span>
             </div>
-          </div>
-          <ul className="check-list">
-            <li>
-              <CheckCircle2 size={18} /> Exact model and condition
-            </li>
-            <li>
-              <CheckCircle2 size={18} /> Source details you need
-            </li>
-            <li>
-              <CheckCircle2 size={18} /> What should be rejected
-            </li>
-          </ul>
+          </article>
         </aside>
       </section>
     </main>
@@ -5245,8 +5437,8 @@ function PostRewardPage({
             <ArrowLeft size={17} /> Describe
           </button>
           <div className="post-flow-intro">
-            <h1 id="reward-title">Set reward, then days.</h1>
-            <p>Pick a reward that makes the search worth it, then choose how long the request should stay open.</p>
+            <h1 id="reward-title">Set the reward and search window.</h1>
+            <p>Choose a reward that makes the search worth taking, then decide how long the request should stay open.</p>
           </div>
           <div className="post-question-card is-active">
             <span className="post-question-label">
@@ -5271,6 +5463,10 @@ function PostRewardPage({
             </span>
             <h2>How long should finders search?</h2>
             <div className="radio-grid" role="group" aria-label="Request duration">
+              <label className={draft.durationDays === 7 ? "duration-card selected-duration" : "duration-card"}>
+                <input type="radio" name="duration" checked={draft.durationDays === 7} onChange={() => onDraftChange({ durationDays: 7 })} />
+                <span className="duration-text">7 days</span>
+              </label>
               <label className={draft.durationDays === 30 ? "duration-card selected-duration" : "duration-card"}>
                 <input type="radio" name="duration" checked={draft.durationDays === 30} onChange={() => onDraftChange({ durationDays: 30 })} />
                 <span className="duration-text">30 days</span>
@@ -5314,7 +5510,7 @@ function PostRewardPage({
               <Banknote size={18} /> Finder sees the reward and can earn it after acceptance
             </li>
             <li>
-              <Search size={18} /> 12% service fee supports matching, review, and support
+              <Search size={18} /> 12% service fee supports matching tools, review, and support
             </li>
             <li>
               <ShieldCheck size={18} /> 3% fee supports payment handling, source records, dispute review, and fraud monitoring
@@ -5605,7 +5801,7 @@ function PostPayPage({
             <ExternalLink size={19} />
             <span>
               <strong>Secure Checkout</strong>
-              Your payment is processed securely. We never store your card details. The finder reward is tracked until a source or handoff is approved; the platform does not sell or ship requested goods.
+              Your payment is processed securely. We never store card details. The finder reward is tracked until a source or handoff is approved; the platform does not sell or ship requested goods.
             </span>
           </div>
           <button className="primary-button" type="button" disabled={checkoutStatus === "loading"} onClick={startCheckout}>
@@ -5691,7 +5887,7 @@ function BrowsePage({
     <main className="route-page bounty-gallery-page" aria-labelledby="browse-title">
       <section className="gallery-hero">
         <h1 id="browse-title">Featured requests</h1>
-        <p>Requests with clear photos, rewards, and source criteria are shown first so finders can quickly spot what they recognize.</p>
+        <p>Clear photos, funded rewards, and specific match criteria help finders spot the requests they can actually solve.</p>
         {dataLoading ? <p className="dialog-note">Loading paid requests...</p> : null}
         {dataError ? <p className="dialog-error" role="status">{dataError} Showing example requests until the live board is ready.</p> : null}
         <div className="gallery-hero-actions">
@@ -5714,7 +5910,7 @@ function BrowsePage({
         <div className="gallery-section-head">
           <div>
             <h2 id="more-bounties-title">More requests closing soon</h2>
-            <p>Active requests with rewards, source submissions, and a visible request window.</p>
+            <p>Active requests with visible rewards, source submissions, and clear time windows.</p>
           </div>
           <a className="section-link section-button" href={routeHref("browse-all")} onClick={(event) => handleRoutedAnchorClick(event, onBrowseAll)}>
             Browse all <ArrowRight size={17} />
@@ -5783,7 +5979,7 @@ function BrowseAllPage({
       <section className="gallery-hero compact-gallery-hero">
         <div>
           <h1 id="browse-all-title">Browse all requests</h1>
-          <p>Search open requests by item, category, or location.</p>
+          <p>Search open requests by item, category, reward, or location.</p>
           {dataLoading ? <p className="dialog-note">Loading paid requests...</p> : null}
           {dataError ? <p className="dialog-error" role="status">{dataError} Showing example requests until the live board is ready.</p> : null}
         </div>
@@ -5813,7 +6009,7 @@ function BrowseAllPage({
           <div className="empty-state browse-empty-state" role="status">
             <Search size={26} />
             <strong>No requests match {emptyStateSubject}.</strong>
-            <span>Try a broader keyword or choose All categories.</span>
+            <span>Try a broader keyword or switch back to All categories.</span>
           </div>
         )}
       </section>
@@ -6083,8 +6279,8 @@ function SubmitFindPage({
           <button className="back-button" type="button" onClick={onBack}>
             <ArrowLeft size={17} /> Request detail
           </button>
-          <h1 id="submit-title">Submit a source for {bounty.name}.</h1>
-          <p>Tell the poster where it is, who has it, or whether you have it yourself. Add enough detail for them to judge the match before reveal.</p>
+          <h1 id="submit-title">Submit a protected source for {bounty.name}.</h1>
+          <p>Tell the poster where it is, who has it, or whether you have it yourself. Add enough context for them to judge the match before reveal.</p>
           <div className="source-protection-note" role="note">
             <ShieldCheck size={21} />
             <span>
@@ -6147,7 +6343,7 @@ function SubmitFindPage({
             Match notes for the poster
             <textarea
               value={notes}
-              placeholder="Why this matches, current availability, condition, seller details, and delivery, pickup, shipping, or purchase path"
+              placeholder="Why this matches, current availability, condition, seller details, and the delivery, pickup, shipping, or purchase path"
               onChange={(event) => {
                 setNotes(event.target.value);
                 setSubmitted(false);
@@ -6160,7 +6356,7 @@ function SubmitFindPage({
               <strong>Add context</strong>
               {proofFiles.length
                 ? `${proofFiles.length} file${proofFiles.length === 1 ? "" : "s"} selected for protected proof.`
-                : "Screenshots, photos, messages, or proof are optional and help the poster review faster."}
+                : "Screenshots, photos, messages, or proof are optional, but they help the poster review faster."}
             </span>
             <input
               type="file"
@@ -6465,7 +6661,7 @@ function PosterDashboardPage({
       <section className="dashboard-head">
         <div>
           <p className="route-kicker">Poster dashboard</p>
-          <h1 id="poster-dashboard-title">Review protected sources.</h1>
+          <h1 id="poster-dashboard-title">Review protected sources with a clear trail.</h1>
         </div>
         <a className="section-link section-button" href={routeHref("profile")} onClick={(event) => handleRoutedAnchorClick(event, onProfile)}>
           Public trust page <ArrowRight size={17} />
@@ -6530,7 +6726,7 @@ function PosterDashboardPage({
                 <>
                   <div className="reveal-log" role="status">
                     <CheckCircle2 size={20} />
-                    <span>Source revealed and saved to the case timeline. Review the full details before accepting or sending it to review.</span>
+                    <span>Source revealed and saved to the case timeline. Review the full details before accepting it or sending it to review.</span>
                   </div>
                   <div className="action-row">
                     <button className="primary-button" type="button" onClick={() => reviewSelectedSource("accepted")}>
@@ -6583,7 +6779,7 @@ function PosterDashboardPage({
             <div className="empty-state">
               <LockKeyhole size={26} />
               <strong>No protected sources yet</strong>
-              <span>When a finder submits to one of your paid requests, the preview will appear here before reveal.</span>
+              <span>When a finder submits to one of your paid requests, the preview appears here before reveal.</span>
             </div>
           )}
         </div>
@@ -6682,7 +6878,7 @@ function PostSuccessConfirmation({
             </span>
             <div>
               <strong>Finders send sources</strong>
-              <p>New links, contacts, or handoff options appear in your dashboard for review.</p>
+              <p>New links, contacts, local leads, or handoff options appear in your dashboard for review.</p>
             </div>
           </li>
           <li>
@@ -6691,7 +6887,7 @@ function PostSuccessConfirmation({
             </span>
             <div>
               <strong>Accept the right match</strong>
-              <p>Contact the finder, verify the item, then release the reward when the source works.</p>
+              <p>Contact the finder, verify the item, then release the reward when the source checks out.</p>
             </div>
           </li>
         </ol>
@@ -6762,7 +6958,7 @@ function FinderDashboardPage({
       <section className="dashboard-head">
         <div>
           <p className="route-kicker">Finder dashboard</p>
-          <h1 id="finder-dashboard-title">Submit sources and build reputation.</h1>
+          <h1 id="finder-dashboard-title">Submit better sources. Build visible trust.</h1>
         </div>
         <div className="head-actions">
           <a className="section-link section-button" href={routeHref("profile")} onClick={(event) => handleRoutedAnchorClick(event, onProfile)}>
@@ -7005,7 +7201,7 @@ function TrustProfilePage({ onBrowse, onFinder }: { onBrowse: () => void; onFind
         <div className="profile-card-main">
           <span className="avatar large-avatar">M</span>
           <div>
-            <p className="route-kicker">Public profile / Trust page</p>
+          <p className="route-kicker">Public profile / Trust page</p>
             <h1 id="profile-title">Maya L.</h1>
             <p>Example finder profile for rare camera gear, watches, and vintage electronics.</p>
           </div>
@@ -7168,7 +7364,7 @@ function PrivacyPage() {
   return (
     <PolicyPage
       title="Privacy Policy"
-      intro="How pleasefindmethis handles account, request, source, image, support, and payment-related data."
+      intro="How pleasefindmethis handles account, request, source, image, support, dispute, and payment-related data."
       sections={[
         {
           title: "Data we collect",
@@ -7200,7 +7396,7 @@ function TermsPage() {
   return (
     <PolicyPage
       title="Terms of Service"
-      intro="The operating rules for posters, finders, funded rewards, protected sources, and marketplace review."
+      intro="The operating rules for posters, finders, funded rewards, protected sources, marketplace review, and payouts."
       sections={[
         {
           title: "Marketplace role",
@@ -7239,7 +7435,7 @@ function RefundPolicyPage() {
   return (
     <PolicyPage
       title="Refund and Cancellation Policy"
-      intro="How funded rewards, service fees, failed finds, and disputes are handled."
+      intro="How funded rewards, service fees, failed searches, and disputes are handled."
       sections={[
         {
           title: "Before checkout",
@@ -7269,7 +7465,7 @@ function MarketplaceRulesPage() {
   return (
     <PolicyPage
       title="Marketplace Rules"
-      intro="What can be posted, what finders can submit, and what conduct is not allowed."
+      intro="What can be posted, what finders can submit, and which conduct is not allowed."
       sections={[
         {
           title: "Prohibited requests",
@@ -7327,7 +7523,7 @@ function SupportPage({ onReport }: { onReport: () => void }) {
           ["Safety", "Report scams, counterfeit claims, prohibited goods, harassment, impersonation, stolen images, or pressure to move to unsafe private payment immediately."],
           ["Privacy", "Ask for data export, correction, deletion, account access review, or removal of sensitive request details that should not be public."],
           ["Payouts", "Finders should include payout status, accepted source details, request id, and any processor message when asking about a held or delayed reward."],
-          ["Faster reviews", "Send concise evidence, not just a general complaint. Screenshots, timestamps, URLs, seller messages, and request criteria help support decide what happened and whether the saved review trail matches the claim."],
+          ["Faster reviews", "Send concise evidence, not just a general complaint. Screenshots, timestamps, URLs, seller messages, and request criteria help support decide what happened and whether the saved trail matches the claim."],
           ["Before emailing", "Check the FAQ, refund policy, and marketplace rules first if the issue is about normal timing, source acceptance criteria, or what counts as a valid lead."],
         ].map(([title, copy]) => (
           <article className="dashboard-panel" key={title}>

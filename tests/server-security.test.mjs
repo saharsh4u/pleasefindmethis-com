@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import crypto from "node:crypto";
 import { test } from "node:test";
 
 const originalEnv = { ...process.env };
@@ -85,6 +86,26 @@ test("production checkout origin can use Vercel production URL as a trusted fall
 
   assert.equal(normalizeDeploymentAppUrl("pleasefindmethis.com"), "https://pleasefindmethis.com");
   assert.equal(origin, "https://pleasefindmethis.com");
+});
+
+test("payment provider selector supports Razorpay", async () => {
+  const { getPaymentProvider } = await loadSecurityHelpers({
+    PAYMENT_PROVIDER: "razorpay",
+    RAZORPAY_KEY_ID: "rzp_test_123",
+    RAZORPAY_KEY_SECRET: "test-secret",
+  });
+
+  assert.equal(getPaymentProvider(), "razorpay");
+});
+
+test("Razorpay webhook signatures are checked against the raw body", async () => {
+  const { verifyRazorpaySignature } = await loadSecurityHelpers({});
+  const body = Buffer.from(JSON.stringify({ event: "payment_link.paid", payload: { payment_link: { entity: { id: "plink_test" } } } }));
+  const secret = "webhook-secret";
+  const signature = crypto.createHmac("sha256", secret).update(body).digest("hex");
+
+  assert.equal(verifyRazorpaySignature(body, signature, secret), true);
+  assert.equal(verifyRazorpaySignature(body, signature, "wrong-secret"), false);
 });
 
 async function loadSecurityHelpers(env) {
