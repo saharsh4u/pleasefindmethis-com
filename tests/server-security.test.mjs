@@ -108,6 +108,26 @@ test("Razorpay webhook signatures are checked against the raw body", async () =>
   assert.equal(verifyRazorpaySignature(body, signature, "wrong-secret"), false);
 });
 
+test("admin payout review route does not expose queues without an admin bearer token", async () => {
+  const { handleRequest } = await loadServer({
+    PUBLIC_APP_URL: "https://pleasefindmethis.com",
+    SUPABASE_URL: "https://example.supabase.co",
+    SUPABASE_SERVICE_ROLE_KEY: "service-role-key",
+  });
+  const req = fakeRequest({ host: "pleasefindmethis.com" });
+  const res = fakeResponse();
+
+  req.method = "GET";
+  req.url = "/api/admin/payout-cases";
+
+  await handleRequest(req, res);
+
+  assert.equal(res.statusCode, 401);
+  assert.deepEqual(JSON.parse(res.body), {
+    error: "Sign in as a marketplace admin before opening payout review.",
+  });
+});
+
 async function loadSecurityHelpers(env) {
   const module = await loadServer(env);
   return module.__securityTest;

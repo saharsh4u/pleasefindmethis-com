@@ -113,6 +113,11 @@ export async function handleRequest(req, res) {
       return;
     }
 
+    if (requestUrl.pathname === "/api/admin/payout-cases") {
+      await handleAdminPayoutCases(req, res);
+      return;
+    }
+
     if (requestUrl.pathname === "/api/health") {
       await handleHealthCheck(req, res);
       return;
@@ -713,6 +718,874 @@ async function loadSubmissionCounts(requestIds) {
   }
 
   return counts;
+}
+
+async function handleAdminPayoutCases(req, res) {
+  if (req.method !== "GET" && req.method !== "POST") {
+    sendJson(res, 405, { error: "Method not allowed." });
+    return;
+  }
+
+  if (!supabaseAdmin) {
+    sendJson(res, 503, { error: "Admin payout review requires Supabase server configuration." });
+    return;
+  }
+
+  try {
+    const adminUser = await requireMarketplaceAdmin(req);
+
+    if (req.method === "GET") {
+      const queues = await loadAdminPayoutQueues();
+      sendJson(res, 200, {
+        ...queues,
+        admin: {
+          email: adminUser.email ?? "",
+          configured: hasMarketplaceAdminConfiguration(),
+        },
+      });
+      return;
+    }
+
+    const body = await readJson(req);
+    const caseType = normalizeAdminReviewCaseType(body.caseType);
+
+    if (caseType === "source_dispute") {
+      const result = await applyAdminSourceDisputeAction(body, adminUser);
+      sendJson(res, 200, { dispute: result });
+      return;
+    }
+
+    if (caseType === "support_ticket") {
+      const result = await applyAdminSupportTicketAction(body, adminUser);
+      sendJson(res, 200, { supportTicket: result });
+      return;
+    }
+
+    if (caseType === "duplicate_source") {
+      const result = await applyAdminDuplicateSourceFlagAction(body, adminUser);
+      sendJson(res, 200, { duplicateFlag: result });
+      return;
+    }
+
+    const result = await applyAdminPayoutCaseAction(body, adminUser);
+    sendJson(res, 200, { payoutCase: result });
+  } catch (error) {
+    const statusCode = Number(error?.statusCode) || 500;
+
+    if (statusCode >= 500) {
+      console.error("Admin payout case action failed", error);
+    }
+
+    sendJson(res, statusCode, {
+      error: error instanceof Error ? error.message : "Admin payout review is unavailable.",
+    });
+  }
+}
+
+async function requireMarketplaceAdmin(req) {
+  const token = getBearerToken(req);
+
+  if (!token) {
+    throw new AdminApiError("Sign in as a marketplace admin before opening payout review.", 401);
+  }
+
+  const {
+    data: { user },
+    error,
+  } = await supabaseAdmin.auth.getUser(token);
+
+  if (error || !user) {
+    throw new AdminApiError("Your session could not be verified for admin review.", 401);
+  }
+
+  if (!isMarketplaceAdminUser(user)) {
+    throw new AdminApiError("This account is not allowed to manage payout review.", 403);
+  }
+
+  return user;
+}
+
+async function loadAdminPayoutQueues() {
+  const [payoutResult, disputeResult, ticketResult, duplicateFlagResult] = await Promise.all([
+    supabaseAdmin
+      .from("finder_payout_cases")
+      .select("id,submission_id,request_id,finder_id,amount,currency,status,release_after,processor,processor_transfer_id,admin_note,created_at,updated_at")
+      .order("created_at", { ascending: false })
+      .limit(50),
+    supabaseAdmin
+      .from("source_disputes")
+      .select("id,submission_id,request_id,opened_by,opened_by_role,reason_code,evidence_summary,status,resolution_note,created_at,updated_at")
+      .order("created_at", { ascending: false })
+      .limit(50),
+    supabaseAdmin
+      .from("support_tickets")
+      .select("id,user_id,category,subject,status,priority,related_request_id,related_submission_id,created_at,updated_at")
+      .order("created_at", { ascending: false })
+      .limit(50),
+    supabaseAdmin
+      .from("source_duplicate_flags")
+      .select("id,request_id,finder_id,source_fingerprint,existing_submission_id,source_type,normalized_source,status,admin_note,created_at,updated_at")
+      .order("created_at", { ascending: false })
+      .limit(50),
+  ]);
+
+  const firstError = payoutResult.error || disputeResult.error || ticketResult.error || duplicateFlagResult.error;
+
+  if (firstError) {
+    console.error("Could not load admin payout queues", firstError);
+    throw new AdminApiError("Admin queues need the latest marketplace migration before they can load.", 503);
+  }
+
+  return {
+    payoutCases: payoutResult.data ?? [],
+    disputes: disputeResult.data ?? [],
+    supportTickets: ticketResult.data ?? [],
+    duplicateFlags: duplicateFlagResult.data ?? [],
+  };
+}
+
+async function applyAdminPayoutCaseAction(body, adminUser) {
+  const payoutCaseId = parseString(body.payoutCaseId ?? body.id, 80);
+  const action = normalizePayoutCaseAction(body.action);
+  const adminNote = parseString(body.adminNote ?? body.note, 3000);
+  const processor = sanitizePayoutProcessor(body.processor);
+  const processorTransferId = parseString(body.processorTransferId ?? body.processor_transfer_id, 180);
+
+  if (!payoutCaseId) {
+    throw new AdminApiError("A payout case id is required.", 400);
+  }
+
+  if (!action) {
+    throw new AdminApiError("Choose a valid payout action.", 400);
+  }
+
+  const { data: payoutCase, error } = await supabaseAdmin
+    .from("finder_payout_cases")
+    .select("id,submission_id,request_id,finder_id,amount,currency,status,release_after,processor,processor_transfer_id,admin_note,created_at,updated_at")
+    .eq("id", payoutCaseId)
+    .single();
+
+  if (error || !payoutCase) {
+    throw new AdminApiError("Payout case was not found.", 404);
+  }
+
+  validatePayoutCaseAction(action, payoutCase, { adminNote, processorTransferId, allowEarlyRelease: Boolean(body.allowEarlyRelease) });
+
+  await ensurePayoutAuditTableReady();
+
+  const nextStatus = getPayoutCaseStatusForAction(action);
+  const updateRow = {
+    admin_note: adminNote || payoutCase.admin_note || getDefaultAdminNoteForPayoutAction(action),
+    ...(processor ? { processor } : {}),
+    ...(processorTransferId ? { processor_transfer_id: processorTransferId } : {}),
+    ...(nextStatus ? { status: nextStatus } : {}),
+  };
+
+  const { data: updatedCase, error: updateError } = await supabaseAdmin
+    .from("finder_payout_cases")
+    .update(updateRow)
+    .eq("id", payoutCase.id)
+    .select("id,submission_id,request_id,finder_id,amount,currency,status,release_after,processor,processor_transfer_id,admin_note,created_at,updated_at")
+    .single();
+
+  if (updateError || !updatedCase) {
+    console.error("Could not update payout case", { payoutCaseId: payoutCase.id, action, updateError });
+    throw new AdminApiError("Could not update this payout case.", 503);
+  }
+
+  await recordPayoutCaseEvent({
+    payoutCase,
+    updatedCase,
+    adminUser,
+    action,
+    note: adminNote,
+  });
+
+  if (nextStatus === "paid") {
+    await markRequestRewardPaid(updatedCase);
+  }
+
+  return updatedCase;
+}
+
+async function ensurePayoutAuditTableReady() {
+  const { error } = await supabaseAdmin.from("payout_case_events").select("id").limit(1);
+
+  if (error) {
+    console.error("Payout audit table is not available", error);
+    throw new AdminApiError("Payout audit logging needs the latest marketplace migration before staff actions can run.", 503);
+  }
+}
+
+async function recordPayoutCaseEvent({ payoutCase, updatedCase, adminUser, action, note }) {
+  const { error } = await supabaseAdmin.from("payout_case_events").insert({
+    payout_case_id: payoutCase.id,
+    request_id: payoutCase.request_id,
+    submission_id: payoutCase.submission_id,
+    actor_id: adminUser.id,
+    action,
+    from_status: payoutCase.status,
+    to_status: updatedCase.status,
+    processor: updatedCase.processor,
+    processor_transfer_id: updatedCase.processor_transfer_id,
+    note,
+  });
+
+  if (error) {
+    console.error("Could not record payout case event", { payoutCaseId: payoutCase.id, action, error });
+    throw new AdminApiError("Could not record the payout audit event.", 503);
+  }
+}
+
+async function markRequestRewardPaid(payoutCase) {
+  const { error: requestError } = await supabaseAdmin
+    .from("requests")
+    .update({ payout_status: "paid" })
+    .eq("id", payoutCase.request_id)
+    .in("payout_status", ["pending_acceptance", "payable", "disputed"]);
+
+  if (requestError) {
+    console.error("Could not mark request payout paid", { requestId: payoutCase.request_id, requestError });
+    throw new AdminApiError("Payout case was updated, but the request payout status could not be reconciled.", 503);
+  }
+
+  const { error: submissionError } = await supabaseAdmin
+    .from("source_submissions")
+    .update({
+      status: "awarded",
+      awarded_at: new Date().toISOString(),
+    })
+    .eq("id", payoutCase.submission_id)
+    .in("status", ["accepted", "awarded"]);
+
+  if (submissionError) {
+    console.error("Could not mark source submission awarded", { submissionId: payoutCase.submission_id, submissionError });
+    throw new AdminApiError("Payout case was updated, but the source award status could not be reconciled.", 503);
+  }
+}
+
+async function applyAdminSourceDisputeAction(body, adminUser) {
+  const disputeId = parseString(body.disputeId ?? body.id, 80);
+  const action = normalizeSourceDisputeAction(body.action);
+  const note = parseString(body.resolutionNote ?? body.adminNote ?? body.note, 3000);
+
+  if (!disputeId) {
+    throw new AdminApiError("A source dispute id is required.", 400);
+  }
+
+  if (!action) {
+    throw new AdminApiError("Choose a valid dispute action.", 400);
+  }
+
+  const { data: dispute, error } = await supabaseAdmin
+    .from("source_disputes")
+    .select("id,submission_id,request_id,opened_by,opened_by_role,reason_code,evidence_summary,status,resolution_note,created_at,updated_at")
+    .eq("id", disputeId)
+    .single();
+
+  if (error || !dispute) {
+    throw new AdminApiError("Source dispute was not found.", 404);
+  }
+
+  validateSourceDisputeAction(action, dispute, note);
+
+  await ensureAdminAuditTableReady("source_dispute_events");
+
+  const nextStatus = getSourceDisputeStatusForAction(action);
+  const updateRow = {
+    resolution_note: note || dispute.resolution_note || getDefaultSourceDisputeNote(action),
+    ...(nextStatus ? { status: nextStatus } : {}),
+  };
+
+  const { data: updatedDispute, error: updateError } = await supabaseAdmin
+    .from("source_disputes")
+    .update(updateRow)
+    .eq("id", dispute.id)
+    .select("id,submission_id,request_id,opened_by,opened_by_role,reason_code,evidence_summary,status,resolution_note,created_at,updated_at")
+    .single();
+
+  if (updateError || !updatedDispute) {
+    console.error("Could not update source dispute", { disputeId: dispute.id, action, updateError });
+    throw new AdminApiError("Could not update this source dispute.", 503);
+  }
+
+  await recordSourceDisputeEvent({
+    dispute,
+    updatedDispute,
+    adminUser,
+    action,
+    note,
+  });
+
+  await applySourceDisputeSideEffects(updatedDispute, action);
+
+  return updatedDispute;
+}
+
+async function applyAdminSupportTicketAction(body, adminUser) {
+  const ticketId = parseString(body.ticketId ?? body.id, 80);
+  const action = normalizeSupportTicketAction(body.action);
+  const note = parseString(body.adminNote ?? body.note, 3000);
+
+  if (!ticketId) {
+    throw new AdminApiError("A support ticket id is required.", 400);
+  }
+
+  if (!action) {
+    throw new AdminApiError("Choose a valid support ticket action.", 400);
+  }
+
+  const { data: ticket, error } = await supabaseAdmin
+    .from("support_tickets")
+    .select("id,user_id,category,subject,status,priority,related_request_id,related_submission_id,created_at,updated_at")
+    .eq("id", ticketId)
+    .single();
+
+  if (error || !ticket) {
+    throw new AdminApiError("Support ticket was not found.", 404);
+  }
+
+  validateSupportTicketAction(action, ticket, note);
+
+  await ensureAdminAuditTableReady("support_ticket_events");
+
+  const nextStatus = getSupportTicketStatusForAction(action);
+  const { data: updatedTicket, error: updateError } = await supabaseAdmin
+    .from("support_tickets")
+    .update({ status: nextStatus ?? ticket.status })
+    .eq("id", ticket.id)
+    .select("id,user_id,category,subject,status,priority,related_request_id,related_submission_id,created_at,updated_at")
+    .single();
+
+  if (updateError || !updatedTicket) {
+    console.error("Could not update support ticket", { ticketId: ticket.id, action, updateError });
+    throw new AdminApiError("Could not update this support ticket.", 503);
+  }
+
+  await recordSupportTicketEvent({
+    ticket,
+    updatedTicket,
+    adminUser,
+    action,
+    note,
+  });
+
+  if (note && ["waiting_on_user", "resolved", "closed"].includes(updatedTicket.status)) {
+    await addSupportTicketStaffMessage(updatedTicket.id, adminUser.id, note);
+  }
+
+  return updatedTicket;
+}
+
+async function applyAdminDuplicateSourceFlagAction(body, adminUser) {
+  const duplicateFlagId = parseString(body.duplicateFlagId ?? body.id, 80);
+  const action = normalizeDuplicateSourceFlagAction(body.action);
+  const note = parseString(body.adminNote ?? body.note, 3000);
+
+  if (!duplicateFlagId) {
+    throw new AdminApiError("A duplicate source flag id is required.", 400);
+  }
+
+  if (!action) {
+    throw new AdminApiError("Choose a valid duplicate source action.", 400);
+  }
+
+  const { data: duplicateFlag, error } = await supabaseAdmin
+    .from("source_duplicate_flags")
+    .select("id,request_id,finder_id,source_fingerprint,existing_submission_id,source_type,normalized_source,status,admin_note,created_at,updated_at")
+    .eq("id", duplicateFlagId)
+    .single();
+
+  if (error || !duplicateFlag) {
+    throw new AdminApiError("Duplicate source flag was not found.", 404);
+  }
+
+  validateDuplicateSourceFlagAction(action, duplicateFlag, note);
+
+  await ensureAdminAuditTableReady("source_duplicate_flag_events");
+
+  const nextStatus = getDuplicateSourceFlagStatusForAction(action);
+  const updateRow = {
+    admin_note: note || duplicateFlag.admin_note || getDefaultDuplicateSourceFlagNote(action),
+    ...(nextStatus ? { status: nextStatus } : {}),
+  };
+
+  const { data: updatedFlag, error: updateError } = await supabaseAdmin
+    .from("source_duplicate_flags")
+    .update(updateRow)
+    .eq("id", duplicateFlag.id)
+    .select("id,request_id,finder_id,source_fingerprint,existing_submission_id,source_type,normalized_source,status,admin_note,created_at,updated_at")
+    .single();
+
+  if (updateError || !updatedFlag) {
+    console.error("Could not update duplicate source flag", { duplicateFlagId: duplicateFlag.id, action, updateError });
+    throw new AdminApiError("Could not update this duplicate source flag.", 503);
+  }
+
+  await recordDuplicateSourceFlagEvent({
+    duplicateFlag,
+    updatedFlag,
+    adminUser,
+    action,
+    note,
+  });
+
+  return updatedFlag;
+}
+
+async function ensureAdminAuditTableReady(tableName) {
+  const allowedTables = new Set(["payout_case_events", "source_dispute_events", "support_ticket_events", "source_duplicate_flag_events"]);
+
+  if (!allowedTables.has(tableName)) {
+    throw new AdminApiError("Unknown admin audit table.", 500);
+  }
+
+  const { error } = await supabaseAdmin.from(tableName).select("id").limit(1);
+
+  if (error) {
+    console.error("Admin audit table is not available", { tableName, error });
+    throw new AdminApiError("Admin audit logging needs the latest marketplace migration before staff actions can run.", 503);
+  }
+}
+
+async function recordSourceDisputeEvent({ dispute, updatedDispute, adminUser, action, note }) {
+  const { error } = await supabaseAdmin.from("source_dispute_events").insert({
+    dispute_id: dispute.id,
+    request_id: dispute.request_id,
+    submission_id: dispute.submission_id,
+    actor_id: adminUser.id,
+    action,
+    from_status: dispute.status,
+    to_status: updatedDispute.status,
+    note,
+  });
+
+  if (error) {
+    console.error("Could not record source dispute event", { disputeId: dispute.id, action, error });
+    throw new AdminApiError("Could not record the source dispute audit event.", 503);
+  }
+}
+
+async function recordSupportTicketEvent({ ticket, updatedTicket, adminUser, action, note }) {
+  const { error } = await supabaseAdmin.from("support_ticket_events").insert({
+    ticket_id: ticket.id,
+    actor_id: adminUser.id,
+    action,
+    from_status: ticket.status,
+    to_status: updatedTicket.status,
+    note,
+  });
+
+  if (error) {
+    console.error("Could not record support ticket event", { ticketId: ticket.id, action, error });
+    throw new AdminApiError("Could not record the support ticket audit event.", 503);
+  }
+}
+
+async function recordDuplicateSourceFlagEvent({ duplicateFlag, updatedFlag, adminUser, action, note }) {
+  const { error } = await supabaseAdmin.from("source_duplicate_flag_events").insert({
+    duplicate_flag_id: duplicateFlag.id,
+    request_id: duplicateFlag.request_id,
+    actor_id: adminUser.id,
+    action,
+    from_status: duplicateFlag.status,
+    to_status: updatedFlag.status,
+    note,
+  });
+
+  if (error) {
+    console.error("Could not record duplicate source flag event", { duplicateFlagId: duplicateFlag.id, action, error });
+    throw new AdminApiError("Could not record the duplicate source audit event.", 503);
+  }
+}
+
+async function addSupportTicketStaffMessage(ticketId, adminUserId, note) {
+  const { error } = await supabaseAdmin.from("support_ticket_messages").insert({
+    ticket_id: ticketId,
+    sender_id: adminUserId,
+    body: note,
+  });
+
+  if (error) {
+    console.error("Could not add support ticket staff message", { ticketId, error });
+    throw new AdminApiError("Could not add the support reply to this ticket.", 503);
+  }
+}
+
+async function applySourceDisputeSideEffects(dispute, action) {
+  if (action === "needs_evidence") {
+    await markDisputedPayoutCase(dispute, "Dispute needs more evidence before payout release.");
+    return;
+  }
+
+  if (action === "finder_wins") {
+    await markDisputedPayoutCasePayable(dispute);
+    return;
+  }
+
+  if (action === "poster_wins") {
+    await markDisputedPayoutCaseCancelled(dispute);
+  }
+}
+
+async function markDisputedPayoutCase(dispute, note) {
+  const { error: payoutError } = await supabaseAdmin
+    .from("finder_payout_cases")
+    .update({
+      status: "disputed",
+      admin_note: note,
+    })
+    .eq("submission_id", dispute.submission_id)
+    .in("status", ["payable", "hold", "processing", "disputed"]);
+
+  if (payoutError) {
+    console.error("Could not keep payout case disputed", { disputeId: dispute.id, payoutError });
+    throw new AdminApiError("Could not update payout hold state for this dispute.", 503);
+  }
+
+  await updateRequestPayoutStatus(dispute.request_id, "disputed", ["pending_acceptance", "payable", "disputed"]);
+}
+
+async function markDisputedPayoutCasePayable(dispute) {
+  const { error: payoutError } = await supabaseAdmin
+    .from("finder_payout_cases")
+    .update({
+      status: "payable",
+      admin_note: "Dispute resolved for the finder; reward can continue through payout review.",
+    })
+    .eq("submission_id", dispute.submission_id)
+    .in("status", ["payable", "hold", "processing", "disputed"]);
+
+  if (payoutError) {
+    console.error("Could not mark disputed payout case payable", { disputeId: dispute.id, payoutError });
+    throw new AdminApiError("Could not update payout state after dispute resolution.", 503);
+  }
+
+  await updateRequestPayoutStatus(dispute.request_id, "payable", ["pending_acceptance", "payable", "disputed"]);
+}
+
+async function markDisputedPayoutCaseCancelled(dispute) {
+  const { error: payoutError } = await supabaseAdmin
+    .from("finder_payout_cases")
+    .update({
+      status: "cancelled",
+      admin_note: "Dispute resolved for the poster; finder reward is not payable from this source.",
+    })
+    .eq("submission_id", dispute.submission_id)
+    .in("status", ["payable", "hold", "processing", "disputed"]);
+
+  if (payoutError) {
+    console.error("Could not cancel disputed payout case", { disputeId: dispute.id, payoutError });
+    throw new AdminApiError("Could not update payout state after dispute resolution.", 503);
+  }
+
+  await updateRequestPayoutStatus(dispute.request_id, "cancelled", ["pending_acceptance", "payable", "disputed"]);
+}
+
+async function updateRequestPayoutStatus(requestId, payoutStatus, allowedCurrentStatuses) {
+  const { error } = await supabaseAdmin
+    .from("requests")
+    .update({ payout_status: payoutStatus })
+    .eq("id", requestId)
+    .in("payout_status", allowedCurrentStatuses);
+
+  if (error) {
+    console.error("Could not update request payout status", { requestId, payoutStatus, error });
+    throw new AdminApiError("Could not reconcile the request payout status.", 503);
+  }
+}
+
+function normalizeAdminReviewCaseType(value) {
+  const normalized = parseString(value, 80).toLowerCase().replace(/[\s-]+/g, "_");
+
+  if (normalized === "source_dispute" || normalized === "dispute") {
+    return "source_dispute";
+  }
+
+  if (normalized === "support_ticket" || normalized === "ticket" || normalized === "support") {
+    return "support_ticket";
+  }
+
+  if (normalized === "duplicate_source" || normalized === "duplicate_flag" || normalized === "duplicate") {
+    return "duplicate_source";
+  }
+
+  return "payout_case";
+}
+
+function normalizePayoutCaseAction(value) {
+  const action = parseString(value, 80).toLowerCase().replace(/[\s-]+/g, "_");
+
+  if (action === "hold" || action === "processing" || action === "paid" || action === "note") {
+    return action;
+  }
+
+  if (action === "mark_processing") {
+    return "processing";
+  }
+
+  if (action === "record_paid" || action === "mark_paid") {
+    return "paid";
+  }
+
+  return "";
+}
+
+function getPayoutCaseStatusForAction(action) {
+  if (action === "note") {
+    return undefined;
+  }
+
+  return action;
+}
+
+function validatePayoutCaseAction(action, payoutCase, { adminNote, processorTransferId, allowEarlyRelease }) {
+  const currentStatus = parseString(payoutCase.status, 40);
+  const terminal = ["paid", "cancelled", "refunded"];
+
+  if (action === "note" && !adminNote) {
+    throw new AdminApiError("Add an admin note before saving a note-only update.", 400);
+  }
+
+  if (terminal.includes(currentStatus) && action !== "note") {
+    throw new AdminApiError("Terminal payout cases can only receive an admin note.", 409);
+  }
+
+  if (action === "hold" && !adminNote) {
+    throw new AdminApiError("Add a short note before placing a payout on hold.", 400);
+  }
+
+  if (action === "processing" && !["payable", "hold", "disputed"].includes(currentStatus)) {
+    throw new AdminApiError("Only payable, held, or disputed cases can move to processing.", 409);
+  }
+
+  if (action === "paid") {
+    if (!["payable", "hold", "processing"].includes(currentStatus)) {
+      throw new AdminApiError("Only payable, held, or processing cases can be recorded as paid.", 409);
+    }
+
+    if (!processorTransferId) {
+      throw new AdminApiError("Add the processor transfer or manual payout reference before marking paid.", 400);
+    }
+
+    if (!allowEarlyRelease && isFutureTimestamp(payoutCase.release_after)) {
+      throw new AdminApiError("This payout is still inside the release window. Move it to processing now, then record paid after the window passes.", 409);
+    }
+  }
+}
+
+function getDefaultAdminNoteForPayoutAction(action) {
+  if (action === "processing") {
+    return "Staff marked the reward payout as processing.";
+  }
+
+  if (action === "paid") {
+    return "Staff recorded the completed finder reward payout.";
+  }
+
+  if (action === "hold") {
+    return "Staff placed the reward payout on hold for review.";
+  }
+
+  return "";
+}
+
+function sanitizePayoutProcessor(value) {
+  const processor = parseString(value, 80).toLowerCase().replace(/[\s-]+/g, "_");
+  return ["manual", "stripe_connect", "paypal", "wise", "other"].includes(processor) ? processor : "";
+}
+
+function isFutureTimestamp(value) {
+  const timestamp = parseString(value, 80);
+
+  if (!timestamp) {
+    return false;
+  }
+
+  const date = new Date(timestamp);
+
+  if (Number.isNaN(date.getTime())) {
+    return false;
+  }
+
+  return date.getTime() > Date.now();
+}
+
+function normalizeSourceDisputeAction(value) {
+  const action = parseString(value, 80).toLowerCase().replace(/[\s-]+/g, "_");
+
+  if (["needs_evidence", "finder_wins", "poster_wins", "closed", "note"].includes(action)) {
+    return action;
+  }
+
+  if (action === "need_evidence" || action === "request_evidence") {
+    return "needs_evidence";
+  }
+
+  if (action === "finder" || action === "resolve_finder") {
+    return "finder_wins";
+  }
+
+  if (action === "poster" || action === "resolve_poster") {
+    return "poster_wins";
+  }
+
+  return "";
+}
+
+function getSourceDisputeStatusForAction(action) {
+  if (action === "note") {
+    return undefined;
+  }
+
+  return action;
+}
+
+function validateSourceDisputeAction(action, dispute, note) {
+  const currentStatus = parseString(dispute.status, 40);
+  const terminal = ["finder_wins", "poster_wins", "closed"];
+
+  if (action === "note" && !note) {
+    throw new AdminApiError("Add a note before saving a dispute note-only update.", 400);
+  }
+
+  if (terminal.includes(currentStatus) && action !== "note") {
+    throw new AdminApiError("Resolved disputes can only receive an admin note.", 409);
+  }
+
+  if (["needs_evidence", "finder_wins", "poster_wins", "closed"].includes(action) && !note) {
+    throw new AdminApiError("Add a resolution note before changing dispute status.", 400);
+  }
+}
+
+function getDefaultSourceDisputeNote(action) {
+  if (action === "needs_evidence") {
+    return "Staff requested more evidence before resolving this dispute.";
+  }
+
+  if (action === "finder_wins") {
+    return "Staff resolved this dispute in favor of the finder.";
+  }
+
+  if (action === "poster_wins") {
+    return "Staff resolved this dispute in favor of the poster.";
+  }
+
+  if (action === "closed") {
+    return "Staff closed this dispute.";
+  }
+
+  return "";
+}
+
+function normalizeSupportTicketAction(value) {
+  const action = parseString(value, 80).toLowerCase().replace(/[\s-]+/g, "_");
+
+  if (["in_review", "waiting_on_user", "resolved", "closed", "note"].includes(action)) {
+    return action;
+  }
+
+  if (action === "review" || action === "start_review") {
+    return "in_review";
+  }
+
+  if (action === "waiting" || action === "needs_user") {
+    return "waiting_on_user";
+  }
+
+  if (action === "resolve") {
+    return "resolved";
+  }
+
+  if (action === "close") {
+    return "closed";
+  }
+
+  return "";
+}
+
+function getSupportTicketStatusForAction(action) {
+  if (action === "note") {
+    return undefined;
+  }
+
+  return action;
+}
+
+function validateSupportTicketAction(action, ticket, note) {
+  const currentStatus = parseString(ticket.status, 40);
+  const terminal = ["resolved", "closed"];
+
+  if (action === "note" && !note) {
+    throw new AdminApiError("Add a note before saving a support ticket note-only update.", 400);
+  }
+
+  if (terminal.includes(currentStatus) && action !== "note") {
+    throw new AdminApiError("Resolved or closed tickets can only receive an admin note.", 409);
+  }
+
+  if (["waiting_on_user", "resolved", "closed"].includes(action) && !note) {
+    throw new AdminApiError("Add a support note before sending this status update.", 400);
+  }
+}
+
+function normalizeDuplicateSourceFlagAction(value) {
+  const action = parseString(value, 80).toLowerCase().replace(/[\s-]+/g, "_");
+
+  if (["reviewed", "linked", "dismissed", "note"].includes(action)) {
+    return action;
+  }
+
+  if (action === "review") {
+    return "reviewed";
+  }
+
+  if (action === "dismiss") {
+    return "dismissed";
+  }
+
+  return "";
+}
+
+function getDuplicateSourceFlagStatusForAction(action) {
+  if (action === "note") {
+    return undefined;
+  }
+
+  return action;
+}
+
+function validateDuplicateSourceFlagAction(action, duplicateFlag, note) {
+  const currentStatus = parseString(duplicateFlag.status, 40);
+  const terminal = ["linked", "dismissed"];
+
+  if (action === "note" && !note) {
+    throw new AdminApiError("Add a note before saving a duplicate-source note-only update.", 400);
+  }
+
+  if (terminal.includes(currentStatus) && action !== "note") {
+    throw new AdminApiError("Closed duplicate-source flags can only receive an admin note.", 409);
+  }
+
+  if (["reviewed", "linked", "dismissed"].includes(action) && !note) {
+    throw new AdminApiError("Add a staff note before changing duplicate-source status.", 400);
+  }
+}
+
+function getDefaultDuplicateSourceFlagNote(action) {
+  if (action === "reviewed") {
+    return "Staff reviewed the duplicate-source signal.";
+  }
+
+  if (action === "linked") {
+    return "Staff linked this attempt to an earlier protected source.";
+  }
+
+  if (action === "dismissed") {
+    return "Staff dismissed this duplicate-source signal.";
+  }
+
+  return "";
 }
 
 async function handleJoinWaitlist(req, res) {
@@ -1517,6 +2390,48 @@ class WebhookValidationError extends Error {
     this.name = "WebhookValidationError";
     this.statusCode = statusCode;
   }
+}
+
+class AdminApiError extends Error {
+  constructor(message, statusCode = 400) {
+    super(message);
+    this.name = "AdminApiError";
+    this.statusCode = statusCode;
+  }
+}
+
+function isMarketplaceAdminUser(user) {
+  const email = parseString(user?.email, 160).toLowerCase();
+
+  if (email && getMarketplaceAdminEmails().has(email)) {
+    return true;
+  }
+
+  const appMetadata = isRecord(user?.app_metadata) ? user.app_metadata : {};
+  const role = parseString(appMetadata.role, 80).toLowerCase();
+  const roles = Array.isArray(appMetadata.roles)
+    ? appMetadata.roles.map((entry) => parseString(entry, 80).toLowerCase())
+    : parseString(appMetadata.roles, 300)
+        .toLowerCase()
+        .split(/[,\s]+/)
+        .filter(Boolean);
+
+  return [role, ...roles].some((entry) => entry === "admin" || entry === "staff" || entry === "marketplace_admin");
+}
+
+function hasMarketplaceAdminConfiguration() {
+  return getMarketplaceAdminEmails().size > 0;
+}
+
+function getMarketplaceAdminEmails() {
+  const raw = [process.env.MARKETPLACE_ADMIN_EMAILS, process.env.ADMIN_EMAILS].filter(Boolean).join(",");
+
+  return new Set(
+    raw
+      .split(/[,\s]+/)
+      .map((entry) => entry.trim().toLowerCase())
+      .filter((entry) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(entry)),
+  );
 }
 
 async function syncDodoEventToRequest(eventType, eventData, rawEvent, req) {

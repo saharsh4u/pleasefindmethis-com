@@ -7,7 +7,7 @@ const publicDir = path.join(root, "public");
 const siteUrl = "https://pleasefindmethis.com";
 const siteName = "pleasefindmethis.com";
 const titleBrand = "pleasefindmethis";
-const lastmod = "2026-07-03";
+const lastmod = "2026-07-05";
 
 const appSitemapPages = [
   { loc: "/", changefreq: "daily", priority: "1.0" },
@@ -31,6 +31,76 @@ const starterLinks = {
 };
 
 const guidePages = [
+  {
+    slug: "help-me-find-this-item",
+    title: "Help Me Find This Item",
+    description:
+      "Need help finding this exact item? Learn what details to include, where search usually fails, and how to post a funded request for source leads.",
+    h1: "Help me find this exact item",
+    eyebrow: "Request writing guide",
+    image: "/og/post-style-creatives/05-reddit-style-request.png",
+    cta: starterLinks.sentimental,
+    ctaLabel: "Post a help-me-find request",
+    intents: ["help me find this item", "please help me find this", "help me find this exact item"],
+    intro: [
+      "The strongest help-me-find requests sound simple, but they include the details helpers need before they start searching.",
+      "Use this workflow when you have a photo, screenshot, memory, old listing, or vague description and need the same item, not a close replacement.",
+    ],
+    steps: [
+      ["Start with the plain request", "Write the sentence a helper would recognize: help me find this exact item, where can I buy this, or please help me find this."],
+      ["Add must-match details", "List the color, size, label, pattern, model, dimensions, material, compatibility, or condition details that would make a lead valid."],
+      ["Share what already failed", "Include Google Lens results, marketplace searches, sold listings, Reddit posts, store names, and old links you already checked."],
+      ["Name the wrong matches", "Call out dupes, similar items, unavailable pages, wrong sizes, and listings that look close but do not match."],
+      ["Define a valid source", "Say whether you need a current listing, seller contact, local lead, direct handoff path, model clue, or compatibility proof."],
+    ],
+    checklist: [
+      "Exact request in plain language.",
+      "Reference photos, screenshots, crops, or old links.",
+      "Must-match details and acceptable alternatives.",
+      "Already searched places and wrong matches to avoid.",
+      "Budget, shipping region, condition limits, and proof required.",
+    ],
+    faqs: [
+      ["What should I write if I only have a photo?", "Start with the photo, then describe scale, material, color, markings, age, purchase location, and any detail that image search might miss."],
+      ["Why list places I already searched?", "It keeps helpers from repeating obvious searches and gives them clues about which names, marketplaces, and wrong matches are already exhausted."],
+      ["What does a good finder lead include?", "A good lead includes the source path, proof it matches the request, price or terms, location, condition notes, and any caveats before you buy."],
+    ],
+  },
+  {
+    slug: "where-can-i-buy-this",
+    title: "Where Can I Buy This?",
+    description:
+      "Use a clearer request when image search finds lookalikes but not the source. Turn a photo, screenshot, or memory into a buying lead.",
+    h1: "Where can I buy this exact item?",
+    eyebrow: "Buying lead guide",
+    image: "/og/creative-sprint-more/29-this-exact-thing.png",
+    cta: "/post/describe",
+    ctaLabel: "Post a where-can-I-buy-this request",
+    intents: ["where can I buy this", "where to buy this item", "find this product from photo"],
+    intro: [
+      "Where can I buy this is a buying-intent question, but helpers still need constraints before a source is useful.",
+      "The fastest path is to turn the image or memory into a source brief: what must match, where it can ship, what price range works, and which lookalikes are wrong.",
+    ],
+    steps: [
+      ["Describe the item like a buyer", "Name the object, visible material, color, size, use case, brand clues, and anything you can see in the photo."],
+      ["Separate source from inspiration", "If the image came from TikTok, Pinterest, Reddit, or an influencer post, say whether you need the original source or any place selling the same item."],
+      ["Search beyond visual matches", "Try sold listings, regional marketplaces, archive pages, reseller titles, comments, and old product copy pulled from similar results."],
+      ["Set buying limits", "Add ship-to country, budget, condition, size, seller type, and whether used, local pickup, or proxy buying is acceptable."],
+      ["Ask for proof before purchase", "Require a live listing, seller contact, timestamped photos, model details, or other evidence that the source is not just a lookalike."],
+    ],
+    checklist: [
+      "Photo, screenshot, video frame, or reference link.",
+      "Whether you need the original item or the same item from another seller.",
+      "Budget, shipping region, size, color, and condition constraints.",
+      "Lookalikes and unavailable pages helpers should avoid.",
+      "Proof needed before you trust the buying lead.",
+    ],
+    faqs: [
+      ["Can someone find the source from a screenshot?", "Sometimes. A useful screenshot request should include where it came from, when you saw it, visible text, creator handle if allowed, and crop details."],
+      ["Should I accept a similar item?", "Only if you say so in the request. If the exact item matters, list the details that make a similar item unacceptable."],
+      ["What if the seller is local or private?", "A local or private source can still be useful when the contact path, item proof, location, terms, and safety caveats are documented."],
+    ],
+  },
   {
     slug: "find-item-from-photo",
     title: "How To Find An Exact Item From A Photo",

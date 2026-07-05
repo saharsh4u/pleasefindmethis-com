@@ -24,6 +24,7 @@ import {
   ImagePlus,
   Images,
   LayoutDashboard,
+  Link as LinkIcon,
   LockKeyhole,
   LogOut,
   Mail,
@@ -66,6 +67,7 @@ type Page =
   | "submit-find"
   | "poster-dashboard"
   | "finder-dashboard"
+  | "messages"
   | "dispute"
   | "profile"
   | "faq"
@@ -238,6 +240,74 @@ type SourceDisputeRow = {
   updated_at: string;
 };
 
+type FinderPayoutCaseRow = {
+  id: string;
+  submission_id: string;
+  request_id: string;
+  finder_id: string;
+  amount: number;
+  currency: string;
+  status: string;
+  release_after: string | null;
+  processor: string | null;
+  processor_transfer_id: string | null;
+  admin_note: string;
+  created_at: string;
+  updated_at: string;
+};
+
+type SourceMessageRow = {
+  id: string;
+  submission_id: string;
+  request_id: string;
+  sender_id: string;
+  body: string;
+  created_at: string;
+};
+
+type SupportTicketRow = {
+  id: string;
+  user_id: string;
+  category: string;
+  subject: string;
+  status: string;
+  priority: string;
+  related_request_id: string | null;
+  related_submission_id: string | null;
+  created_at: string;
+  updated_at: string;
+};
+
+type SourceDuplicateFlagRow = {
+  id: string;
+  request_id: string;
+  finder_id: string;
+  source_fingerprint: string;
+  existing_submission_id: string | null;
+  source_type: FindSourceType;
+  normalized_source: string;
+  status: string;
+  admin_note: string;
+  created_at: string;
+  updated_at: string;
+};
+
+type AdminPayoutQueuesResponse = {
+  payoutCases?: FinderPayoutCaseRow[];
+  disputes?: SourceDisputeRow[];
+  supportTickets?: SupportTicketRow[];
+  duplicateFlags?: SourceDuplicateFlagRow[];
+  admin?: {
+    email?: string;
+    configured?: boolean;
+  };
+  payoutCase?: FinderPayoutCaseRow;
+  dispute?: SourceDisputeRow;
+  supportTicket?: SupportTicketRow;
+  duplicateFlag?: SourceDuplicateFlagRow;
+  error?: string;
+};
+
 type RequestCategory = "home" | "audio" | "camera" | "watch" | "gaming" | "parts" | "fashion";
 type PostStarterId = "sentimental" | "rare-gear" | "parts" | "fashion";
 type RequestDuration = 7 | 14 | 30 | 60;
@@ -305,6 +375,26 @@ type CheckoutSnapshot = {
   createdAt?: string;
 };
 
+type FinderIdentityStatus = "not_started" | "review_requested" | "verified";
+
+type AccountProfile = {
+  displayName: string;
+  handle: string;
+  accountType: AuthAccountType;
+  region: string;
+  specialty: string;
+  payoutEmail: string;
+  payoutCountry: string;
+  identityStatus: FinderIdentityStatus;
+  notificationEmail: string;
+};
+
+type FinderReadinessItem = {
+  label: string;
+  complete: boolean;
+  copy: string;
+};
+
 type SeoMeta = {
   title: string;
   description: string;
@@ -320,8 +410,8 @@ const siteName = "pleasefindmethis.com";
 const siteOrigin = "https://pleasefindmethis.com";
 const configuredPublicAppOrigin = normalizeClientAppOrigin(import.meta.env.VITE_PUBLIC_APP_URL) || siteOrigin;
 const defaultSeoDescription =
-  "pleasefindmethis.com helps people source exact sold-out, rare, vintage, and hard-to-find items with funded requests and protected finder leads.";
-const defaultSocialDescription = "Post the exact item. Fund a reward. Review protected links, contacts, and local leads from people who know where to look.";
+  "Need help finding this exact item? Post photos, failed searches, and must-match details, then fund a reward for protected finder leads.";
+const defaultSocialDescription = "Help me find this exact item. Post a photo, fund a reward, and review protected links, contacts, and local leads.";
 const organizationLogo = `${siteOrigin}/magnifying-glass.png`;
 const defaultSeoImage = `${siteOrigin}/og/pleasefindmethis-vintage-tee-fullscreen-v3.png`;
 const requestSingular = "request";
@@ -332,8 +422,8 @@ const platformServiceFeeRate = 0.12;
 const trustProtectionRate = 0.03;
 const minimumPlatformFee = 6;
 const minimumTrustProtectionFee = 1;
-const siteLastUpdated = "2026-07-03";
-const siteLastUpdatedDisplay = "July 3, 2026";
+const siteLastUpdated = "2026-07-05";
+const siteLastUpdatedDisplay = "July 5, 2026";
 
 const requestCategories: Array<{ value: RequestCategory; label: string }> = [
   { value: "home", label: "Home goods" },
@@ -346,7 +436,7 @@ const requestCategories: Array<{ value: RequestCategory; label: string }> = [
 ];
 
 const initialPostDraft: PostDraft = {
-  itemName: "Help me find this exact wall art",
+  itemName: "Help me find this exact item",
   category: "home",
   details: "",
   referenceImages: [],
@@ -363,7 +453,7 @@ const posterStarterPrompts: PostStarterPrompt[] = [
     itemName: "Help me find this exact sentimental item",
     category: "home",
     details:
-      "I need the same item, not a lookalike. It should match the reference photo, color, size, pattern, label, and condition closely enough to buy with confidence.",
+      "Why it matters:\nI need the same item, not a lookalike.\n\nMust match:\nIt should match the reference photo, color, size, pattern, label, and condition closely enough to buy with confidence.\n\nAlready searched:\nGoogle Lens, resale marketplaces, old listings, and image search.\n\nWrong matches to avoid:\nSimilar-looking replacements that do not match the original details.\n\nValid source should include:\nA current listing, seller contact, local lead, or direct handoff path with proof it matches the photos.",
     reward: 75,
     durationDays: 30,
   },
@@ -375,7 +465,7 @@ const posterStarterPrompts: PostStarterPrompt[] = [
     itemName: "Help me find this exact sold-out model",
     category: "camera",
     details:
-      "I am looking for the exact model or reference. Include condition, price, seller or source, shipping region, and any authenticity or compatibility details before I reveal the full lead.",
+      "Why it matters:\nI am looking for the exact model or reference.\n\nMust match:\nModel, variant, condition expectations, and any required accessories.\n\nAlready searched:\nMarketplace listings, collector forums, and saved searches.\n\nWrong matches to avoid:\nNear variants, untested listings, missing accessories, and sources without condition proof.\n\nValid source should include:\nCondition, price, seller or source, shipping region, and authenticity or compatibility details before I reveal the full lead.",
     reward: 120,
     durationDays: 30,
   },
@@ -387,7 +477,7 @@ const posterStarterPrompts: PostStarterPrompt[] = [
     itemName: "Help me find this replacement part",
     category: "parts",
     details:
-      "I need a compatible part or donor unit. Include model numbers, compatibility proof, condition, source link or seller contact, and any fitment risks.",
+      "Why it matters:\nI need a compatible part or donor unit.\n\nMust match:\nParent model, part markings, connector, dimensions, and fitment requirements.\n\nAlready searched:\nParts diagrams, marketplace listings, donor units, and repair forums.\n\nWrong matches to avoid:\nSimilar parts with different revisions, connectors, polarity, or unsafe fitment.\n\nValid source should include:\nModel numbers, compatibility proof, condition, source link or seller contact, and any fitment risks.",
     reward: 60,
     durationDays: 30,
   },
@@ -399,7 +489,7 @@ const posterStarterPrompts: PostStarterPrompt[] = [
     itemName: "Help me find this exact clothing or accessory item",
     category: "fashion",
     details:
-      "I need the exact item or a source for the same style. Include brand, size, colorway, condition, listing or source, and the details that prove it is not just a similar lookalike.",
+      "Why it matters:\nI need the exact item or a source for the same style.\n\nMust match:\nBrand, size, colorway, fabric, label, hardware, and condition constraints.\n\nAlready searched:\nGoogle Lens, resale marketplaces, social posts, and sold listings.\n\nWrong matches to avoid:\nDrop-shipped lookalikes, wrong fabric, wrong colorway, and unavailable influencer links.\n\nValid source should include:\nBrand, size, colorway, condition, listing or source, and the details that prove it is not just a similar lookalike.",
     reward: 50,
     durationDays: 30,
   },
@@ -423,6 +513,172 @@ const findSourceOptions: Array<{ value: FindSourceType; label: string; copy: str
   },
 ];
 
+type RequestBriefFieldKey = "story" | "mustMatch" | "alreadyTried" | "wrongMatches" | "sourceProof" | "buyingLimits" | "extraNotes";
+type RequestBriefFields = Record<RequestBriefFieldKey, string>;
+type RequestBriefFieldConfig = {
+  key: RequestBriefFieldKey;
+  heading: string;
+  label: string;
+  placeholder: string;
+  hint: string;
+  rows: number;
+};
+
+const defaultRequestBriefSourceProof =
+  "A current listing, seller contact, local lead, or direct handoff path with proof it matches the photos.";
+
+const requestBriefFieldConfigs: RequestBriefFieldConfig[] = [
+  {
+    key: "story",
+    heading: "Why it matters",
+    label: "What are you trying to find?",
+    placeholder: "Help me find this exact item. I need the same one, not a similar replacement.",
+    hint: "Plain-language request, memory, use case, or reason the exact match matters.",
+    rows: 4,
+  },
+  {
+    key: "mustMatch",
+    heading: "Must match",
+    label: "What must match exactly?",
+    placeholder: "Brand, size, color, pattern, label, dimensions, model number, material, condition, or compatibility.",
+    hint: "These are the details that make a source valid or wrong.",
+    rows: 4,
+  },
+  {
+    key: "alreadyTried",
+    heading: "Already searched",
+    label: "Where have you already searched?",
+    placeholder: "Google Lens, eBay sold listings, Mercari, Etsy, Facebook Marketplace, Reddit, old product pages...",
+    hint: "This stops helpers from sending the same dead ends back to you.",
+    rows: 3,
+  },
+  {
+    key: "wrongMatches",
+    heading: "Wrong matches to avoid",
+    label: "What keeps coming up but is wrong?",
+    placeholder: "Similar color but wrong brand, smaller size, unavailable influencer link, wrong connector, dupe listing...",
+    hint: "Name the lookalikes, near misses, and search results that waste time.",
+    rows: 3,
+  },
+  {
+    key: "sourceProof",
+    heading: "Valid source should include",
+    label: "What counts as a valid source?",
+    placeholder: defaultRequestBriefSourceProof,
+    hint: "Tell finders what proof they need before you reveal or accept the source.",
+    rows: 3,
+  },
+  {
+    key: "buyingLimits",
+    heading: "Budget, region, and condition limits",
+    label: "Buying limits",
+    placeholder: "Ships to US, under $200 before shipping, used condition OK, no private-payment-only sellers.",
+    hint: "Include country, budget, shipping, condition, and seller constraints.",
+    rows: 3,
+  },
+  {
+    key: "extraNotes",
+    heading: "Other notes",
+    label: "Other clues",
+    placeholder: "Bought around 2016 at Target, seen in a TikTok screenshot, belonged to a family member, tag may say Japan...",
+    hint: "Add dates, stores, screenshots, old names, tag clues, or context helpers should know.",
+    rows: 3,
+  },
+];
+
+const requestBriefKeyByHeading: Record<string, RequestBriefFieldKey> = {
+  "why it matters": "story",
+  "must match": "mustMatch",
+  "already searched": "alreadyTried",
+  "wrong matches to avoid": "wrongMatches",
+  "valid source should include": "sourceProof",
+  "budget, region, and condition limits": "buyingLimits",
+  "other notes": "extraNotes",
+};
+
+function createEmptyRequestBriefFields(): RequestBriefFields {
+  return {
+    story: "",
+    mustMatch: "",
+    alreadyTried: "",
+    wrongMatches: "",
+    sourceProof: defaultRequestBriefSourceProof,
+    buyingLimits: "",
+    extraNotes: "",
+  };
+}
+
+function normalizeRequestBriefHeading(line: string) {
+  return line.trim().replace(/:$/, "").toLowerCase();
+}
+
+function parseRequestBriefDetails(details: string): Partial<RequestBriefFields> {
+  const parsed: Partial<RequestBriefFields> = {};
+  let activeKey: RequestBriefFieldKey | null = null;
+
+  for (const line of details.split(/\r?\n/)) {
+    const nextKey = requestBriefKeyByHeading[normalizeRequestBriefHeading(line)];
+
+    if (nextKey) {
+      activeKey = nextKey;
+      parsed[nextKey] = parsed[nextKey] ?? "";
+      continue;
+    }
+
+    if (activeKey) {
+      parsed[activeKey] = `${parsed[activeKey] ? `${parsed[activeKey]}\n` : ""}${line}`;
+    }
+  }
+
+  for (const key of requestBriefFieldConfigs.map((field) => field.key)) {
+    if (parsed[key] !== undefined) {
+      parsed[key] = parsed[key]?.trim() ?? "";
+    }
+  }
+
+  return parsed;
+}
+
+function getRequestBriefFields(details: string): RequestBriefFields {
+  const base = createEmptyRequestBriefFields();
+  const trimmedDetails = details.trim();
+
+  if (!trimmedDetails) {
+    return base;
+  }
+
+  const parsed = parseRequestBriefDetails(trimmedDetails);
+
+  if (!Object.keys(parsed).length) {
+    return { ...base, story: trimmedDetails };
+  }
+
+  return {
+    ...base,
+    ...parsed,
+    sourceProof: parsed.sourceProof?.trim() || base.sourceProof,
+  };
+}
+
+function formatRequestBriefDetails(fields: RequestBriefFields) {
+  const normalizedFields = {
+    ...fields,
+    sourceProof: fields.sourceProof.trim() || defaultRequestBriefSourceProof,
+  };
+
+  return requestBriefFieldConfigs
+    .map((field) => {
+      const value = normalizedFields[field.key].trim();
+      return value ? `${field.heading}:\n${value}` : "";
+    })
+    .filter(Boolean)
+    .join("\n\n");
+}
+
+function hasUsefulRequestBrief(fields: RequestBriefFields) {
+  return requestBriefFieldConfigs.some((field) => field.key !== "sourceProof" && Boolean(fields[field.key].trim()));
+}
+
 const protectedPages = new Set<Page>([
   "post-photo",
   "post-describe",
@@ -431,6 +687,7 @@ const protectedPages = new Set<Page>([
   "submit-find",
   "poster-dashboard",
   "finder-dashboard",
+  "messages",
   "dispute",
   "account-settings",
   "admin-review",
@@ -449,6 +706,7 @@ const pageLabels: Record<Page, string> = {
   "submit-find": "Submit a source",
   "poster-dashboard": "Poster dashboard",
   "finder-dashboard": "Finder dashboard",
+  messages: "Messages",
   dispute: "Dispute",
   profile: "Public profile / Trust",
   faq: "FAQ",
@@ -480,6 +738,7 @@ const routeMap: Record<string, Page> = {
   "submit-find": "submit-find",
   "poster-dashboard": "poster-dashboard",
   "finder-dashboard": "finder-dashboard",
+  messages: "messages",
   dispute: "dispute",
   profile: "profile",
   faq: "faq",
@@ -506,6 +765,7 @@ const pageRoutes: Record<Page, string> = {
   "submit-find": "submit-find",
   "poster-dashboard": "poster-dashboard",
   "finder-dashboard": "finder-dashboard",
+  messages: "messages",
   dispute: "dispute",
   profile: "profile",
   faq: "faq",
@@ -559,7 +819,7 @@ function routeUsesCurrency(page: Page) {
 
 const pageSeoCopy: Record<Page, { title: string; description: string; socialDescription?: string }> = {
   landing: {
-    title: "Find Sold-Out, Rare, and Vintage Items",
+    title: "Help Me Find This Exact Item | pleasefindmethis",
     description: defaultSeoDescription,
     socialDescription: defaultSocialDescription,
   },
@@ -606,6 +866,10 @@ const pageSeoCopy: Record<Page, { title: string; description: string; socialDesc
   "finder-dashboard": {
     title: "Finder Dashboard | pleasefindmethis",
     description: "Find active opportunities, submit protected leads, and track source review status.",
+  },
+  messages: {
+    title: "Messages | pleasefindmethis",
+    description: "Coordinate revealed source details, handoff next steps, and support-ready context for protected find requests.",
   },
   dispute: {
     title: "Open a Source Dispute | pleasefindmethis",
@@ -663,6 +927,7 @@ const authProviderStorageKey = "pleasefindmethis-auth-provider";
 const authEmailStorageKey = "pleasefindmethis-auth-email";
 const checkoutSnapshotStorageKey = "pleasefindmethis-last-checkout";
 const postDraftStorageKey = "pleasefindmethis-post-draft";
+const accountProfileStorageKey = "pleasefindmethis-account-profile";
 const waitlistDeadlineStorageKey = "pleasefindmethis-waitlist-deadline";
 const waitlistEmailStorageKey = "pleasefindmethis-waitlist-email";
 const requestReferenceImagesBucket = "request-reference-images";
@@ -888,20 +1153,21 @@ const coordinateRegions: CoordinateRegion[] = [
   { region: "ZA", south: -35, west: 16, north: -22, east: 33 },
 ];
 const heroPlaceholderExamples = [
-  "What do you want found?",
-  "Find this exact mug - $20 reward",
-  "Replace this childhood blanket",
-  "Find this sold-out hoodie",
-  "Track down these exact socks",
-  "Find this date-night dress",
-  "Find this plush toy for my kid",
-  "Source this cat mug",
-  "Find this old wallet",
+  "Help me find this exact item",
+  "Where can I buy this?",
+  "I searched everywhere for this mug",
+  "Google Lens only finds similar ones",
+  "Find this exact childhood blanket",
+  "Help me find this discontinued hoodie",
+  "Find the original source for this bag",
+  "Help me find this plush toy for my kid",
+  "Source this exact cat mug",
+  "Help me find this old wallet",
   "Find this retired Jellycat",
   "Find this discontinued pillow",
   "Where can I buy this bag?",
   "Find this watch - $50 reward",
-  "Find a verified cheaper source",
+  "Where can I buy this cheaper?",
   "Find this replacement plate",
   "Track down these exact shoes",
   "Find this vintage tee",
@@ -1423,6 +1689,23 @@ async function getCurrentSupabaseUser() {
   return user;
 }
 
+async function getSupabaseAccessToken() {
+  if (!supabase) {
+    throw new Error("Sign in is not available right now.");
+  }
+
+  const {
+    data: { session },
+    error,
+  } = await supabase.auth.getSession();
+
+  if (error || !session?.access_token) {
+    throw error ?? new Error("Sign in again to continue.");
+  }
+
+  return session.access_token;
+}
+
 async function createSourceFingerprint(...parts: string[]) {
   const normalized = parts.join("|").trim().toLowerCase().replace(/\s+/g, " ");
 
@@ -1438,6 +1721,47 @@ async function createSourceFingerprint(...parts: string[]) {
   return Array.from(new Uint8Array(digest))
     .map((byte) => byte.toString(16).padStart(2, "0"))
     .join("");
+}
+
+function getDuplicateSourceIdentity(sourceType: FindSourceType, sourceLink: string, sourceNotes: string) {
+  const rawSource = sourceType === "source-link" ? sourceLink : sourceLink || sourceNotes;
+  const normalizedSource = normalizeSourceIdentity(rawSource);
+
+  return normalizedSource || `${sourceType}:${sourceNotes.trim().toLowerCase().replace(/\s+/g, " ").slice(0, 240)}`;
+}
+
+function normalizeSourceIdentity(value: string) {
+  const trimmed = value.trim();
+
+  if (!trimmed) {
+    return "";
+  }
+
+  try {
+    const url = new URL(trimmed);
+    url.hash = "";
+
+    for (const key of [...url.searchParams.keys()]) {
+      if (/^(utm_|fbclid$|gclid$|mc_|igshid$|ref$|ref_src$)/i.test(key)) {
+        url.searchParams.delete(key);
+      }
+    }
+
+    url.hostname = url.hostname.toLowerCase();
+    url.pathname = url.pathname.replace(/\/+$/, "");
+    return url.toString().toLowerCase();
+  } catch {
+    return trimmed.toLowerCase().replace(/\s+/g, " ").slice(0, 500);
+  }
+}
+
+function isDuplicateSourceSubmissionError(error: unknown) {
+  const record = isRecord(error) ? error : {};
+  const code = typeof record.code === "string" ? record.code : "";
+  const message = typeof record.message === "string" ? record.message : "";
+  const details = typeof record.details === "string" ? record.details : "";
+
+  return code === "23505" || /source_submissions_request_fingerprint_key|duplicate key|unique/i.test(`${message} ${details}`);
 }
 
 function sanitizeFileName(name: string) {
@@ -2133,7 +2457,7 @@ const problemItems = [
     icon: Store,
     tag: "Near matches",
     title: "Search keeps showing the almost-right one",
-    copy: "Image search is good at lookalikes. It is weaker at the exact edition, size, colorway, or seller you actually need.",
+    copy: "Google Lens and image search are good at lookalikes. They are weaker at the exact edition, size, colorway, or seller you actually need.",
   },
   {
     icon: Globe2,
@@ -2145,7 +2469,7 @@ const problemItems = [
     icon: Search,
     tag: "Dead links",
     title: "The useful listing disappeared",
-    copy: "The best clue is often sold, archived, mislabeled, or gone before you can act on it.",
+    copy: "The best clue is often sold, archived, mislabeled, or gone before you can use it.",
   },
   {
     icon: ShieldAlert,
@@ -2157,90 +2481,90 @@ const problemItems = [
     icon: Clock3,
     tag: "Search fatigue",
     title: "You have already checked the obvious places",
-    copy: "Stop reopening the same bad results. Turn the search into one clear brief people can work from.",
+    copy: "Stop reopening the same bad results. Share where you already searched so helpers can move past them.",
   },
 ];
 
 const workSteps = [
   {
     icon: Search,
-    title: "1. Post the item",
-    copy: "Add photos and the details that separate the exact item from convincing lookalikes.",
+    title: "1. Write the brief",
+    copy: "Add photos, must-match details, failed searches, wrong matches, and what a valid source should include.",
   },
   {
     icon: LockKeyhole,
-    title: "2. Offer a reward",
-    copy: "Choose what a finder can earn for a valid listing, seller contact, local lead, or direct handoff.",
+    title: "2. Fund the reward",
+    copy: "Choose what a finder can earn for a valid listing, seller contact, local lead, or direct handoff path.",
   },
   {
     icon: BadgeCheck,
     title: "3. Review protected sources",
-    copy: "Preview each lead, reveal the full source when you are ready, then accept it when it matches.",
+    copy: "Preview each lead, reveal the full source when you are ready, then accept it when it matches the brief.",
   },
 ];
 
 const leftFindRequests = [
   {
-    copy: "Please find me this old wallet.",
+    copy: "Help me find this old wallet.",
     image: "/find-requests/wallet.jpg",
   },
   {
-    copy: "Reward if you find these black shoes.",
+    copy: "Help me find these exact black shoes.",
     image: "/find-requests/black-shoes.jpg",
   },
   {
-    copy: "Can anyone help me find these coin earrings?",
+    copy: "Where can I buy these coin earrings?",
     image: "/find-requests/coin-earrings.jpg",
   },
   {
-    copy: "Please find me this dog bowl set.",
+    copy: "Help me find this dog bowl set.",
     image: "/find-requests/dog-bowls.jpg",
   },
   {
-    copy: "Can anyone help me find this bunny plush?",
+    copy: "Please help me find this bunny plush.",
     image: "/find-requests/bunny-plush.jpg",
   },
   {
-    copy: "Reward for helping me find this rubber band.",
+    copy: "Help me find this exact rubber band.",
     image: "/find-requests/purple-rubber-band.jpg",
   },
   {
-    copy: "Reward if you find this red taillight piece.",
+    copy: "Where can I buy this red taillight piece?",
     image: "/find-requests/red-taillight.jpg",
   },
   {
-    copy: "Please find me this broken plate.",
+    copy: "Help me find this broken plate.",
     image: "/find-requests/broken-plate.jpg",
   },
 ];
 
 const rightFindRequests = [
   {
-    copy: "Can anyone help me find this floral skirt?",
+    copy: "Help me find this floral skirt.",
     image: "/find-requests/floral-skirt.jpg",
   },
   {
-    copy: "Please find me this toddler plushie.",
+    copy: "Help me find this toddler plushie.",
     image: "/find-requests/toddler-plush.jpg",
   },
   {
-    copy: "Reward if you find this orange fox plush.",
+    copy: "Help me find this orange fox plush.",
     image: "/find-requests/fox-plush.jpg",
   },
   {
-    copy: "Can anyone help me find this vintage 90s T-shirt?",
+    copy: "Help me find this vintage 90s T-shirt.",
     image: "/find-requests/vintage-shirt.jpg",
   },
   {
-    copy: "Please find me these celestial kitchen items.",
+    copy: "Where can I buy these celestial kitchen items?",
     image: "/find-requests/celestial-kitchen.jpg",
   },
   {
-    copy: "Can anyone help me find this duck wall art?",
+    copy: "Help me find this duck wall art.",
     image: "/find-requests/duck-wall-art.jpg",
   },
   {
-    copy: "Please find me this Powerpuff Girls cup.",
+    copy: "Help me find this Powerpuff Girls cup.",
     image: "/find-requests/powerpuff-cup.jpg",
   },
 ];
@@ -2317,7 +2641,7 @@ const answerBlocks = [
   {
     question: "When should someone post a find request?",
     answer:
-      "Post a find request when normal search keeps returning near matches, dead listings, unclear model names, or risky DMs. It fits sentimental replacements, discontinued goods, rare gear, watches, repair parts, collectibles, and any search where a human source matters.",
+      "Post a find request when you are still saying help me find this after Google Lens, marketplaces, old listings, Reddit, and saved searches keep returning near matches, dead links, unclear model names, or risky DMs.",
   },
   {
     question: "What is a protected source?",
@@ -2327,7 +2651,7 @@ const answerBlocks = [
   {
     question: "What can finders submit?",
     answer:
-      "Finders can submit a public listing, shop page, seller contact, local lead, direct handoff option, model number, source clue, or compatibility proof. A strong submission explains why the item matches the poster's photos, must-have details, location, price, and condition requirements.",
+      "Finders can submit a public listing, shop page, seller contact, local lead, direct handoff option, model number, source clue, or compatibility proof. A strong submission explains why the source matches the photos, must-have details, location, price, and condition limits.",
   },
 ];
 
@@ -2632,6 +2956,94 @@ function writeStoredPostDraft(draft: PostDraft) {
   } catch {
     // Draft persistence is helpful for auth redirects, but the form still works if storage is blocked.
   }
+}
+
+function getDefaultAccountProfile(): AccountProfile {
+  const email = window.sessionStorage.getItem(authEmailStorageKey) ?? "";
+
+  return {
+    displayName: "",
+    handle: "",
+    accountType: "both",
+    region: "",
+    specialty: "",
+    payoutEmail: email,
+    payoutCountry: "US",
+    identityStatus: "not_started",
+    notificationEmail: email,
+  };
+}
+
+function normalizeAccountProfile(profile: Partial<AccountProfile>): AccountProfile {
+  const defaults = getDefaultAccountProfile();
+  const identityStatus = ["not_started", "review_requested", "verified"].includes(profile.identityStatus ?? "")
+    ? (profile.identityStatus as FinderIdentityStatus)
+    : defaults.identityStatus;
+  const accountType = ["both", "poster", "finder"].includes(profile.accountType ?? "") ? (profile.accountType as AuthAccountType) : defaults.accountType;
+
+  return {
+    displayName: typeof profile.displayName === "string" ? profile.displayName.slice(0, 80) : defaults.displayName,
+    handle: typeof profile.handle === "string" ? profile.handle.toLowerCase().replace(/[^a-z0-9_-]/g, "").slice(0, 32) : defaults.handle,
+    accountType,
+    region: typeof profile.region === "string" ? profile.region.slice(0, 80) : defaults.region,
+    specialty: typeof profile.specialty === "string" ? profile.specialty.slice(0, 160) : defaults.specialty,
+    payoutEmail: typeof profile.payoutEmail === "string" ? profile.payoutEmail.slice(0, 160) : defaults.payoutEmail,
+    payoutCountry: typeof profile.payoutCountry === "string" ? profile.payoutCountry.toUpperCase().slice(0, 2) : defaults.payoutCountry,
+    identityStatus,
+    notificationEmail: typeof profile.notificationEmail === "string" ? profile.notificationEmail.slice(0, 160) : defaults.notificationEmail,
+  };
+}
+
+function readStoredAccountProfile(): AccountProfile {
+  try {
+    const raw = window.localStorage.getItem(accountProfileStorageKey);
+
+    if (!raw) {
+      return getDefaultAccountProfile();
+    }
+
+    return normalizeAccountProfile(JSON.parse(raw) as Partial<AccountProfile>);
+  } catch {
+    return getDefaultAccountProfile();
+  }
+}
+
+function writeStoredAccountProfile(profile: AccountProfile) {
+  try {
+    window.localStorage.setItem(accountProfileStorageKey, JSON.stringify(normalizeAccountProfile(profile)));
+  } catch {
+    // Account settings still remain editable if local storage is unavailable.
+  }
+}
+
+function getFinderReadiness(profile: AccountProfile): { score: number; items: FinderReadinessItem[]; label: string } {
+  const items: FinderReadinessItem[] = [
+    {
+      label: "Public profile",
+      complete: Boolean(profile.displayName.trim() && profile.handle.trim() && profile.specialty.trim()),
+      copy: "Name, handle, and sourcing focus are visible before posters reveal leads.",
+    },
+    {
+      label: "Payout contact",
+      complete: emailPattern.test(profile.payoutEmail.trim()),
+      copy: "A payout email is saved so accepted rewards have an owner to review.",
+    },
+    {
+      label: "Region",
+      complete: Boolean(profile.region.trim() && profile.payoutCountry.trim()),
+      copy: "Region helps posters understand shipping, local pickup, and marketplace coverage.",
+    },
+    {
+      label: "Trust review",
+      complete: profile.identityStatus !== "not_started",
+      copy: "Identity or support review status is recorded before serious finder work scales.",
+    },
+  ];
+  const completeCount = items.filter((item) => item.complete).length;
+  const score = Math.round((completeCount / items.length) * 100);
+  const label = score === 100 ? "Ready" : score >= 75 ? "Nearly ready" : score >= 50 ? "Needs review" : "Incomplete";
+
+  return { score, items, label };
 }
 
 function createReferenceImageDrafts(files: File[]): ReferenceImageDraft[] {
@@ -3736,6 +4148,8 @@ function App() {
             <FinderDashboardPage
               bounties={marketplaceBounties}
               onBrowse={() => navigate("browse")}
+              onMessages={() => navigate("messages")}
+              onSettings={() => navigate("account-settings")}
               onSubmit={(bountyId?: string) => {
                 if (bountyId) {
                   setActiveBountyId(bountyId);
@@ -3745,8 +4159,9 @@ function App() {
               onProfile={() => navigate("profile")}
             />
           ) : null}
+          {visibleRoute === "messages" ? <MessageCenterPage onDashboard={() => navigate("finder-dashboard")} onSupport={() => navigate("support")} /> : null}
           {visibleRoute === "dispute" ? <DisputePage onBack={() => navigate("poster-dashboard")} /> : null}
-          {visibleRoute === "profile" ? <TrustProfilePage onBrowse={() => navigate("browse")} onFinder={() => requireAuth("finder-dashboard")} /> : null}
+          {visibleRoute === "profile" ? <TrustProfilePage onBrowse={() => navigate("browse")} onFinder={() => requireAuth("finder-dashboard")} onSettings={() => requireAuth("account-settings", "login")} /> : null}
           {visibleRoute === "faq" ? <FaqPage onBrowse={() => openWaitlistModal("browse", "faq_browse")} onPost={() => startPostRequest("faq_post")} /> : null}
           {visibleRoute === "privacy" ? <PrivacyPage /> : null}
           {visibleRoute === "terms" ? <TermsPage /> : null}
@@ -4075,6 +4490,7 @@ function PageChrome({
     ["Browse requests", "browse", false],
     ["FAQ", "faq", false],
     ["Trust", "profile", false],
+    ...(signedIn ? ([["Messages", "messages", true]] as Array<[string, Page, boolean]>) : []),
     [signedIn ? "Dashboard" : "Post a request", signedIn ? "poster-dashboard" : "post-photo", true],
   ];
   const handleNavItem = (page: Page, gated: boolean) => {
@@ -4582,14 +4998,14 @@ function LandingPage({
 
         <div className="hero-copy">
           <p className="hero-site-tag">{siteName}</p>
-          <h1>Can&apos;t find that one item anywhere?</h1>
-          <p className="mobile-hero-title" aria-hidden="true">Can&apos;t find that one item anywhere?</p>
+          <h1>Help me find this exact item.</h1>
+          <p className="mobile-hero-title" aria-hidden="true">Help me find this exact item.</p>
           <p className="micro-line">
-            <span>Post the clue</span>
+            <span>Upload photos</span>
             <ArrowRight size={16} />
-            <span>fund the reward</span>
+            <span>share what failed</span>
             <ArrowRight size={16} />
-            <span>review protected sources</span>
+            <span>fund a finder reward</span>
           </p>
           <form className="hero-search-form" onSubmit={submitHeroSearch}>
             <Search size={20} aria-hidden="true" />
@@ -4599,7 +5015,7 @@ function LandingPage({
           <div className="mobile-hero-actions" aria-label="Hero actions">
             <button className="primary-button mobile-post-button hero-plus-button" type="button" onClick={() => onPost("hero_mobile")}>
               <span aria-hidden="true">+</span>
-              Post a find request
+              Post a help-me-find request
             </button>
             <a className="mobile-browse-button" href={routeHref("browse-all")} onClick={(event) => handleRoutedAnchorClick(event, onBrowseAll)}>
               Browse open requests <ArrowRight size={14} />
@@ -4632,10 +5048,10 @@ function LandingPage({
 
         <div className="hero-lower">
           <p className="hero-subline">
-            Post a photo, fund a reward, and get protected links, seller contacts, local leads, or handoff options from people who know where to look.
+            Turn "where can I buy this?" and "I searched everywhere" into a funded request with the photos, failed searches, must-match details, and protected source leads finders need.
           </p>
           <button className="primary-button hero-cta" type="button" onClick={() => onPost("hero_primary")}>
-            Post a find request
+            Post a help-me-find request
           </button>
           {acquisitionStarterPrompt ? (
             <div className="starter-link-panel">
@@ -4659,8 +5075,8 @@ function LandingPage({
 
         <section className="poster-prompt-strip" aria-label="Start a request from a common use case">
           <div>
-            <p className="route-kicker">Start with the situation</p>
-            <h2>Choose the search you need solved.</h2>
+            <p className="route-kicker">Reddit-style request brief</p>
+            <h2>Start with the words people already use.</h2>
           </div>
           <div className="poster-prompt-grid">
             {posterStarterPrompts.map((prompt) => {
@@ -4698,9 +5114,9 @@ function LandingPage({
       <section className="problem-section" aria-labelledby="problem-title">
         <div className="problem-section-head">
           <p className="route-kicker">When normal search stops working</p>
-          <h2 id="problem-title">The right source is often outside your search results.</h2>
+          <h2 id="problem-title">"Help me find this" needs more than a comment thread.</h2>
           <p>
-            Listings expire, sellers use different names, and local sources rarely surface in public search. A clear funded request gives people a reason to follow clues you would not know to check.
+            Listings expire, sellers use different names, and local sources rarely surface in public search. A clear brief gives helpers the exact details, wrong matches, and proof requirements they need before a source is revealed.
           </p>
         </div>
         <div className="problem-grid">
@@ -4725,10 +5141,9 @@ function LandingPage({
       <section className="answer-section" aria-labelledby="answer-title">
         <div className="answer-section-head">
           <p className="route-kicker">Hard-to-find item requests</p>
-          <h2 id="answer-title">A funded request turns a dead-end search into a precise brief.</h2>
+          <h2 id="answer-title">A funded request turns "where can I buy this?" into a precise brief.</h2>
           <p>
-            Use {siteName} when the right match depends on a collector, shop, seller contact, local source, model clue, or repair-part
-            compatibility detail that search engines and marketplaces keep missing.
+            Use {siteName} when the right match depends on a collector, shop, seller contact, local source, model clue, or repair-part compatibility detail that search engines and marketplaces keep missing.
           </p>
           <p className="freshness-line">Last updated {siteLastUpdatedDisplay}</p>
         </div>
@@ -4753,7 +5168,7 @@ function LandingPage({
       <section className="how-section" id="how" aria-labelledby="how-title">
         <h2 id="how-title">How it works</h2>
         <p className="how-intro">
-          Post the item, fund the reward, and review protected leads from people who know the category.
+          Post the exact item, tell finders what you already tried, and review protected leads from people who know the category.
         </p>
         <div className="how-steps">
           {workSteps.map((step, index) => {
@@ -4906,11 +5321,11 @@ function LandingPage({
 
       <section className="closing-section" id="faq" aria-labelledby="closing-title">
         <h2 id="closing-title">
-          Post the thing you cannot find.
-          <span> Someone out there may know exactly where it is.</span>
+          Still asking "help me find this"?
+          <span> Turn the search into a request finders can act on.</span>
         </h2>
         <button className="primary-button" type="button" onClick={() => onPost("closing")}>
-          Post a find request
+          Post a help-me-find request
         </button>
       </section>
       <SiteFooter navigate={onNavigate} />
@@ -5291,6 +5706,7 @@ function PostDescribePage({
 }) {
   const [draftError, setDraftError] = useState("");
   const currencyPreference = useCurrencyPreference();
+  const requestBrief = getRequestBriefFields(draft.details);
 
   const continueWithDetails = () => {
     if (!draft.itemName.trim()) {
@@ -5300,6 +5716,11 @@ function PostDescribePage({
 
     if (!Number.isFinite(draft.reward) || draft.reward < minimumReward) {
       setDraftError(`Set a finder reward of at least ${formatUsdMoney(minimumReward, currencyPreference)}.`);
+      return;
+    }
+
+    if (!hasUsefulRequestBrief(requestBrief)) {
+      setDraftError("Add at least one detail from the Reddit-style brief so finders know what to search for.");
       return;
     }
 
@@ -5316,6 +5737,33 @@ function PostDescribePage({
   const rewardText = formatUsdMoney(draft.reward, currencyPreference, { compact: true });
   const titlePreview = draft.itemName.trim() || "Find this cat mug";
   const durationPreview = `${draft.durationDays} day${draft.durationDays === 1 ? "" : "s"}`;
+  const requestBriefChecklist: FinderReadinessItem[] = [
+    {
+      label: "Photos or context",
+      complete: draft.referenceImages.length > 0 || Boolean(requestBrief.story.trim()),
+      copy: "Give helpers a starting point.",
+    },
+    {
+      label: "Must-match details",
+      complete: Boolean(requestBrief.mustMatch.trim()),
+      copy: "Separate exact matches from dupes.",
+    },
+    {
+      label: "Failed searches",
+      complete: Boolean(requestBrief.alreadyTried.trim() || requestBrief.wrongMatches.trim()),
+      copy: "Avoid repeating dead ends.",
+    },
+    {
+      label: "Valid source proof",
+      complete: Boolean(requestBrief.sourceProof.trim()),
+      copy: "Define what finders should submit.",
+    },
+    {
+      label: "Buying limits",
+      complete: Boolean(requestBrief.buyingLimits.trim()),
+      copy: "Set budget, region, and condition limits.",
+    },
+  ];
   const setReward = (value: string) => {
     const nextReward = Number(value);
 
@@ -5323,6 +5771,15 @@ function PostDescribePage({
       setDraftError("");
       onDraftChange({ reward: Math.max(minimumReward, Math.round(nextReward)) });
     }
+  };
+  const updateBriefField = (key: RequestBriefFieldKey, value: string) => {
+    setDraftError("");
+    onDraftChange({
+      details: formatRequestBriefDetails({
+        ...requestBrief,
+        [key]: value,
+      }),
+    });
   };
 
   return (
@@ -5334,8 +5791,8 @@ function PostDescribePage({
             <ArrowLeft size={17} /> Photo
           </button>
           <div className="post-flow-intro">
-            <h1 id="describe-title">Build the request card finders will see.</h1>
-            <p>Set the title, reward, and time window. The preview updates as you type.</p>
+            <h1 id="describe-title">Write the request brief finders can actually solve.</h1>
+            <p>Use the same language people use on HelpMeFind: what this is, what must match, where you already searched, and what counts as a valid source.</p>
           </div>
           <div className="post-question-card is-active">
             <span className="post-question-label">
@@ -5345,7 +5802,7 @@ function PostDescribePage({
               Title
               <input
                 value={draft.itemName}
-                placeholder="Find this cat mug"
+                placeholder="Help me find this exact item"
                 onChange={(event) => {
                   setDraftError("");
                   onDraftChange({ itemName: event.target.value });
@@ -5371,6 +5828,32 @@ function PostDescribePage({
                 <option value={60}>60 days</option>
               </select>
             </label>
+          </div>
+          <div className="post-question-card is-active">
+            <span className="post-question-label">
+              <MessageSquare size={15} /> Reddit-style brief
+            </span>
+            <h2>What should helpers know?</h2>
+            <p>
+              The best requests answer the questions helpers ask in comment threads before they start searching.
+            </p>
+            <div className="request-brief-grid">
+              {requestBriefFieldConfigs.map((field) => (
+                <label
+                  className={field.key === "story" || field.key === "mustMatch" || field.key === "extraNotes" ? "request-brief-field is-wide" : "request-brief-field"}
+                  key={field.key}
+                >
+                  {field.label}
+                  <textarea
+                    value={requestBrief[field.key]}
+                    rows={field.rows}
+                    placeholder={field.placeholder}
+                    onChange={(event) => updateBriefField(field.key, event.target.value)}
+                  />
+                  <span className="brief-field-hint">{field.hint}</span>
+                </label>
+              ))}
+            </div>
           </div>
           {draftError ? (
             <p className="dialog-error" role="alert">
@@ -5401,6 +5884,18 @@ function PostDescribePage({
               </span>
             </div>
           </article>
+          <div className="brief-checklist-card">
+            <h3>Finder-ready brief</h3>
+            <div className="brief-check-list">
+              {requestBriefChecklist.map((item) => (
+                <span className={item.complete ? "is-complete" : "is-missing"} key={item.label}>
+                  {item.complete ? <CheckCircle2 size={16} aria-hidden="true" /> : <AlertTriangle size={16} aria-hidden="true" />}
+                  <strong>{item.label}</strong>
+                  <small>{item.copy}</small>
+                </span>
+              ))}
+            </div>
+          </div>
         </aside>
       </section>
     </main>
@@ -6226,7 +6721,8 @@ function SubmitFindPage({
 
         uploadedPaths.push(...uploadResult.uploadedPaths);
 
-        const fingerprint = await createSourceFingerprint(bounty.id, sourceType, normalizedSource, normalizedNotes, normalizedEmail);
+        const duplicateSourceIdentity = getDuplicateSourceIdentity(sourceType, normalizedSource, normalizedNotes);
+        const fingerprint = await createSourceFingerprint(bounty.id, sourceType, duplicateSourceIdentity);
         const { error } = await supabase.from("source_submissions").insert({
           id: submissionId,
           request_id: bounty.id,
@@ -6242,6 +6738,31 @@ function SubmitFindPage({
         });
 
         if (error) {
+          if (isDuplicateSourceSubmissionError(error)) {
+            const duplicateFlagResult = await supabase.from("source_duplicate_flags").insert({
+              request_id: bounty.id,
+              finder_id: user.id,
+              source_fingerprint: fingerprint,
+              source_type: sourceType,
+              normalized_source: duplicateSourceIdentity.slice(0, 500),
+              status: "open",
+              admin_note: "",
+            });
+
+            if (duplicateFlagResult.error && !isDuplicateSourceSubmissionError(duplicateFlagResult.error)) {
+              console.warn("Could not record duplicate source flag", duplicateFlagResult.error);
+            }
+
+            if (uploadedPaths.length) {
+              await supabase.storage.from(sourceSubmissionProofBucket).remove(uploadedPaths);
+            }
+
+            setSubmitted(false);
+            setSubmitStatus("error");
+            setSubmitError("This source appears to match an earlier protected submission. We logged it for duplicate-priority review instead of creating a second source record.");
+            return;
+          }
+
           throw error;
         }
 
@@ -6899,16 +7420,22 @@ function PostSuccessConfirmation({
 function FinderDashboardPage({
   bounties,
   onBrowse,
+  onMessages,
   onProfile,
+  onSettings,
   onSubmit,
 }: {
   bounties: BountyListing[];
   onBrowse: () => void;
+  onMessages: () => void;
   onProfile: () => void;
+  onSettings: () => void;
   onSubmit: (bountyId?: string) => void;
 }) {
   const currencyPreference = useCurrencyPreference();
+  const [accountProfile, setAccountProfile] = useState<AccountProfile>(() => readStoredAccountProfile());
   const [finderSubmissions, setFinderSubmissions] = useState<RevealedSourceDetailRow[]>([]);
+  const [payoutCases, setPayoutCases] = useState<FinderPayoutCaseRow[]>([]);
   const [dashboardError, setDashboardError] = useState("");
 
   useEffect(() => {
@@ -6934,6 +7461,15 @@ function FinderDashboardPage({
         if (mounted) {
           setFinderSubmissions((data ?? []) as RevealedSourceDetailRow[]);
         }
+
+        const payoutResult = await client
+          .from("finder_payout_cases")
+          .select("id,submission_id,request_id,finder_id,amount,currency,status,release_after,processor,processor_transfer_id,admin_note,created_at,updated_at")
+          .order("created_at", { ascending: false });
+
+        if (mounted && !payoutResult.error) {
+          setPayoutCases((payoutResult.data ?? []) as FinderPayoutCaseRow[]);
+        }
       } catch (error) {
         if (mounted) {
           setDashboardError(error instanceof Error ? error.message : "Could not load finder submissions.");
@@ -6948,10 +7484,26 @@ function FinderDashboardPage({
     };
   }, []);
 
+  useEffect(() => {
+    const syncProfile = () => setAccountProfile(readStoredAccountProfile());
+    window.addEventListener("storage", syncProfile);
+    window.addEventListener("focus", syncProfile);
+    return () => {
+      window.removeEventListener("storage", syncProfile);
+      window.removeEventListener("focus", syncProfile);
+    };
+  }, []);
+
   const availableBounties = bounties.slice(0, 4);
   const acceptedCount = finderSubmissions.filter((submission) => submission.status === "accepted" || submission.status === "awarded").length;
-  const pendingCount = finderSubmissions.filter((submission) => ["submitted", "revealed", "in_review"].includes(submission.status)).length;
   const availablePayout = availableBounties.reduce((total, bounty) => total + bounty.rewardValue, 0);
+  const readiness = getFinderReadiness(accountProfile);
+  const payoutStatus = readiness.items.find((item) => item.label === "Payout contact")?.complete ? "Saved" : "Missing";
+  const latestSubmission = finderSubmissions[0] ?? null;
+  const payableTotal = payoutCases
+    .filter((payoutCase) => ["payable", "processing"].includes(payoutCase.status))
+    .reduce((total, payoutCase) => total + payoutCase.amount, 0);
+  const nextPayoutCase = payoutCases.find((payoutCase) => ["payable", "processing", "disputed", "hold"].includes(payoutCase.status)) ?? payoutCases[0] ?? null;
 
   return (
     <main className="route-page dashboard-page" aria-labelledby="finder-dashboard-title">
@@ -6964,6 +7516,9 @@ function FinderDashboardPage({
           <a className="section-link section-button" href={routeHref("profile")} onClick={(event) => handleRoutedAnchorClick(event, onProfile)}>
             Profile <ArrowRight size={17} />
           </a>
+          <button className="section-link section-button" type="button" onClick={onMessages}>
+            Messages <ArrowRight size={17} />
+          </button>
           <button className="primary-button" type="button" onClick={onBrowse}>
             Find requests
           </button>
@@ -6971,12 +7526,39 @@ function FinderDashboardPage({
       </section>
       {dashboardError ? <p className="dialog-error" role="alert">{dashboardError}</p> : null}
       <section className="metric-grid">
-        <Metric icon={Banknote} label="Available rewards" value={formatUsdMoney(availablePayout || 640, currencyPreference, { compact: true })} />
-        <Metric icon={Star} label="Reputation" value="4.9" />
-        <Metric icon={Trophy} label="Accepted sources" value={String(acceptedCount || 18)} />
-        <Metric icon={Clock3} label="Pending source reviews" value={String(pendingCount || 3)} />
+        <Metric icon={Banknote} label="Available rewards" value={formatUsdMoney(availablePayout, currencyPreference, { compact: true })} />
+        <Metric icon={Star} label="Readiness" value={`${readiness.score}%`} />
+        <Metric icon={Trophy} label="Accepted sources" value={String(acceptedCount)} />
+        <Metric icon={Clock3} label="Payable rewards" value={formatUsdMoney(payableTotal, currencyPreference, { compact: true })} />
       </section>
       <section className="dashboard-grid">
+        <div className="dashboard-panel finder-readiness-panel">
+          <div className="panel-header">
+            <h2>Finder readiness</h2>
+            <ShieldCheck size={20} />
+          </div>
+          <div className="readiness-score-row">
+            <div className="score-ring">{readiness.score}%</div>
+            <div>
+              <strong>{readiness.label}</strong>
+              <p>Complete the profile, payout contact, region, and review steps before scaling source work.</p>
+            </div>
+          </div>
+          <ul className="check-list readiness-list">
+            {readiness.items.map((item) => (
+              <li className={item.complete ? "is-complete" : "is-missing"} key={item.label}>
+                {item.complete ? <CheckCircle2 size={18} /> : <CircleHelp size={18} />}
+                <span>
+                  <strong>{item.label}</strong>
+                  {item.copy}
+                </span>
+              </li>
+            ))}
+          </ul>
+          <button className="primary-button" type="button" onClick={onSettings}>
+            Update account settings
+          </button>
+        </div>
         <div className="dashboard-panel">
           <div className="panel-header">
             <h2>Active opportunities</h2>
@@ -7005,22 +7587,324 @@ function FinderDashboardPage({
         </div>
         <div className="dashboard-panel reputation-panel">
           <div className="panel-header">
-            <h2>Reputation drivers</h2>
-            <ShieldCheck size={20} />
+            <h2>Payout and review state</h2>
+            <Banknote size={20} />
           </div>
-          <div className="score-ring">4.9</div>
+          <div className="source-review-row">
+            <span>Payout contact</span>
+            <strong>{payoutStatus}</strong>
+          </div>
+          <div className="source-review-row">
+            <span>Trust review</span>
+            <strong>{accountProfile.identityStatus.replace(/_/g, " ")}</strong>
+          </div>
+          <div className="source-review-row">
+            <span>Latest source</span>
+            <strong>{latestSubmission ? `${latestSubmission.status.replace(/_/g, " ")} · ${getRelativeTimeLabel(latestSubmission.created_at)}` : "No submissions yet"}</strong>
+          </div>
+          <div className="source-review-row">
+            <span>Next payout case</span>
+            <strong>
+              {nextPayoutCase
+                ? `${formatUsdMoney(nextPayoutCase.amount, currencyPreference)} · ${nextPayoutCase.status.replace(/_/g, " ")}${nextPayoutCase.release_after ? ` · releases ${getRelativeTimeLabel(nextPayoutCase.release_after)}` : ""}`
+                : "No accepted source payout yet"}
+            </strong>
+          </div>
           <ul className="check-list">
             <li>
-              <CheckCircle2 size={18} /> 94% sources accepted first review
+              <CheckCircle2 size={18} /> Accepted sources become payable after poster review.
             </li>
             <li>
-              <CheckCircle2 size={18} /> Average response under 3 hours
+              <CheckCircle2 size={18} /> Revealed-source messages keep handoff context attached to the case.
             </li>
             <li>
-              <CheckCircle2 size={18} /> No unresolved disputes
+              <CheckCircle2 size={18} /> Disputes pause payout release while evidence is reviewed.
             </li>
           </ul>
         </div>
+        <div className="dashboard-panel payout-cases-panel">
+          <div className="panel-header">
+            <h2>Reward receipt cases</h2>
+            <CreditCard size={20} />
+          </div>
+          {payoutCases.length ? (
+            <div className="payout-case-list">
+              {payoutCases.slice(0, 5).map((payoutCase) => (
+                <div className="payout-case-row" key={payoutCase.id}>
+                  <span>
+                    <strong>{formatUsdMoney(payoutCase.amount, currencyPreference)}</strong>
+                    {payoutCase.status.replace(/_/g, " ")}
+                  </span>
+                  <small>{payoutCase.release_after ? `Review window ${getRelativeTimeLabel(payoutCase.release_after)}` : "Release timing not set"}</small>
+                  {payoutCase.admin_note ? <em>{payoutCase.admin_note}</em> : null}
+                </div>
+              ))}
+            </div>
+          ) : (
+            <div className="empty-state">
+              <Banknote size={26} />
+              <strong>No payout cases yet</strong>
+              <span>When a poster accepts your source, the reward becomes a payout case with status and release timing.</span>
+            </div>
+          )}
+        </div>
+      </section>
+    </main>
+  );
+}
+
+function MessageCenterPage({ onDashboard, onSupport }: { onDashboard: () => void; onSupport: () => void }) {
+  const [sourceCases, setSourceCases] = useState<RevealedSourceDetailRow[]>([]);
+  const [messages, setMessages] = useState<SourceMessageRow[]>([]);
+  const [selectedCaseId, setSelectedCaseId] = useState("");
+  const [draftMessage, setDraftMessage] = useState("");
+  const [statusMessage, setStatusMessage] = useState("");
+  const [errorMessage, setErrorMessage] = useState("");
+  const [loading, setLoading] = useState(Boolean(supabase));
+  const [sending, setSending] = useState(false);
+  const selectedCase = sourceCases.find((sourceCase) => sourceCase.id === selectedCaseId) ?? sourceCases[0] ?? null;
+
+  useEffect(() => {
+    if (!supabase) {
+      setLoading(false);
+      return undefined;
+    }
+
+    const client = supabase;
+    let mounted = true;
+
+    const loadCases = async () => {
+      setLoading(true);
+      setErrorMessage("");
+
+      try {
+        await getCurrentSupabaseUser();
+        const { data, error } = await client
+          .rpc("get_revealed_source_details")
+          .select("id,request_id,finder_id,source_type,source_url,source_contact,contact_email,price_or_terms,match_notes,proof,status,revealed_at,accepted_at,rejected_at,awarded_at,poster_id,revealed_log_created_at,created_at,updated_at")
+          .order("updated_at", { ascending: false });
+
+        if (error) {
+          throw error;
+        }
+
+        if (mounted) {
+          const nextCases = (data ?? []) as RevealedSourceDetailRow[];
+          setSourceCases(nextCases);
+          setSelectedCaseId((current) => (current && nextCases.some((sourceCase) => sourceCase.id === current) ? current : nextCases[0]?.id ?? ""));
+        }
+      } catch (error) {
+        if (mounted) {
+          setErrorMessage(error instanceof Error ? error.message : "Could not load message-ready source cases.");
+        }
+      } finally {
+        if (mounted) {
+          setLoading(false);
+        }
+      }
+    };
+
+    loadCases();
+
+    return () => {
+      mounted = false;
+    };
+  }, []);
+
+  useEffect(() => {
+    if (!supabase || !selectedCase) {
+      setMessages([]);
+      return undefined;
+    }
+
+    const client = supabase;
+    let mounted = true;
+
+    const loadMessages = async () => {
+      const { data, error } = await client
+        .from("source_messages")
+        .select("id,submission_id,request_id,sender_id,body,created_at")
+        .eq("submission_id", selectedCase.id)
+        .order("created_at", { ascending: true });
+
+      if (!mounted) {
+        return;
+      }
+
+      if (error) {
+        setMessages([]);
+        setStatusMessage("Message history will appear here after the source_messages migration is applied.");
+        return;
+      }
+
+      setMessages((data ?? []) as SourceMessageRow[]);
+      setStatusMessage("");
+    };
+
+    loadMessages();
+
+    return () => {
+      mounted = false;
+    };
+  }, [selectedCase]);
+
+  const sendMessage = async (event: React.FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    setErrorMessage("");
+    setStatusMessage("");
+
+    if (!selectedCase) {
+      setErrorMessage("Choose a revealed source case before sending a message.");
+      return;
+    }
+
+    if (!draftMessage.trim()) {
+      setErrorMessage("Write a short message before sending.");
+      return;
+    }
+
+    setSending(true);
+
+    try {
+      if (!supabase) {
+        setStatusMessage("Demo message saved locally for this preview. Live accounts save messages to the source case.");
+        setMessages((current) => [
+          ...current,
+          {
+            id: `local-${Date.now()}`,
+            submission_id: selectedCase.id,
+            request_id: selectedCase.request_id,
+            sender_id: "local-preview",
+            body: draftMessage.trim(),
+            created_at: new Date().toISOString(),
+          },
+        ]);
+        setDraftMessage("");
+        return;
+      }
+
+      const user = await getCurrentSupabaseUser();
+      const { data, error } = await supabase
+        .from("source_messages")
+        .insert({
+          submission_id: selectedCase.id,
+          request_id: selectedCase.request_id,
+          sender_id: user.id,
+          body: draftMessage.trim(),
+        })
+        .select("id,submission_id,request_id,sender_id,body,created_at")
+        .single();
+
+      if (error) {
+        setStatusMessage("Message table is not active yet. Apply the marketplace profile and messaging migration before relying on in-app delivery.");
+        setMessages((current) => [
+          ...current,
+          {
+            id: `local-${Date.now()}`,
+            submission_id: selectedCase.id,
+            request_id: selectedCase.request_id,
+            sender_id: user.id,
+            body: draftMessage.trim(),
+            created_at: new Date().toISOString(),
+          },
+        ]);
+        setDraftMessage("");
+        return;
+      }
+
+      setMessages((current) => [...current, data as SourceMessageRow]);
+      setDraftMessage("");
+      setStatusMessage("Message saved to this source case.");
+    } catch (error) {
+      setErrorMessage(error instanceof Error ? error.message : "Could not send this message.");
+    } finally {
+      setSending(false);
+    }
+  };
+
+  return (
+    <main className="route-page dashboard-page" aria-labelledby="messages-title">
+      <section className="dashboard-head">
+        <div>
+          <p className="route-kicker">Messages</p>
+          <h1 id="messages-title">Keep source conversations attached to the case.</h1>
+          <p>Use messages after a source has been revealed or accepted so handoff details, seller context, and review evidence stay in one place.</p>
+        </div>
+        <div className="head-actions">
+          <button className="section-link section-button" type="button" onClick={onDashboard}>
+            Finder dashboard <ArrowRight size={17} />
+          </button>
+          <button className="primary-button" type="button" onClick={onSupport}>
+            Support
+          </button>
+        </div>
+      </section>
+      {loading ? <p className="dialog-note">Loading message-ready source cases...</p> : null}
+      {errorMessage ? <p className="dialog-error" role="alert">{errorMessage}</p> : null}
+      {statusMessage ? <p className="dialog-note" role="status">{statusMessage}</p> : null}
+      <section className="dashboard-grid messages-grid">
+        <div className="dashboard-panel">
+          <div className="panel-header">
+            <h2>Source cases</h2>
+            <MessageSquare size={20} />
+          </div>
+          {sourceCases.length ? (
+            sourceCases.map((sourceCase) => (
+              <button className="review-row" key={sourceCase.id} type="button" onClick={() => setSelectedCaseId(sourceCase.id)}>
+                <span>
+                  <strong>{sourceCase.match_notes.slice(0, 64) || "Revealed source case"}</strong>
+                  <small>{sourceCase.status.replace(/_/g, " ")} · {getRelativeTimeLabel(sourceCase.updated_at)}</small>
+                </span>
+                <em>{sourceCase.source_type.replace(/-/g, " ")}</em>
+              </button>
+            ))
+          ) : (
+            <div className="empty-state">
+              <MessageSquare size={26} />
+              <strong>No message-ready source cases yet</strong>
+              <span>Messages unlock after a source is revealed, accepted, or escalated for review.</span>
+            </div>
+          )}
+        </div>
+        <form className="dashboard-panel message-thread-panel" onSubmit={sendMessage}>
+          <div className="panel-header">
+            <h2>{selectedCase ? "Case thread" : "No case selected"}</h2>
+            <ShieldCheck size={20} />
+          </div>
+          {selectedCase ? (
+            <>
+              <div className="source-review-row">
+                <span>Source status</span>
+                <strong>{selectedCase.status.replace(/_/g, " ")}</strong>
+              </div>
+              <div className="source-review-row">
+                <span>Contact path</span>
+                <strong>{selectedCase.source_url || selectedCase.source_contact || selectedCase.contact_email || "Private source details"}</strong>
+              </div>
+              <div className="message-thread" aria-label="Source case messages">
+                {messages.length ? (
+                  messages.map((message) => (
+                    <div className="message-bubble" key={message.id}>
+                      <p>{message.body}</p>
+                      <span>{getRelativeTimeLabel(message.created_at)}</span>
+                    </div>
+                  ))
+                ) : (
+                  <p className="dialog-note">No messages yet. Start with next steps, seller context, pickup details, or proof the other party should preserve.</p>
+                )}
+              </div>
+              <label className="message-composer">
+                Message
+                <textarea value={draftMessage} placeholder="Write the next step, source detail, handoff note, or review context." onChange={(event) => setDraftMessage(event.target.value)} />
+              </label>
+              <button className="primary-button" type="submit" disabled={sending}>
+                {sending ? "Sending..." : "Send message"}
+              </button>
+            </>
+          ) : (
+            <p className="dialog-note">Reveal or accept a source first, then messages keep the source conversation out of scattered email and DMs.</p>
+          )}
+        </form>
       </section>
     </main>
   );
@@ -7194,21 +8078,45 @@ function DisputePage({ onBack }: { onBack: () => void }) {
   );
 }
 
-function TrustProfilePage({ onBrowse, onFinder }: { onBrowse: () => void; onFinder: () => void }) {
+function TrustProfilePage({ onBrowse, onFinder, onSettings }: { onBrowse: () => void; onFinder: () => void; onSettings: () => void }) {
+  const [profile, setProfile] = useState<AccountProfile>(() => readStoredAccountProfile());
+  const readiness = getFinderReadiness(profile);
+  const displayName = profile.displayName.trim() || "Your finder profile";
+  const handle = profile.handle.trim() ? `@${profile.handle.trim()}` : "No public handle yet";
+  const initials = displayName
+    .split(" ")
+    .map((part) => part[0])
+    .join("")
+    .slice(0, 2)
+    .toUpperCase();
+
+  useEffect(() => {
+    const syncProfile = () => setProfile(readStoredAccountProfile());
+    window.addEventListener("focus", syncProfile);
+    window.addEventListener("storage", syncProfile);
+    return () => {
+      window.removeEventListener("focus", syncProfile);
+      window.removeEventListener("storage", syncProfile);
+    };
+  }, []);
+
   return (
     <main className="route-page" aria-labelledby="profile-title">
       <section className="profile-hero">
         <div className="profile-card-main">
-          <span className="avatar large-avatar">M</span>
+          <span className="avatar large-avatar">{initials || "PF"}</span>
           <div>
-          <p className="route-kicker">Public profile / Trust page</p>
-            <h1 id="profile-title">Maya L.</h1>
-            <p>Example finder profile for rare camera gear, watches, and vintage electronics.</p>
+            <p className="route-kicker">Public profile / Trust page</p>
+            <h1 id="profile-title">{displayName}</h1>
+            <p>{handle} · {profile.specialty.trim() || "Add sourcing focus in Account Settings."}</p>
           </div>
         </div>
         <div className="profile-actions">
           <button className="primary-button" type="button" onClick={onFinder}>
             Work as a finder
+          </button>
+          <button className="section-link section-button" type="button" onClick={onSettings}>
+            Edit profile <ArrowRight size={17} />
           </button>
           <a className="section-link section-button" href={routeHref("browse")} onClick={(event) => handleRoutedAnchorClick(event, onBrowse)}>
             Browse requests <ArrowRight size={17} />
@@ -7216,10 +8124,10 @@ function TrustProfilePage({ onBrowse, onFinder }: { onBrowse: () => void; onFind
         </div>
       </section>
       <section className="metric-grid">
-        <Metric icon={Star} label="Profile" value="Example" />
-        <Metric icon={Trophy} label="Source history" value="Sample" />
-        <Metric icon={ShieldCheck} label="Review status" value="Demo" />
-        <Metric icon={Scale} label="Dispute record" value="Demo" />
+        <Metric icon={Star} label="Readiness" value={`${readiness.score}%`} />
+        <Metric icon={Trophy} label="Source history" value="Tracked" />
+        <Metric icon={ShieldCheck} label="Review status" value={profile.identityStatus.replace(/_/g, " ")} />
+        <Metric icon={Scale} label="Dispute record" value="Case-based" />
       </section>
       <section className="dashboard-grid">
         <div className="dashboard-panel">
@@ -7228,33 +8136,30 @@ function TrustProfilePage({ onBrowse, onFinder }: { onBrowse: () => void; onFind
             <ShieldCheck size={20} />
           </div>
           <p>
-            Use profile signals to judge whether a finder has the right category knowledge before revealing a protected source or
-            relying on a private lead.
+            Posters should be able to see who is behind a source, what the finder knows, whether payout contact exists, and whether a review status has been recorded.
           </p>
-          <ul className="check-list">
-            <li>
-              <CheckCircle2 size={18} /> Example identity and payout checks
-            </li>
-            <li>
-              <CheckCircle2 size={18} /> Example acceptance history for real reviews
-            </li>
-            <li>
-              <CheckCircle2 size={18} /> Example source detail timing
-            </li>
+          <ul className="check-list readiness-list">
+            {readiness.items.map((item) => (
+              <li className={item.complete ? "is-complete" : "is-missing"} key={item.label}>
+                {item.complete ? <CheckCircle2 size={18} /> : <CircleHelp size={18} />}
+                <span>
+                  <strong>{item.label}</strong>
+                  {item.copy}
+                </span>
+              </li>
+            ))}
           </ul>
         </div>
         <div className="dashboard-panel">
           <div className="panel-header">
-            <h2>Example reviews</h2>
+            <h2>Source quality standard</h2>
             <MessageSquare size={20} />
           </div>
-          <p>Strong reviews mention exact-match proof, current availability, clear seller context, and whether the source saved time.</p>
-          {finderReviews.map((review) => (
-            <blockquote className="review-card" key={review[0]}>
-              <p>{review[1]}</p>
-              <cite>{review[0]}</cite>
-            </blockquote>
-          ))}
+          <p>Strong source notes mention exact-match proof, current availability, seller context, total cost, region, condition, and what the poster should verify before purchase.</p>
+          <blockquote className="review-card">
+            <p>Use this profile with the source reveal trail. A clean profile is a confidence signal, not a guarantee about a third-party seller.</p>
+            <cite>Marketplace review standard</cite>
+          </blockquote>
         </div>
         <div className="dashboard-panel">
           <div className="panel-header">
@@ -7495,6 +8400,69 @@ function MarketplaceRulesPage() {
 }
 
 function SupportPage({ onReport }: { onReport: () => void }) {
+  const [ticketCategory, setTicketCategory] = useState("source-review");
+  const [ticketSubject, setTicketSubject] = useState("");
+  const [ticketDetails, setTicketDetails] = useState("");
+  const [ticketStatus, setTicketStatus] = useState("");
+  const [ticketError, setTicketError] = useState("");
+  const [submittingTicket, setSubmittingTicket] = useState(false);
+  const signedIn = window.sessionStorage.getItem(signedInStorageKey) === "true";
+
+  const submitTicket = async (event: React.FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    setTicketStatus("");
+    setTicketError("");
+
+    if (!ticketSubject.trim() || !ticketDetails.trim()) {
+      setTicketError("Add a subject and the details support should review.");
+      return;
+    }
+
+    if (!signedIn || !supabase) {
+      setTicketStatus("Use the email support button for now. Signed-in accounts can save support tickets after Supabase is configured.");
+      return;
+    }
+
+    setSubmittingTicket(true);
+
+    try {
+      const user = await getCurrentSupabaseUser();
+      const { data: ticket, error: ticketInsertError } = await supabase
+        .from("support_tickets")
+        .insert({
+          user_id: user.id,
+          category: ticketCategory,
+          subject: ticketSubject.trim(),
+          status: "open",
+          priority: ticketCategory === "safety" ? "urgent" : "normal",
+        })
+        .select("id")
+        .single();
+
+      if (ticketInsertError) {
+        throw ticketInsertError;
+      }
+
+      const { error: messageInsertError } = await supabase.from("support_ticket_messages").insert({
+        ticket_id: ticket.id,
+        sender_id: user.id,
+        body: ticketDetails.trim(),
+      });
+
+      if (messageInsertError) {
+        throw messageInsertError;
+      }
+
+      setTicketStatus("Support ticket opened. The case now has a saved subject, category, and evidence summary.");
+      setTicketSubject("");
+      setTicketDetails("");
+    } catch {
+      setTicketStatus("Support details saved in this form, but server tickets need the support migration before production use. Use email support for this case.");
+    } finally {
+      setSubmittingTicket(false);
+    }
+  };
+
   return (
     <main className="route-page policy-page" aria-labelledby="support-title">
       <section className="route-hero">
@@ -7515,6 +8483,53 @@ function SupportPage({ onReport }: { onReport: () => void }) {
             Report a problem <ArrowRight size={17} />
           </a>
         </div>
+      </section>
+      <section className="two-column-page support-ticket-layout">
+        <form className="form-panel" onSubmit={submitTicket}>
+          <h2>Open a structured support case</h2>
+          <p>Use this when a payment, source, payout, safety report, or account issue needs a saved review trail.</p>
+          <label>
+            Category
+            <select value={ticketCategory} onChange={(event) => setTicketCategory(event.target.value)}>
+              <option value="source-review">Source review</option>
+              <option value="payment">Payment or refund</option>
+              <option value="payout">Finder payout</option>
+              <option value="safety">Safety or prohibited item</option>
+              <option value="account">Account access</option>
+              <option value="other">Other</option>
+            </select>
+          </label>
+          <label>
+            Subject
+            <input value={ticketSubject} placeholder="Request id, source id, or short issue" onChange={(event) => setTicketSubject(event.target.value)} />
+          </label>
+          <label>
+            Details
+            <textarea value={ticketDetails} placeholder="Include request id, payment email, source id, screenshots, links, timestamps, and the exact decision needed." onChange={(event) => setTicketDetails(event.target.value)} />
+          </label>
+          {ticketError ? <p className="dialog-error" role="alert">{ticketError}</p> : null}
+          {ticketStatus ? <p className="dialog-note" role="status">{ticketStatus}</p> : null}
+          <button className="primary-button" type="submit" disabled={submittingTicket}>
+            {submittingTicket ? "Opening ticket..." : "Open support case"}
+          </button>
+        </form>
+        <aside className="side-panel">
+          <h2>What makes a case reviewable</h2>
+          <ul className="check-list">
+            <li>
+              <CheckCircle2 size={18} /> The request or source id is included.
+            </li>
+            <li>
+              <CheckCircle2 size={18} /> The disputed action is specific.
+            </li>
+            <li>
+              <CheckCircle2 size={18} /> Evidence includes timestamps, URLs, screenshots, or seller messages.
+            </li>
+            <li>
+              <CheckCircle2 size={18} /> The requested outcome is clear.
+            </li>
+          </ul>
+        </aside>
       </section>
       <section className="dashboard-grid">
         {[
@@ -7580,49 +8595,753 @@ function ReportPage() {
 }
 
 function AccountSettingsPage() {
+  const [profile, setProfile] = useState<AccountProfile>(() => readStoredAccountProfile());
+  const [saveStatus, setSaveStatus] = useState("");
+  const [saveError, setSaveError] = useState("");
+  const [saving, setSaving] = useState(false);
+  const readiness = getFinderReadiness(profile);
+
+  useEffect(() => {
+    if (!supabase) {
+      return undefined;
+    }
+
+    const client = supabase;
+    let mounted = true;
+
+    const loadProfile = async () => {
+      try {
+        const user = await getCurrentSupabaseUser();
+        const [profileResult, payoutResult] = await Promise.all([
+          client
+            .from("profiles")
+            .select("display_name,handle,account_type,region,specialty,identity_status")
+            .eq("id", user.id)
+            .maybeSingle(),
+          client
+            .from("finder_payout_profiles")
+            .select("payout_email,country,status")
+            .eq("user_id", user.id)
+            .maybeSingle(),
+        ]);
+
+        if (!mounted) {
+          return;
+        }
+
+        if (profileResult.error || payoutResult.error) {
+          return;
+        }
+
+        const nextProfile = normalizeAccountProfile({
+          ...readStoredAccountProfile(),
+          displayName: profileResult.data?.display_name ?? "",
+          handle: profileResult.data?.handle ?? "",
+          accountType: (profileResult.data?.account_type as AuthAccountType | null) ?? "both",
+          region: profileResult.data?.region ?? "",
+          specialty: profileResult.data?.specialty ?? "",
+          identityStatus: (profileResult.data?.identity_status as FinderIdentityStatus | null) ?? "not_started",
+          payoutEmail: payoutResult.data?.payout_email ?? "",
+          payoutCountry: payoutResult.data?.country ?? "US",
+        });
+        setProfile(nextProfile);
+        writeStoredAccountProfile(nextProfile);
+      } catch {
+        // Settings stay usable locally if the profile tables are not deployed yet.
+      }
+    };
+
+    loadProfile();
+
+    return () => {
+      mounted = false;
+    };
+  }, []);
+
+  const updateProfile = (updates: Partial<AccountProfile>) => {
+    setProfile((current) => normalizeAccountProfile({ ...current, ...updates }));
+    setSaveStatus("");
+    setSaveError("");
+  };
+
+  const saveProfile = async (event: React.FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    const nextProfile = normalizeAccountProfile(profile);
+    const nextReadiness = getFinderReadiness(nextProfile);
+
+    setSaveStatus("");
+    setSaveError("");
+
+    if (!nextProfile.displayName.trim()) {
+      setSaveError("Add a display name before saving.");
+      return;
+    }
+
+    if (!nextProfile.handle.trim()) {
+      setSaveError("Add a public handle before saving.");
+      return;
+    }
+
+    if (nextProfile.payoutEmail.trim() && !emailPattern.test(nextProfile.payoutEmail.trim())) {
+      setSaveError("Enter a valid payout email or leave it blank.");
+      return;
+    }
+
+    setSaving(true);
+    writeStoredAccountProfile(nextProfile);
+    setProfile(nextProfile);
+
+    try {
+      if (supabase) {
+        const user = await getCurrentSupabaseUser();
+        const profileResult = await supabase.from("profiles").upsert({
+          id: user.id,
+          display_name: nextProfile.displayName.trim(),
+          handle: nextProfile.handle.trim(),
+          account_type: nextProfile.accountType,
+          region: nextProfile.region.trim(),
+          specialty: nextProfile.specialty.trim(),
+          identity_status: nextProfile.identityStatus,
+          profile_completed_at: nextReadiness.score >= 75 ? new Date().toISOString() : null,
+        });
+
+        if (profileResult.error) {
+          throw profileResult.error;
+        }
+
+        if (nextProfile.payoutEmail.trim()) {
+          const payoutResult = await supabase.from("finder_payout_profiles").upsert({
+            user_id: user.id,
+            payout_email: nextProfile.payoutEmail.trim(),
+            country: nextProfile.payoutCountry.trim() || "US",
+            status: nextProfile.identityStatus === "verified" ? "ready" : "details_saved",
+            terms_accepted_at: new Date().toISOString(),
+          });
+
+          if (payoutResult.error) {
+            throw payoutResult.error;
+          }
+        }
+      }
+
+      setSaveStatus("Account settings saved. Finder readiness has been updated.");
+    } catch {
+      setSaveStatus("Saved locally. Apply the profile and payout migration before relying on server-side readiness.");
+    } finally {
+      setSaving(false);
+    }
+  };
+
   return (
-    <PolicyPage
-      title="Account Settings"
-      intro="Self-service account controls for profile, privacy, notification, and data requests."
-      sections={[
-        {
-          title: "Available now",
-          copy: [
-            "Sign out is available from the main navigation. Email sign-in and Google sign-in are handled through Supabase Auth.",
-            "Contact support@pleasefindmethis.com for data export, deletion, email correction, or account recovery while the full settings service is being built.",
-          ],
-        },
-        {
-          title: "Required before scale",
-          copy: [
-            "Add notification preferences, payout onboarding status, identity verification status, saved support cases, account deletion, and data export automation.",
-          ],
-        },
-      ]}
-    />
+    <main className="route-page dashboard-page" aria-labelledby="settings-title">
+      <section className="dashboard-head">
+        <div>
+          <p className="route-kicker">Account settings</p>
+          <h1 id="settings-title">Set up the profile finders and posters can trust.</h1>
+          <p>Profile, payout contact, and review status sit beside every source workflow so the marketplace does not depend on anonymous DMs.</p>
+        </div>
+      </section>
+      <section className="two-column-page account-settings-layout">
+        <form className="form-panel" onSubmit={saveProfile}>
+          <label>
+            Display name
+            <input value={profile.displayName} placeholder="Maya L." onChange={(event) => updateProfile({ displayName: event.target.value })} />
+          </label>
+          <label>
+            Public handle
+            <input value={profile.handle} placeholder="camera-scout" onChange={(event) => updateProfile({ handle: event.target.value })} />
+          </label>
+          <label>
+            Account type
+            <select value={profile.accountType} onChange={(event) => updateProfile({ accountType: event.target.value as AuthAccountType })}>
+              <option value="both">Poster and finder</option>
+              <option value="poster">Poster only</option>
+              <option value="finder">Finder only</option>
+            </select>
+          </label>
+          <label>
+            Region
+            <input value={profile.region} placeholder="US, Canada, Japan proxy, local NYC..." onChange={(event) => updateProfile({ region: event.target.value })} />
+          </label>
+          <label>
+            Sourcing focus
+            <textarea value={profile.specialty} placeholder="Rare camera gear, discontinued mugs, local estate sales, repair donor units..." onChange={(event) => updateProfile({ specialty: event.target.value })} />
+          </label>
+          <label>
+            Payout email
+            <input type="email" value={profile.payoutEmail} placeholder="payout@example.com" onChange={(event) => updateProfile({ payoutEmail: event.target.value })} />
+          </label>
+          <label>
+            Payout country
+            <input value={profile.payoutCountry} placeholder="US" onChange={(event) => updateProfile({ payoutCountry: event.target.value })} />
+          </label>
+          <label>
+            Trust review status
+            <select value={profile.identityStatus} onChange={(event) => updateProfile({ identityStatus: event.target.value as FinderIdentityStatus })}>
+              <option value="not_started">Not started</option>
+              <option value="review_requested">Review requested</option>
+              <option value="verified">Verified</option>
+            </select>
+          </label>
+          <label>
+            Notification email
+            <input type="email" value={profile.notificationEmail} placeholder="you@example.com" onChange={(event) => updateProfile({ notificationEmail: event.target.value })} />
+          </label>
+          {saveError ? <p className="dialog-error" role="alert">{saveError}</p> : null}
+          {saveStatus ? <p className="dialog-success" role="status">{saveStatus}</p> : null}
+          <button className="primary-button" type="submit" disabled={saving}>
+            {saving ? "Saving..." : "Save settings"}
+          </button>
+        </form>
+        <aside className="side-panel readiness-side-panel">
+          <h2>Finder readiness</h2>
+          <div className="readiness-score-row">
+            <div className="score-ring">{readiness.score}%</div>
+            <div>
+              <strong>{readiness.label}</strong>
+              <p>These checks decide whether the finder dashboard treats the account as ready for serious source work.</p>
+            </div>
+          </div>
+          <ul className="check-list readiness-list">
+            {readiness.items.map((item) => (
+              <li className={item.complete ? "is-complete" : "is-missing"} key={item.label}>
+                {item.complete ? <CheckCircle2 size={18} /> : <CircleHelp size={18} />}
+                <span>
+                  <strong>{item.label}</strong>
+                  {item.copy}
+                </span>
+              </li>
+            ))}
+          </ul>
+          <div className="summary-card">
+            <ShieldCheck size={24} />
+            <strong>Payout automation still needs processor approval.</strong>
+            <span>This screen records readiness and payout contact now; actual reward release should remain admin-reviewed until a supported payout provider is live.</span>
+          </div>
+        </aside>
+      </section>
+    </main>
   );
 }
 
 function AdminReviewPage() {
+  const currencyPreference = useCurrencyPreference();
+  const [payoutCases, setPayoutCases] = useState<FinderPayoutCaseRow[]>([]);
+  const [disputes, setDisputes] = useState<SourceDisputeRow[]>([]);
+  const [supportTickets, setSupportTickets] = useState<SupportTicketRow[]>([]);
+  const [duplicateFlags, setDuplicateFlags] = useState<SourceDuplicateFlagRow[]>([]);
+  const [caseNotes, setCaseNotes] = useState<Record<string, string>>({});
+  const [caseTransferRefs, setCaseTransferRefs] = useState<Record<string, string>>({});
+  const [disputeNotes, setDisputeNotes] = useState<Record<string, string>>({});
+  const [ticketNotes, setTicketNotes] = useState<Record<string, string>>({});
+  const [duplicateNotes, setDuplicateNotes] = useState<Record<string, string>>({});
+  const [actingPayoutCaseId, setActingPayoutCaseId] = useState("");
+  const [adminEmail, setAdminEmail] = useState("");
+  const [adminConfigured, setAdminConfigured] = useState(false);
+  const [adminMessage, setAdminMessage] = useState("");
+  const [adminError, setAdminError] = useState("");
+  const [loading, setLoading] = useState(Boolean(supabase));
+
+  const loadAdminQueues = async () => {
+    if (!supabase) {
+      setLoading(false);
+      setAdminError("Sign in is not available right now.");
+      return;
+    }
+
+    setLoading(true);
+    setAdminError("");
+    setAdminMessage("");
+
+    try {
+      const accessToken = await getSupabaseAccessToken();
+      const response = await fetch("/api/admin/payout-cases", {
+        method: "GET",
+        headers: {
+          Authorization: `Bearer ${accessToken}`,
+        },
+      });
+      const payload = (await response.json()) as AdminPayoutQueuesResponse;
+
+      if (!response.ok) {
+        throw new Error(payload.error || "Could not load operational queues.");
+      }
+
+      setPayoutCases(payload.payoutCases ?? []);
+      setDisputes(payload.disputes ?? []);
+      setSupportTickets(payload.supportTickets ?? []);
+      setDuplicateFlags(payload.duplicateFlags ?? []);
+      setAdminEmail(payload.admin?.email ?? "");
+      setAdminConfigured(Boolean(payload.admin?.configured));
+
+      if (!payload.admin?.configured) {
+        setAdminMessage("Admin role is coming from Supabase app metadata. Add MARKETPLACE_ADMIN_EMAILS or ADMIN_EMAILS before relying on email allowlists.");
+      }
+    } catch (error) {
+      setAdminError(error instanceof Error ? error.message : "Could not load operational queues.");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    void loadAdminQueues();
+  }, []);
+
+  const runPayoutAction = async (payoutCase: FinderPayoutCaseRow, action: "hold" | "processing" | "paid" | "note") => {
+    setActingPayoutCaseId(`payout:${payoutCase.id}:${action}`);
+    setAdminError("");
+    setAdminMessage("");
+
+    try {
+      const accessToken = await getSupabaseAccessToken();
+      const response = await fetch("/api/admin/payout-cases", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${accessToken}`,
+        },
+        body: JSON.stringify({
+          payoutCaseId: payoutCase.id,
+          action,
+          adminNote: caseNotes[payoutCase.id] ?? "",
+          processor: action === "paid" ? "manual" : undefined,
+          processorTransferId: action === "paid" ? caseTransferRefs[payoutCase.id] ?? "" : undefined,
+        }),
+      });
+      const payload = (await response.json()) as AdminPayoutQueuesResponse;
+
+      if (!response.ok || !payload.payoutCase) {
+        throw new Error(payload.error || "Could not update payout case.");
+      }
+
+      setPayoutCases((current) => current.map((entry) => (entry.id === payload.payoutCase?.id ? payload.payoutCase : entry)));
+      setCaseNotes((current) => ({ ...current, [payoutCase.id]: "" }));
+      setAdminMessage(`Payout case updated to ${payload.payoutCase.status.replace(/_/g, " ")}.`);
+    } catch (error) {
+      setAdminError(error instanceof Error ? error.message : "Could not update payout case.");
+    } finally {
+      setActingPayoutCaseId("");
+    }
+  };
+
+  const runDisputeAction = async (dispute: SourceDisputeRow, action: "needs_evidence" | "finder_wins" | "poster_wins" | "closed" | "note") => {
+    setActingPayoutCaseId(`dispute:${dispute.id}:${action}`);
+    setAdminError("");
+    setAdminMessage("");
+
+    try {
+      const accessToken = await getSupabaseAccessToken();
+      const response = await fetch("/api/admin/payout-cases", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${accessToken}`,
+        },
+        body: JSON.stringify({
+          caseType: "source_dispute",
+          disputeId: dispute.id,
+          action,
+          resolutionNote: disputeNotes[dispute.id] ?? "",
+        }),
+      });
+      const payload = (await response.json()) as AdminPayoutQueuesResponse;
+
+      if (!response.ok || !payload.dispute) {
+        throw new Error(payload.error || "Could not update source dispute.");
+      }
+
+      setDisputes((current) => current.map((entry) => (entry.id === payload.dispute?.id ? payload.dispute : entry)));
+      setPayoutCases((current) =>
+        current.map((entry) => {
+          if (entry.submission_id !== payload.dispute?.submission_id) {
+            return entry;
+          }
+
+          if (action === "finder_wins") {
+            return { ...entry, status: "payable", admin_note: "Dispute resolved for the finder; reward can continue through payout review." };
+          }
+
+          if (action === "poster_wins") {
+            return { ...entry, status: "cancelled", admin_note: "Dispute resolved for the poster; finder reward is not payable from this source." };
+          }
+
+          if (action === "needs_evidence") {
+            return { ...entry, status: "disputed", admin_note: "Dispute needs more evidence before payout release." };
+          }
+
+          return entry;
+        }),
+      );
+      setDisputeNotes((current) => ({ ...current, [dispute.id]: "" }));
+      setAdminMessage(`Source dispute updated to ${payload.dispute.status.replace(/_/g, " ")}.`);
+    } catch (error) {
+      setAdminError(error instanceof Error ? error.message : "Could not update source dispute.");
+    } finally {
+      setActingPayoutCaseId("");
+    }
+  };
+
+  const runSupportTicketAction = async (ticket: SupportTicketRow, action: "in_review" | "waiting_on_user" | "resolved" | "closed" | "note") => {
+    setActingPayoutCaseId(`ticket:${ticket.id}:${action}`);
+    setAdminError("");
+    setAdminMessage("");
+
+    try {
+      const accessToken = await getSupabaseAccessToken();
+      const response = await fetch("/api/admin/payout-cases", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${accessToken}`,
+        },
+        body: JSON.stringify({
+          caseType: "support_ticket",
+          ticketId: ticket.id,
+          action,
+          adminNote: ticketNotes[ticket.id] ?? "",
+        }),
+      });
+      const payload = (await response.json()) as AdminPayoutQueuesResponse;
+
+      if (!response.ok || !payload.supportTicket) {
+        throw new Error(payload.error || "Could not update support ticket.");
+      }
+
+      setSupportTickets((current) => current.map((entry) => (entry.id === payload.supportTicket?.id ? payload.supportTicket : entry)));
+      setTicketNotes((current) => ({ ...current, [ticket.id]: "" }));
+      setAdminMessage(`Support ticket updated to ${payload.supportTicket.status.replace(/_/g, " ")}.`);
+    } catch (error) {
+      setAdminError(error instanceof Error ? error.message : "Could not update support ticket.");
+    } finally {
+      setActingPayoutCaseId("");
+    }
+  };
+
+  const runDuplicateFlagAction = async (duplicateFlag: SourceDuplicateFlagRow, action: "reviewed" | "linked" | "dismissed" | "note") => {
+    setActingPayoutCaseId(`duplicate:${duplicateFlag.id}:${action}`);
+    setAdminError("");
+    setAdminMessage("");
+
+    try {
+      const accessToken = await getSupabaseAccessToken();
+      const response = await fetch("/api/admin/payout-cases", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${accessToken}`,
+        },
+        body: JSON.stringify({
+          caseType: "duplicate_source",
+          duplicateFlagId: duplicateFlag.id,
+          action,
+          adminNote: duplicateNotes[duplicateFlag.id] ?? "",
+        }),
+      });
+      const payload = (await response.json()) as AdminPayoutQueuesResponse;
+
+      if (!response.ok || !payload.duplicateFlag) {
+        throw new Error(payload.error || "Could not update duplicate source flag.");
+      }
+
+      setDuplicateFlags((current) => current.map((entry) => (entry.id === payload.duplicateFlag?.id ? payload.duplicateFlag : entry)));
+      setDuplicateNotes((current) => ({ ...current, [duplicateFlag.id]: "" }));
+      setAdminMessage(`Duplicate source flag updated to ${payload.duplicateFlag.status.replace(/_/g, " ")}.`);
+    } catch (error) {
+      setAdminError(error instanceof Error ? error.message : "Could not update duplicate source flag.");
+    } finally {
+      setActingPayoutCaseId("");
+    }
+  };
+
+  const actionablePayouts = payoutCases.filter((payoutCase) => ["payable", "hold", "disputed", "processing"].includes(payoutCase.status));
+  const openDisputes = disputes.filter((dispute) => ["open", "needs_evidence"].includes(dispute.status));
+  const openTickets = supportTickets.filter((ticket) => ["open", "in_review", "waiting_on_user"].includes(ticket.status));
+  const openDuplicateFlags = duplicateFlags.filter((duplicateFlag) => duplicateFlag.status === "open");
+
   return (
-    <PolicyPage
-      title="Admin Review Queue"
-      intro="Operational queue required for disputes, reports, payout holds, refunds, and source moderation."
-      sections={[
-        {
-          title: "Queues to build",
-          copy: [
-            "Open disputes, reported requests, reported users, duplicate-source flags, payout holds, refund cases, failed webhooks, and suspicious checkout attempts.",
-          ],
-        },
-        {
-          title: "Access model",
-          copy: [
-            "This should be backed by server-side admin authorization, service-role-only mutations, audit logs, and staff roles. Do not expose moderation updates directly to normal client sessions.",
-          ],
-        },
-      ]}
-    />
+    <main className="route-page dashboard-page" aria-labelledby="admin-review-title">
+      <section className="dashboard-head">
+        <div>
+          <p className="route-kicker">Admin review</p>
+          <h1 id="admin-review-title">Operational queues for payouts, disputes, and support.</h1>
+          <p>This view reflects the records the marketplace needs before reward release can be trusted: accepted-source payout cases, open disputes, and structured support tickets.</p>
+        </div>
+      </section>
+      {loading ? <p className="dialog-note">Loading operational queues...</p> : null}
+      {adminError ? <p className="dialog-error" role="alert">{adminError}</p> : null}
+      {adminMessage ? <p className="dialog-note" role="status">{adminMessage}</p> : null}
+      <section className="metric-grid">
+        <Metric icon={Banknote} label="Actionable payouts" value={String(actionablePayouts.length)} />
+        <Metric icon={Scale} label="Open disputes" value={String(openDisputes.length)} />
+        <Metric icon={Headphones} label="Open tickets" value={String(openTickets.length)} />
+        <Metric icon={Flag} label="Duplicate flags" value={String(openDuplicateFlags.length)} />
+        <Metric icon={ShieldAlert} label="Admin API" value={adminConfigured || adminEmail ? "Active" : "Locked"} />
+      </section>
+      <section className="dashboard-grid">
+        <div className="dashboard-panel">
+          <div className="panel-header">
+            <h2>Payout cases</h2>
+            <button className="icon-button" type="button" aria-label="Refresh admin queues" onClick={() => void loadAdminQueues()}>
+              <TimerReset size={18} />
+            </button>
+          </div>
+          {payoutCases.length ? (
+            <div className="payout-case-list">
+              {payoutCases.slice(0, 8).map((payoutCase) => {
+                const note = caseNotes[payoutCase.id] ?? "";
+                const transferRef = caseTransferRefs[payoutCase.id] ?? "";
+                const isActing = actingPayoutCaseId.startsWith(`payout:${payoutCase.id}:`);
+                const canProcess = ["payable", "hold", "disputed"].includes(payoutCase.status);
+                const canHold = !["hold", "paid", "cancelled", "refunded"].includes(payoutCase.status);
+                const canRecordPaid = ["payable", "hold", "processing"].includes(payoutCase.status);
+
+                return (
+                  <div className="payout-case-row" key={payoutCase.id}>
+                    <span>
+                      <strong>{formatUsdMoney(payoutCase.amount, currencyPreference)}</strong>
+                      {payoutCase.status.replace(/_/g, " ")}
+                    </span>
+                    <small>{payoutCase.release_after ? `Release window ${getRelativeTimeLabel(payoutCase.release_after)}` : "No release window"}</small>
+                    {payoutCase.processor_transfer_id ? <em>Transfer ref: {payoutCase.processor_transfer_id}</em> : null}
+                    {payoutCase.admin_note ? <em>{payoutCase.admin_note}</em> : null}
+                    <div className="admin-payout-controls">
+                      <label>
+                        Staff note
+                        <textarea
+                          value={note}
+                          placeholder="Why this action is correct"
+                          onChange={(event) => setCaseNotes((current) => ({ ...current, [payoutCase.id]: event.target.value }))}
+                        />
+                      </label>
+                      <label>
+                        Payout reference
+                        <input
+                          value={transferRef}
+                          placeholder="Manual transfer, Wise, PayPal, or processor id"
+                          onChange={(event) => setCaseTransferRefs((current) => ({ ...current, [payoutCase.id]: event.target.value }))}
+                        />
+                      </label>
+                      <div className="admin-action-row">
+                        <button type="button" disabled={isActing || !note.trim()} onClick={() => void runPayoutAction(payoutCase, "note")}>
+                          <FileText size={16} /> Save note
+                        </button>
+                        <button type="button" disabled={isActing || !canHold || !note.trim()} onClick={() => void runPayoutAction(payoutCase, "hold")}>
+                          <ShieldAlert size={16} /> Hold
+                        </button>
+                        <button type="button" disabled={isActing || !canProcess} onClick={() => void runPayoutAction(payoutCase, "processing")}>
+                          <Clock3 size={16} /> Processing
+                        </button>
+                        <button type="button" disabled={isActing || !canRecordPaid || !transferRef.trim()} onClick={() => void runPayoutAction(payoutCase, "paid")}>
+                          <CheckCircle2 size={16} /> Record paid
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          ) : (
+            <div className="empty-state">
+              <Banknote size={26} />
+              <strong>No payout cases visible</strong>
+              <span>Accepted source reviews will create payout cases after the migration is active.</span>
+            </div>
+          )}
+        </div>
+        <div className="dashboard-panel">
+          <div className="panel-header">
+            <h2>Source disputes</h2>
+            <Scale size={20} />
+          </div>
+          {disputes.length ? (
+            <div className="payout-case-list">
+              {disputes.slice(0, 8).map((dispute) => {
+                const note = disputeNotes[dispute.id] ?? "";
+                const isActing = actingPayoutCaseId.startsWith(`dispute:${dispute.id}:`);
+                const isResolved = ["finder_wins", "poster_wins", "closed"].includes(dispute.status);
+
+                return (
+                  <div className="payout-case-row" key={dispute.id}>
+                    <span>
+                      <strong>{dispute.reason_code.replace(/-/g, " ")}</strong>
+                      {dispute.status.replace(/_/g, " ")} · {dispute.opened_by_role}
+                    </span>
+                    <small>{dispute.evidence_summary.slice(0, 140) || "No evidence summary"}</small>
+                    {dispute.resolution_note ? <em>{dispute.resolution_note}</em> : null}
+                    <div className="admin-payout-controls">
+                      <label>
+                        Resolution note
+                        <textarea
+                          value={note}
+                          placeholder="What staff reviewed and why this decision is correct"
+                          onChange={(event) => setDisputeNotes((current) => ({ ...current, [dispute.id]: event.target.value }))}
+                        />
+                      </label>
+                      <div className="admin-action-row">
+                        <button type="button" disabled={isActing || !note.trim()} onClick={() => void runDisputeAction(dispute, "note")}>
+                          <FileText size={16} /> Save note
+                        </button>
+                        <button type="button" disabled={isActing || isResolved || !note.trim()} onClick={() => void runDisputeAction(dispute, "needs_evidence")}>
+                          <CircleHelp size={16} /> Need evidence
+                        </button>
+                        <button type="button" disabled={isActing || isResolved || !note.trim()} onClick={() => void runDisputeAction(dispute, "finder_wins")}>
+                          <Trophy size={16} /> Finder wins
+                        </button>
+                        <button type="button" disabled={isActing || isResolved || !note.trim()} onClick={() => void runDisputeAction(dispute, "poster_wins")}>
+                          <CheckCircle2 size={16} /> Poster wins
+                        </button>
+                        <button type="button" disabled={isActing || isResolved || !note.trim()} onClick={() => void runDisputeAction(dispute, "closed")}>
+                          <X size={16} /> Close
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          ) : (
+            <div className="empty-state">
+              <Scale size={26} />
+              <strong>No disputes visible</strong>
+              <span>Disputes should hold payout cases until evidence is reviewed.</span>
+            </div>
+          )}
+        </div>
+        <div className="dashboard-panel">
+          <div className="panel-header">
+            <h2>Support tickets</h2>
+            <Headphones size={20} />
+          </div>
+          {supportTickets.length ? (
+            <div className="payout-case-list">
+              {supportTickets.slice(0, 8).map((ticket) => {
+                const note = ticketNotes[ticket.id] ?? "";
+                const isActing = actingPayoutCaseId.startsWith(`ticket:${ticket.id}:`);
+                const isClosed = ["resolved", "closed"].includes(ticket.status);
+
+                return (
+                  <div className="payout-case-row" key={ticket.id}>
+                    <span>
+                      <strong>{ticket.subject}</strong>
+                      {ticket.category} · {ticket.status.replace(/_/g, " ")}
+                    </span>
+                    <small>{ticket.priority} priority · {getRelativeTimeLabel(ticket.created_at)}</small>
+                    <div className="admin-payout-controls">
+                      <label>
+                        Support note
+                        <textarea
+                          value={note}
+                          placeholder="Reply or internal note for this support case"
+                          onChange={(event) => setTicketNotes((current) => ({ ...current, [ticket.id]: event.target.value }))}
+                        />
+                      </label>
+                      <div className="admin-action-row">
+                        <button type="button" disabled={isActing || !note.trim()} onClick={() => void runSupportTicketAction(ticket, "note")}>
+                          <FileText size={16} /> Save note
+                        </button>
+                        <button type="button" disabled={isActing || isClosed} onClick={() => void runSupportTicketAction(ticket, "in_review")}>
+                          <Clock3 size={16} /> Review
+                        </button>
+                        <button type="button" disabled={isActing || isClosed || !note.trim()} onClick={() => void runSupportTicketAction(ticket, "waiting_on_user")}>
+                          <CircleHelp size={16} /> Waiting
+                        </button>
+                        <button type="button" disabled={isActing || isClosed || !note.trim()} onClick={() => void runSupportTicketAction(ticket, "resolved")}>
+                          <CheckCircle2 size={16} /> Resolve
+                        </button>
+                        <button type="button" disabled={isActing || isClosed || !note.trim()} onClick={() => void runSupportTicketAction(ticket, "closed")}>
+                          <X size={16} /> Close
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          ) : (
+            <div className="empty-state">
+              <Headphones size={26} />
+              <strong>No support tickets visible</strong>
+              <span>Structured support records appear here once staff RLS policies can read them.</span>
+            </div>
+          )}
+        </div>
+        <div className="dashboard-panel">
+          <div className="panel-header">
+            <h2>Duplicate sources</h2>
+            <Flag size={20} />
+          </div>
+          {duplicateFlags.length ? (
+            <div className="payout-case-list">
+              {duplicateFlags.slice(0, 8).map((duplicateFlag) => {
+                const note = duplicateNotes[duplicateFlag.id] ?? "";
+                const isActing = actingPayoutCaseId.startsWith(`duplicate:${duplicateFlag.id}:`);
+                const isClosed = ["linked", "dismissed"].includes(duplicateFlag.status);
+
+                return (
+                  <div className="payout-case-row" key={duplicateFlag.id}>
+                    <span>
+                      <strong>{duplicateFlag.source_type.replace(/-/g, " ")}</strong>
+                      {duplicateFlag.status.replace(/_/g, " ")}
+                    </span>
+                    <small>{duplicateFlag.normalized_source || "No public source identity saved"}</small>
+                    {duplicateFlag.admin_note ? <em>{duplicateFlag.admin_note}</em> : null}
+                    <div className="admin-payout-controls">
+                      <label>
+                        Duplicate review note
+                        <textarea
+                          value={note}
+                          placeholder="How staff decided source priority or why this signal is not a duplicate"
+                          onChange={(event) => setDuplicateNotes((current) => ({ ...current, [duplicateFlag.id]: event.target.value }))}
+                        />
+                      </label>
+                      <div className="admin-action-row">
+                        <button type="button" disabled={isActing || !note.trim()} onClick={() => void runDuplicateFlagAction(duplicateFlag, "note")}>
+                          <FileText size={16} /> Save note
+                        </button>
+                        <button type="button" disabled={isActing || isClosed || !note.trim()} onClick={() => void runDuplicateFlagAction(duplicateFlag, "reviewed")}>
+                          <Clock3 size={16} /> Reviewed
+                        </button>
+                        <button type="button" disabled={isActing || isClosed || !note.trim()} onClick={() => void runDuplicateFlagAction(duplicateFlag, "linked")}>
+                          <LinkIcon size={16} /> Link earlier source
+                        </button>
+                        <button type="button" disabled={isActing || isClosed || !note.trim()} onClick={() => void runDuplicateFlagAction(duplicateFlag, "dismissed")}>
+                          <X size={16} /> Dismiss
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          ) : (
+            <div className="empty-state">
+              <Flag size={26} />
+              <strong>No duplicate source flags</strong>
+              <span>Exact source collisions are logged here so staff can preserve first-valid-source priority.</span>
+            </div>
+          )}
+        </div>
+        <div className="dashboard-panel">
+          <div className="panel-header">
+            <h2>Access model</h2>
+            <ShieldAlert size={20} />
+          </div>
+          <p>Staff-only queue actions now run through the server with Supabase session verification, admin allowlists or trusted app metadata, service-role mutations, and audit rows for payout, dispute, and support decisions.</p>
+          <ul className="check-list">
+            <li>
+              <CheckCircle2 size={18} /> Normal users cannot write payout case records from the browser.
+            </li>
+            <li>
+              <CheckCircle2 size={18} /> Dispute outcomes reconcile the related finder payout case.
+            </li>
+            <li>
+              <CheckCircle2 size={18} /> Support status changes can send a saved ticket reply when staff adds a note.
+            </li>
+          </ul>
+        </div>
+      </section>
+    </main>
   );
 }
 

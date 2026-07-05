@@ -1,11 +1,35 @@
 {
   "version": 1,
   "skills": {
+    "ad-creative-generation": {
+      "source": "hyperfx-ai/marketing-skills",
+      "sourceType": "github",
+      "skillPath": "skills/ad-creative-generation/SKILL.md",
+      "computedHash": "86317ab4685e9bb5850f174fe14dfd99536860e50dcd39d935cd403bf78c40f6"
+    },
+    "amazon-ads": {
+      "source": "hyperfx-ai/marketing-skills",
+      "sourceType": "github",
+      "skillPath": "skills/amazon-ads/SKILL.md",
+      "computedHash": "0b916cde92f38f9157441abc4451b5aeda4ac352d78ba0985a3f0bb0fbae52f3"
+    },
+    "analytics-insights": {
+      "source": "hyperfx-ai/marketing-skills",
+      "sourceType": "github",
+      "skillPath": "skills/analytics-insights/SKILL.md",
+      "computedHash": "ac38a804fa3bac02b55da5838cc6e04ab5140fd3d04db4a390228795f0df274b"
+    },
     "ask-matt": {
       "source": "mattpocock/skills",
       "sourceType": "github",
       "skillPath": "skills/engineering/ask-matt/SKILL.md",
       "computedHash": "2d3f523c8bf1ebbd4d5ecaa1e2678ec629f157248669f1edba807de1d0feb031"
+    },
+    "blog-generation": {
+      "source": "hyperfx-ai/marketing-skills",
+      "sourceType": "github",
+      "skillPath": "skills/blog-generation/SKILL.md",
+      "computedHash": "85406c52a6d60e4625f4f7edf10325fe4bf55c5a1f266f7382b0f01562a73880"
     },
     "claude-handoff": {
       "source": "mattpocock/skills",
@@ -30,6 +54,24 @@
       "sourceType": "github",
       "skillPath": "skills/engineering/codebase-design/SKILL.md",
       "computedHash": "2426dc4accf1a85dedfb560edb3a877ec8828b7375ea08c970df2b6c900a2a22"
+    },
+    "cold-email-outreach": {
+      "source": "hyperfx-ai/marketing-skills",
+      "sourceType": "github",
+      "skillPath": "skills/cold-email-outreach/SKILL.md",
+      "computedHash": "8569801ad1cba7f2317234e702ad7f4ff0664ce29f4047bba09030a65223b4b5"
+    },
+    "competitor-intel": {
+      "source": "hyperfx-ai/marketing-skills",
+      "sourceType": "github",
+      "skillPath": "skills/competitor-intel/SKILL.md",
+      "computedHash": "f73e60b993afd99e93859ce187edf90036756e475fa4ed7d91dbb8b54e1f667d"
+    },
+    "customer-research": {
+      "source": "hyperfx-ai/marketing-skills",
+      "sourceType": "github",
+      "skillPath": "skills/customer-research/SKILL.md",
+      "computedHash": "26574bc81f8094aa8d9f692ab7f9c984716b81bdb239347a9993765c0221a0a0"
     },
     "design-an-interface": {
       "source": "mattpocock/skills",
@@ -62,11 +104,35 @@
       "skillPath": "skills/personal/edit-article/SKILL.md",
       "computedHash": "8d7aec1987245a27e9c7d585b9f11d1129b8bd8ecb3a8596cdd3048974d9e302"
     },
+    "email-lifecycle": {
+      "source": "hyperfx-ai/marketing-skills",
+      "sourceType": "github",
+      "skillPath": "skills/email-lifecycle/SKILL.md",
+      "computedHash": "cfa4a34844ec0b8af90c97527e2142c8a27e8e61fdcc31780b30319e61178aa7"
+    },
     "git-guardrails-claude-code": {
       "source": "mattpocock/skills",
       "sourceType": "github",
       "skillPath": "skills/misc/git-guardrails-claude-code/SKILL.md",
       "computedHash": "53a1de29d2b76481202608376fa4a20a8bd7e65b0b8a907a8c9578e629cf313f"
+    },
+    "gmail": {
+      "source": "hyperfx-ai/marketing-skills",
+      "sourceType": "github",
+      "skillPath": "skills/gmail/SKILL.md",
+      "computedHash": "c1551908e5b003ec23091e51a983a35fd83bbd76388e726f20df959bec541117"
+    },
+    "google-ads": {
+      "source": "hyperfx-ai/marketing-skills",
+      "sourceType": "github",
+      "skillPath": "skills/google-ads/SKILL.md",
+      "computedHash": "e5ed6cc5338909591f0450824b1ded213e8df9d38af99545579fdf0a0df4f2c2"
+    },
+    "google-sheets": {
+      "source": "hyperfx-ai/marketing-skills",
+      "sourceType": "github",
+      "skillPath": "skills/google-sheets/SKILL.md",
+      "computedHash": "2fa620518ade8cae2cc49bf33291dfa2bb4fb00d37d6c5f65edf4acf211af546"
     },
     "grill-me": {
       "source": "mattpocock/skills",
@@ -92,6 +158,18 @@
       "skillPath": "skills/productivity/handoff/SKILL.md",
       "computedHash": "5d0f81e38abe6b984e1feaa731927de5291d040982106ac513cf54ec240e00ec"
     },
+    "hyper-cli": {
+      "source": "hyperfx-ai/marketing-skills",
+      "sourceType": "github",
+      "skillPath": "skills/hyper-cli/SKILL.md",
+      "computedHash": "e49de3290e2e729cb2031b2d750d34d7136b82cebcda5428dae986e7e84d2d38"
+    },
+    "image-generation": {
+      "source": "hyperfx-ai/marketing-skills",
+      "sourceType": "github",
+      "skillPath": "skills/image-generation/SKILL.md",
+      "computedHash": "878777551b0e1c6904077ac3e7b00581735eff30e09c6a36ed33a12b35659281"
+    },
     "implement": {
       "source": "mattpocock/skills",
       "sourceType": "github",
@@ -104,11 +182,35 @@
       "skillPath": "skills/engineering/improve-codebase-architecture/SKILL.md",
       "computedHash": "8bf292143ca93b00276a0de0fc5f84f2381f4690c5b0d32e99fa283a072f392f"
     },
+    "instagram": {
+      "source": "hyperfx-ai/marketing-skills",
+      "sourceType": "github",
+      "skillPath": "skills/instagram/SKILL.md",
+      "computedHash": "c6cbefdf642b76585af0471f648eac5c60fa1d45c434107d97fd75d38dfeb391"
+    },
+    "linkedin": {
+      "source": "hyperfx-ai/marketing-skills",
+      "sourceType": "github",
+      "skillPath": "skills/linkedin/SKILL.md",
+      "computedHash": "7dafed9535decf3ed3b6ddaa54a06b6e643e422075ffb98a31e909b4f7601f7a"
+    },
     "loop-me": {
       "source": "mattpocock/skills",
       "sourceType": "github",
       "skillPath": "skills/in-progress/loop-me/SKILL.md",
       "computedHash": "b3306d9b5af2e9ed341ec290ea97898205f27fb3131b16b8535549b8c90343f8"
+    },
+    "meta-ads": {
+      "source": "hyperfx-ai/marketing-skills",
+      "sourceType": "github",
+      "skillPath": "skills/meta-ads/SKILL.md",
+      "computedHash": "43bfcbdbbc9bcde1360670657b6649a1ad2b569e174b4bf8f51c55d7688f7f41"
+    },
+    "meta-ads-library": {
+      "source": "hyperfx-ai/marketing-skills",
+      "sourceType": "github",
+      "skillPath": "skills/meta-ads-library/SKILL.md",
+      "computedHash": "83b674a04e42d3e1e956c912651ddbcc00cdbc4448a1f7b0348bf310420439ae"
     },
     "migrate-to-shoehorn": {
       "source": "mattpocock/skills",
@@ -122,11 +224,29 @@
       "skillPath": "skills/personal/obsidian-vault/SKILL.md",
       "computedHash": "960437c7c2febc15cf9d49964f0c8bd889d90a56e81b6eaa33f3ac5b594291c3"
     },
+    "openai-ads": {
+      "source": "hyperfx-ai/marketing-skills",
+      "sourceType": "github",
+      "skillPath": "skills/openai-ads/SKILL.md",
+      "computedHash": "77464f1476e7bfda50b60933580d16905e631b61622d86569e308ae5e3a3fc85"
+    },
     "paywall-upgrade-cro": {
       "source": "nexu-io/open-design",
       "sourceType": "github",
       "skillPath": "skills/paywall-upgrade-cro/SKILL.md",
       "computedHash": "184d73fbe941b14404cb95b529b3d39a1c1bba45734ee491868e7217e6fab656"
+    },
+    "pinterest-ads": {
+      "source": "hyperfx-ai/marketing-skills",
+      "sourceType": "github",
+      "skillPath": "skills/pinterest-ads/SKILL.md",
+      "computedHash": "0963a8c140beeaca0ec4d939e049bf21692ab9226c1c88082026283dd295fe2c"
+    },
+    "polymarket-trading": {
+      "source": "hyperfx-ai/marketing-skills",
+      "sourceType": "github",
+      "skillPath": "skills/polymarket-trading/SKILL.md",
+      "computedHash": "aee66dea0a16dfe671f7ff5896680d58cbfa815d33313be1c453417349d8a014"
     },
     "premium-frontend-ui": {
       "source": "github/awesome-copilot",
@@ -145,6 +265,18 @@
       "sourceType": "github",
       "skillPath": "skills/deprecated/qa/SKILL.md",
       "computedHash": "20c63e29b268b1f0762cff524b5e321d5e1a773b4f61b90d84811b755948a66c"
+    },
+    "reddit": {
+      "source": "hyperfx-ai/marketing-skills",
+      "sourceType": "github",
+      "skillPath": "skills/reddit/SKILL.md",
+      "computedHash": "36699d5dff39d43b174b9c4623df55033cb98214ea1666c3453ff99b54ad9e52"
+    },
+    "reddit-ads": {
+      "source": "hyperfx-ai/marketing-skills",
+      "sourceType": "github",
+      "skillPath": "skills/reddit-ads/SKILL.md",
+      "computedHash": "38e806033899c88570db293a70f5fee4cba4165320570fd0886ca6cbb42e71f6"
     },
     "request-refactor-plan": {
       "source": "mattpocock/skills",
@@ -176,6 +308,12 @@
       "skillPath": "skills/seo/SKILL.md",
       "computedHash": "342da0c7fa6235cdc08789e67bac0e8ff770e8aeaa106f32895c17201501b1b0"
     },
+    "seo-research": {
+      "source": "hyperfx-ai/marketing-skills",
+      "sourceType": "github",
+      "skillPath": "skills/seo-research/SKILL.md",
+      "computedHash": "1da5b21b03e188761b767961a7c83c5925e12b98639e05b17608133c19b7e3a9"
+    },
     "setup-matt-pocock-skills": {
       "source": "mattpocock/skills",
       "sourceType": "github",
@@ -188,6 +326,18 @@
       "skillPath": "skills/misc/setup-pre-commit/SKILL.md",
       "computedHash": "f9aeedf0a1f560ec465c3939c54434c2d949ac8b958a0493db52216f688a0366"
     },
+    "slack": {
+      "source": "hyperfx-ai/marketing-skills",
+      "sourceType": "github",
+      "skillPath": "skills/slack/SKILL.md",
+      "computedHash": "c5228aca3c386a2fa6d1cd260d63b41fb97a69ed12c856fbc33258ce19411d3e"
+    },
+    "snapchat-ads": {
+      "source": "hyperfx-ai/marketing-skills",
+      "sourceType": "github",
+      "skillPath": "skills/snapchat-ads/SKILL.md",
+      "computedHash": "1c2cb62d625ada7d7fdcbf41e60f89da646e5a990f5c6a2130bb95460a2eaabe"
+    },
     "tdd": {
       "source": "mattpocock/skills",
       "sourceType": "github",
@@ -199,6 +349,18 @@
       "sourceType": "github",
       "skillPath": "skills/productivity/teach/SKILL.md",
       "computedHash": "9cd31ea42b40915ea5fd3949ed229b217d1dfad07dd93d9b0db771dcdd6a6c8a"
+    },
+    "tiktok": {
+      "source": "hyperfx-ai/marketing-skills",
+      "sourceType": "github",
+      "skillPath": "skills/tiktok/SKILL.md",
+      "computedHash": "a80d23b2e2fb0b7208280cd0527ec2cb6be453d96303390a103833cb60eea170"
+    },
+    "tiktok-ads": {
+      "source": "hyperfx-ai/marketing-skills",
+      "sourceType": "github",
+      "skillPath": "skills/tiktok-ads/SKILL.md",
+      "computedHash": "f62bd5a48fac1f0f6dfeba276ff6d49be659deec8a8dada90b11740008db234b"
     },
     "to-issues": {
       "source": "mattpocock/skills",
@@ -218,11 +380,35 @@
       "skillPath": "skills/engineering/triage/SKILL.md",
       "computedHash": "b77ea99c2e6e97815b373cc476ad4cc1835d3e736867b764602147be71f6c131"
     },
+    "twilio": {
+      "source": "hyperfx-ai/marketing-skills",
+      "sourceType": "github",
+      "skillPath": "skills/twilio/SKILL.md",
+      "computedHash": "4c1674409b4f5d331626a979202e22270ca5b1abab67ef3b3a785db87ca82298"
+    },
     "ubiquitous-language": {
       "source": "mattpocock/skills",
       "sourceType": "github",
       "skillPath": "skills/deprecated/ubiquitous-language/SKILL.md",
       "computedHash": "c8968b02b83c365bc81d85cc17fb4c8854b80f5b6dece322164fff5b00142231"
+    },
+    "video-generation": {
+      "source": "hyperfx-ai/marketing-skills",
+      "sourceType": "github",
+      "skillPath": "skills/video-generation/SKILL.md",
+      "computedHash": "a7605840dcf3d896700fe2ea8e9f1c26c852e1b30accf3e18b79b88fb038509b"
+    },
+    "viral-content-framework": {
+      "source": "mohitagw15856/pm-claude-skills",
+      "sourceType": "github",
+      "skillPath": "skills/viral-content-framework/SKILL.md",
+      "computedHash": "e30eb03d0aa17600d880533426dff63b2aaffa3d8b9c7c435254bc0fc0c061c7"
+    },
+    "viral-copywriting": {
+      "source": "revfactory/harness-100",
+      "sourceType": "github",
+      "skillPath": "en/10-social-media-manager/.claude/skills/viral-copywriting/SKILL.md",
+      "computedHash": "f9c70b33a50209a30f528cd645cb6f94e7c6c168726c895f0f4c1782701c690e"
     },
     "wayfinder": {
       "source": "mattpocock/skills",
@@ -259,6 +445,12 @@
       "sourceType": "github",
       "skillPath": "skills/in-progress/writing-shape/SKILL.md",
       "computedHash": "77007511510c05b602835acdb91a88f435ce5a08a9dbf95ade148f02e4b09548"
+    },
+    "youtube": {
+      "source": "hyperfx-ai/marketing-skills",
+      "sourceType": "github",
+      "skillPath": "skills/youtube/SKILL.md",
+      "computedHash": "61cc4a2ddea1bc83b67e30aa7fe58a04a3f93d9599f26f077a5d0792b4b7a9e8"
     }
   }
 }

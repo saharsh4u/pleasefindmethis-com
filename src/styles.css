@@ -2848,6 +2848,51 @@ main {
   font-weight: 690;
 }
 
+.readiness-score-row {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: 0.9rem;
+  align-items: center;
+}
+
+.readiness-score-row strong,
+.readiness-score-row p,
+.readiness-list strong,
+.readiness-list span {
+  display: block;
+}
+
+.readiness-score-row p {
+  margin: 0.16rem 0 0;
+  color: var(--muted);
+  font-size: 0.84rem;
+  font-weight: 650;
+  line-height: 1.4;
+}
+
+.readiness-list li {
+  align-items: flex-start;
+}
+
+.readiness-list strong {
+  margin-bottom: 0.08rem;
+  color: var(--text);
+  font-size: 0.88rem;
+  font-weight: 840;
+  line-height: 1.2;
+}
+
+.readiness-list span {
+  color: var(--muted);
+  font-size: 0.8rem;
+  font-weight: 640;
+  line-height: 1.35;
+}
+
+.readiness-list .is-missing svg {
+  color: var(--gold);
+}
+
 .reward-slider {
   display: grid;
   gap: 0.5rem;
@@ -3768,6 +3813,175 @@ main {
   color: var(--green);
   font-size: 2.15rem;
   font-weight: 880;
+}
+
+.readiness-score-row .score-ring {
+  width: 5.4rem;
+  height: 5.4rem;
+  border-width: 0.45rem;
+  font-size: 1.2rem;
+}
+
+.messages-grid {
+  align-items: stretch;
+}
+
+.message-thread-panel {
+  min-height: 34rem;
+}
+
+.message-thread {
+  display: grid;
+  align-content: start;
+  gap: 0.72rem;
+  min-height: 12rem;
+  max-height: 22rem;
+  overflow: auto;
+  padding: 0.85rem;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: #f8faf8;
+}
+
+.message-bubble {
+  display: grid;
+  gap: 0.25rem;
+  max-width: 34rem;
+  padding: 0.72rem 0.82rem;
+  border: 1px solid rgba(11, 109, 59, 0.16);
+  border-radius: 8px;
+  background: #fff;
+}
+
+.message-bubble p,
+.message-bubble span {
+  margin: 0;
+}
+
+.message-bubble p {
+  color: var(--text);
+  font-size: 0.88rem;
+  font-weight: 670;
+  line-height: 1.42;
+}
+
+.message-bubble span {
+  color: var(--muted);
+  font-size: 0.72rem;
+  font-weight: 700;
+}
+
+.message-composer {
+  display: grid;
+  gap: 0.44rem;
+  color: var(--text);
+  font-size: 0.86rem;
+  font-weight: 820;
+}
+
+.payout-case-list {
+  display: grid;
+  gap: 0.72rem;
+}
+
+.payout-case-row {
+  display: grid;
+  gap: 0.2rem;
+  padding: 0.75rem 0;
+  border-bottom: 1px solid var(--line);
+}
+
+.payout-case-row:last-child {
+  border-bottom: 0;
+}
+
+.payout-case-row span,
+.payout-case-row strong,
+.payout-case-row small,
+.payout-case-row em {
+  display: block;
+}
+
+.payout-case-row span {
+  color: var(--muted);
+  font-size: 0.82rem;
+  font-weight: 720;
+}
+
+.payout-case-row strong {
+  color: var(--text);
+  font-size: 1rem;
+  font-weight: 880;
+}
+
+.payout-case-row small,
+.payout-case-row em {
+  color: var(--muted);
+  font-size: 0.76rem;
+  font-style: normal;
+  font-weight: 650;
+  line-height: 1.35;
+}
+
+.admin-payout-controls {
+  display: grid;
+  gap: 0.55rem;
+  margin-top: 0.35rem;
+}
+
+.admin-payout-controls label {
+  display: grid;
+  gap: 0.32rem;
+  color: var(--text);
+  font-size: 0.78rem;
+  font-weight: 820;
+}
+
+.admin-payout-controls textarea,
+.admin-payout-controls input {
+  width: 100%;
+  border: 1px solid var(--line-dark);
+  border-radius: 8px;
+  background: #fff;
+  color: var(--text);
+  outline: none;
+}
+
+.admin-payout-controls textarea {
+  min-height: 4.2rem;
+  resize: vertical;
+  padding: 0.68rem 0.72rem;
+}
+
+.admin-payout-controls input {
+  min-height: 2.6rem;
+  padding: 0.64rem 0.72rem;
+}
+
+.admin-action-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.42rem;
+}
+
+.admin-action-row button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 2.2rem;
+  gap: 0.32rem;
+  padding: 0.5rem 0.68rem;
+  border: 1px solid var(--line-dark);
+  border-radius: 999px;
+  background: #fff;
+  color: var(--text);
+  font-size: 0.74rem;
+  font-weight: 840;
+}
+
+.admin-action-row button:disabled {
+  opacity: 0.48;
+  cursor: not-allowed;
 }
 
 .warning-card {
@@ -10153,6 +10367,102 @@ small {
   font-weight: 850;
 }
 
+.request-brief-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.85rem;
+}
+
+.request-brief-field {
+  min-width: 0;
+}
+
+.request-brief-field.is-wide {
+  grid-column: 1 / -1;
+}
+
+.request-brief-field textarea {
+  min-height: 7rem;
+  line-height: 1.45;
+}
+
+.request-brief-field.is-wide textarea {
+  min-height: 8rem;
+}
+
+.brief-field-hint {
+  margin-top: -0.15rem;
+  color: var(--wizard-muted);
+  font-size: 0.76rem;
+  font-weight: 680;
+  line-height: 1.36;
+}
+
+.app-page .brief-field-hint {
+  color: var(--wizard-muted) !important;
+}
+
+.brief-checklist-card {
+  display: grid;
+  gap: 0.85rem;
+  padding: 1rem;
+  border: 1px solid var(--wizard-border);
+  border-radius: 8px;
+  background: var(--wizard-surface);
+  color: var(--wizard-text);
+  box-shadow: 0 18px 42px rgba(0, 0, 0, 0.12);
+}
+
+.brief-checklist-card h3 {
+  margin: 0;
+  color: var(--wizard-text);
+  font-size: 1rem;
+  font-weight: 880;
+}
+
+.brief-check-list {
+  display: grid;
+  gap: 0.55rem;
+}
+
+.brief-check-list span {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: 0.12rem 0.5rem;
+  align-items: start;
+  min-width: 0;
+  padding: 0.65rem;
+  border: 1px solid var(--wizard-border);
+  border-radius: 8px;
+  background: var(--wizard-surface-soft);
+}
+
+.brief-check-list svg {
+  grid-row: span 2;
+  margin-top: 0.05rem;
+  color: var(--wizard-accent);
+}
+
+.brief-check-list .is-missing svg {
+  color: #b45309;
+}
+
+.brief-check-list strong {
+  min-width: 0;
+  color: var(--wizard-text);
+  font-size: 0.82rem;
+  font-weight: 850;
+  line-height: 1.18;
+}
+
+.brief-check-list small {
+  min-width: 0;
+  color: var(--wizard-muted);
+  font-size: 0.74rem;
+  font-weight: 650;
+  line-height: 1.35;
+}
+
 .post-question-card .upload-box,
 .app-page .post-question-card .upload-box {
   background: var(--wizard-surface-soft);
@@ -10238,8 +10548,13 @@ small {
   }
 
   .photo-source-grid,
+  .request-brief-grid,
   .payment-assurance-grid {
     grid-template-columns: 1fr;
+  }
+
+  .request-brief-field.is-wide {
+    grid-column: auto;
   }
 
   .photo-source-card {

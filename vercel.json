@@ -90,6 +90,10 @@
       "destination": "/index.html"
     },
     {
+      "source": "/messages",
+      "destination": "/index.html"
+    },
+    {
       "source": "/dispute",
       "destination": "/index.html"
     },
