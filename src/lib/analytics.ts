@@ -1,3 +1,5 @@
+import { initDataFast, type CustomProperties, type DataFastWeb } from "datafast";
+
 type AnalyticsValue = string | number | boolean | null | undefined;
 
 export type AnalyticsProperties = Record<string, AnalyticsValue>;
@@ -80,6 +82,7 @@ declare global {
 
 const ga4MeasurementId = import.meta.env.VITE_GA4_MEASUREMENT_ID || import.meta.env.VITE_GOOGLE_TAG_ID || "";
 const gtmId = import.meta.env.VITE_GTM_ID || "";
+const dataFastWebsiteId = import.meta.env.VITE_DATAFAST_WEBSITE_ID || "dfid_oKAGjqAhs9HTD5Ic9yvxt";
 const analyticsDebugMode = parseEnvBoolean(import.meta.env.VITE_ANALYTICS_DEBUG_MODE);
 const directGtagEventsEnabled = parseEnvBoolean(import.meta.env.VITE_DIRECT_GTAG_EVENTS, !gtmId);
 const directSimpleGtagEventsEnabled = parseEnvBoolean(import.meta.env.VITE_SIMPLE_DIRECT_GTAG_EVENTS, true);
@@ -217,9 +220,11 @@ const simpleEventDefinitions: Record<string, SimpleEventDefinition> = {
   },
 };
 let attributionCapturedForPage = false;
+let dataFastClientPromise: Promise<DataFastWeb | null> | null = null;
 
 export function initializeGoogleAnalytics() {
   captureAttribution();
+  initializeDataFast();
   window.dataLayer = window.dataLayer ?? [];
 
   if (gtmId) {
@@ -257,6 +262,7 @@ export function trackPageView(properties: AnalyticsProperties = {}) {
   };
 
   sendAnalyticsEvent("page_view", pageViewProperties);
+  sendDataFastPageView();
   sendSimplePageViewEvent(pageViewProperties);
 }
 
@@ -264,6 +270,7 @@ export function trackMarketingEvent(name: string, properties: AnalyticsPropertie
   const eventProperties = buildCommonProperties(properties);
 
   sendAnalyticsEvent(name, eventProperties);
+  sendDataFastEvent(name, eventProperties);
   sendSimpleMarketingEvent(name, eventProperties);
 }
 
@@ -447,6 +454,114 @@ function sendSimpleMarketingEvent(name: string, properties: AnalyticsProperties)
     funnel_step: definition.funnelStep,
     page_name: getReadablePageName(properties.route, properties.page_title),
   }), { sendDirect: canSendDirectSimpleGtagEvents() });
+}
+
+function initializeDataFast() {
+  if (!dataFastWebsiteId || dataFastClientPromise) {
+    return dataFastClientPromise;
+  }
+
+  dataFastClientPromise = initDataFast({
+    websiteId: dataFastWebsiteId,
+    autoCapturePageviews: false,
+    debug: analyticsDebugMode,
+  }).catch((error) => {
+    if (analyticsDebugMode) {
+      console.warn("[Analytics] DataFast initialization failed", error);
+    }
+
+    return null;
+  });
+
+  return dataFastClientPromise;
+}
+
+function sendDataFastPageView() {
+  void initializeDataFast()?.then((client) => client?.trackPageview()).catch((error) => {
+    if (analyticsDebugMode) {
+      console.warn("[Analytics] DataFast pageview failed", error);
+    }
+  });
+}
+
+function sendDataFastEvent(name: string, properties: AnalyticsProperties) {
+  const eventName = toDataFastEventName(name);
+
+  if (!eventName) {
+    return;
+  }
+
+  void initializeDataFast()?.then((client) => client?.track(eventName, toDataFastProperties(properties))).catch((error) => {
+    if (analyticsDebugMode) {
+      console.warn("[Analytics] DataFast event failed", error);
+    }
+  });
+}
+
+function toDataFastEventName(name: string) {
+  const normalized = name.trim().toLowerCase().replace(/[^a-z0-9_:-]+/g, "_").slice(0, 64);
+  return normalized || null;
+}
+
+function toDataFastProperties(properties: AnalyticsProperties): CustomProperties {
+  const selected: CustomProperties = {};
+  const priorityKeys = [
+    "route",
+    "page_path",
+    "page_title",
+    "signed_in",
+    "category",
+    "bounty_id",
+    "request_id",
+    "source_type",
+    "reward",
+    "total_due",
+    "current_channel",
+    "current_source",
+    "utm_source",
+    "utm_medium",
+    "utm_campaign",
+  ];
+
+  for (const key of priorityKeys) {
+    addDataFastProperty(selected, key, properties[key]);
+  }
+
+  for (const [key, value] of Object.entries(properties)) {
+    if (Object.keys(selected).length >= 10) {
+      break;
+    }
+
+    addDataFastProperty(selected, key, value);
+  }
+
+  return selected;
+}
+
+function addDataFastProperty(properties: CustomProperties, key: string, value: AnalyticsValue) {
+  if (Object.keys(properties).length >= 10 || value === null || value === undefined) {
+    return;
+  }
+
+  const normalizedKey = key.trim().toLowerCase().replace(/[^a-z0-9_-]+/g, "_").slice(0, 64);
+
+  if (!normalizedKey || properties[normalizedKey] !== undefined) {
+    return;
+  }
+
+  if (typeof value === "string") {
+    properties[normalizedKey] = value.slice(0, 255);
+    return;
+  }
+
+  if (typeof value === "number" && Number.isFinite(value)) {
+    properties[normalizedKey] = value;
+    return;
+  }
+
+  if (typeof value === "boolean") {
+    properties[normalizedKey] = value;
+  }
 }
 
 function pushDataLayerEvent(name: string, properties: AnalyticsProperties) {
