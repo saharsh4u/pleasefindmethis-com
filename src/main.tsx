@@ -8,7 +8,6 @@ import {
   BadgeCheck,
   Banknote,
   CalendarDays,
-  Camera,
   CheckCircle2,
   CircleHelp,
   Clock3,
@@ -18,7 +17,6 @@ import {
   Filter,
   Flag,
   ImagePlus,
-  Images,
   LayoutDashboard,
   Link as LinkIcon,
   LockKeyhole,
@@ -52,7 +50,6 @@ import "./styles.css";
 type Page =
   | "landing"
   | "auth"
-  | "post-photo"
   | "post-describe"
   | "post-reward"
   | "post-pay"
@@ -281,30 +278,27 @@ type AdminPayoutQueuesResponse = {
 type RequestCategory = "home" | "audio" | "camera" | "watch" | "gaming" | "parts" | "fashion";
 type PostStarterId = "sentimental" | "rare-gear" | "parts" | "fashion";
 type RequestDuration = 7 | 14 | 30 | 60;
-type ReferenceImageCrop = {
-  zoom: number;
-  x: number;
-  y: number;
-};
-type ReferenceImageDraft = {
-  file: File;
-  name: string;
-  url: string;
-  originalFile: File;
-  originalUrl: string;
-  crop: ReferenceImageCrop;
-};
 
 type PostDraft = {
   itemName: string;
   category: RequestCategory;
   details: string;
-  referenceImages: ReferenceImageDraft[];
   reward: number;
   durationDays: RequestDuration;
 };
 
-type StoredPostDraft = Omit<PostDraft, "referenceImages">;
+type PostReferenceImageDraft = {
+  file: File;
+  name: string;
+};
+
+type StoredPostDraft = {
+  itemName: string;
+  category: RequestCategory;
+  details: string;
+  reward: number;
+  durationDays: RequestDuration;
+};
 
 type PostStarterPrompt = {
   id: PostStarterId;
@@ -397,7 +391,6 @@ const initialPostDraft: PostDraft = {
   itemName: "Help me find this exact item",
   category: "home",
   details: "",
-  referenceImages: [],
   reward: 0,
   durationDays: 30,
 };
@@ -638,7 +631,6 @@ function hasUsefulRequestBrief(fields: RequestBriefFields) {
 }
 
 const protectedPages = new Set<Page>([
-  "post-photo",
   "post-describe",
   "post-reward",
   "post-pay",
@@ -654,7 +646,6 @@ const protectedPages = new Set<Page>([
 const pageLabels: Record<Page, string> = {
   landing: "Landing page",
   auth: "Sign up / Log in",
-  "post-photo": "Post Request - Add photo",
   "post-describe": "Post Request - Describe",
   "post-reward": "Post Request - Visibility",
   "post-pay": "Post Request - Publish",
@@ -680,8 +671,7 @@ const routeMap: Record<string, Page> = {
   "/": "landing",
   landing: "landing",
   auth: "auth",
-  post: "post-photo",
-  "post/photo": "post-photo",
+  post: "post-describe",
   "post/describe": "post-describe",
   "post/visibility": "post-reward",
   "post/publish": "post-pay",
@@ -707,7 +697,6 @@ const routeMap: Record<string, Page> = {
 const pageRoutes: Record<Page, string> = {
   landing: "/",
   auth: "auth",
-  "post-photo": "post/photo",
   "post-describe": "post/describe",
   "post-reward": "post/visibility",
   "post-pay": "post/publish",
@@ -770,10 +759,6 @@ const pageSeoCopy: Record<Page, { title: string; description: string; socialDesc
   auth: {
     title: "Sign In | pleasefindmethis",
     description: "Sign in to post requests and review source leads.",
-  },
-  "post-photo": {
-    title: "Add a Request Photo | pleasefindmethis",
-    description: "Upload photos and post your request.",
   },
   "post-describe": {
     title: "Post a Find Request | pleasefindmethis",
@@ -897,8 +882,6 @@ const CurrencyContext = React.createContext<CurrencyPreference>(defaultCurrencyP
 const exchangeRateCacheKey = "pleasefindmethis-usd-exchange-rates";
 const exchangeRateCacheTtlMs = 12 * 60 * 60 * 1000;
 const exchangeRateApiUrl = "https://open.er-api.com/v6/latest/USD";
-const defaultReferenceImageCrop: ReferenceImageCrop = { zoom: 1, x: 0, y: 0 };
-const croppedReferenceImageSize = 1200;
 const fallbackUsdExchangeRates: Record<string, number> = {
   USD: 1,
   AED: 3.67,
@@ -1679,6 +1662,40 @@ function sanitizeFileName(name: string) {
   return name.replace(/[^a-zA-Z0-9._-]/g, "-").slice(0, 120) || "proof-file";
 }
 
+async function uploadRequestReferenceFiles(userId: string, requestId: string, files: File[]) {
+  const referenceImages: Array<{ url: string; name: string; path: string }> = [];
+  const uploadedPaths: string[] = [];
+
+  if (!supabase || !files.length) {
+    return { referenceImages, uploadedPaths };
+  }
+
+  for (const file of files) {
+    const filePath = `${userId}/${requestId}/${crypto.randomUUID()}-${sanitizeFileName(file.name)}`;
+    const { error } = await supabase.storage.from(requestReferenceImagesBucket).upload(filePath, file, {
+      cacheControl: "3600",
+      contentType: file.type || undefined,
+      upsert: false,
+    });
+
+    if (error) {
+      if (uploadedPaths.length) {
+        await supabase.storage.from(requestReferenceImagesBucket).remove(uploadedPaths);
+      }
+      throw error;
+    }
+
+    uploadedPaths.push(filePath);
+    referenceImages.push({
+      name: file.name,
+      path: filePath,
+      url: supabase.storage.from(requestReferenceImagesBucket).getPublicUrl(filePath).data.publicUrl,
+    });
+  }
+
+  return { referenceImages, uploadedPaths };
+}
+
 async function uploadSourceProofFiles(userId: string, submissionId: string, files: File[]) {
   const proof: SourceProofFile[] = [];
   const uploadedPaths: string[] = [];
@@ -1713,7 +1730,7 @@ async function uploadSourceProofFiles(userId: string, submissionId: string, file
 
 function readStoredPendingRoute(): Page {
   const storedRoute = window.sessionStorage.getItem(pendingRouteStorageKey);
-  return storedRoute && storedRoute in pageRoutes ? (storedRoute as Page) : "post-photo";
+  return storedRoute && storedRoute in pageRoutes ? (storedRoute as Page) : "post-describe";
 }
 
 function normalizeClientAppOrigin(value: unknown) {
@@ -2516,7 +2533,6 @@ function getAcquisitionStarterFromUrl() {
       itemName: itemName || prompt.itemName,
       category: prompt.category,
       details: context ? `${prompt.details}\n\nContext: ${context}` : prompt.details,
-      referenceImages: [],
       reward: prompt.reward,
       durationDays: prompt.durationDays,
     } satisfies PostDraft,
@@ -2542,10 +2558,7 @@ function postDraftToStoredDraft(draft: PostDraft): StoredPostDraft {
 }
 
 function storedDraftToPostDraft(storedDraft: StoredPostDraft): PostDraft {
-  return {
-    ...storedDraft,
-    referenceImages: [],
-  };
+  return storedDraft;
 }
 
 function readStoredPostDraft(): PostDraft | null {
@@ -2677,95 +2690,6 @@ function getFinderReadiness(profile: AccountProfile): { score: number; items: Fi
   const label = score === 100 ? "Ready" : score >= 75 ? "Nearly ready" : score >= 50 ? "Needs review" : "Incomplete";
 
   return { score, items, label };
-}
-
-function createReferenceImageDrafts(files: File[]): ReferenceImageDraft[] {
-  return files.map((file) => {
-    const url = URL.createObjectURL(file);
-
-    return {
-      file,
-      name: file.name,
-      url,
-      originalFile: file,
-      originalUrl: url,
-      crop: defaultReferenceImageCrop,
-    };
-  });
-}
-
-function revokeReferenceImageDrafts(images: ReferenceImageDraft[]) {
-  images.forEach((image) => {
-    URL.revokeObjectURL(image.url);
-
-    if (image.originalUrl && image.originalUrl !== image.url) {
-      URL.revokeObjectURL(image.originalUrl);
-    }
-  });
-}
-
-function loadImageForCrop(src: string) {
-  return new Promise<HTMLImageElement>((resolve, reject) => {
-    const image = new Image();
-    image.onload = () => resolve(image);
-    image.onerror = () => reject(new Error("Could not load this photo for editing."));
-    image.src = src;
-  });
-}
-
-function getCropOutputType(file: File) {
-  return file.type === "image/png" || file.type === "image/webp" || file.type === "image/jpeg" ? file.type : "image/jpeg";
-}
-
-function getCroppedFileName(name: string, type: string) {
-  const extension = type === "image/png" ? "png" : type === "image/webp" ? "webp" : "jpg";
-  const baseName = name.replace(/\.[^.]+$/, "") || "reference-image";
-  return `${baseName}-card-crop.${extension}`;
-}
-
-async function cropReferenceImageDraft(image: ReferenceImageDraft, crop: ReferenceImageCrop): Promise<ReferenceImageDraft> {
-  const sourceImage = await loadImageForCrop(image.originalUrl || image.url);
-  const canvas = document.createElement("canvas");
-  const outputSize = croppedReferenceImageSize;
-  const safeZoom = Math.min(3, Math.max(1, crop.zoom));
-  const scale = Math.max(outputSize / sourceImage.naturalWidth, outputSize / sourceImage.naturalHeight) * safeZoom;
-  const drawWidth = sourceImage.naturalWidth * scale;
-  const drawHeight = sourceImage.naturalHeight * scale;
-  const extraX = Math.max(0, drawWidth - outputSize);
-  const extraY = Math.max(0, drawHeight - outputSize);
-  const offsetX = Math.max(-25, Math.min(25, crop.x));
-  const offsetY = Math.max(-25, Math.min(25, crop.y));
-  const dx = (outputSize - drawWidth) / 2 + (offsetX / 25) * (extraX / 2);
-  const dy = (outputSize - drawHeight) / 2 + (offsetY / 25) * (extraY / 2);
-  const context = canvas.getContext("2d");
-
-  if (!context) {
-    throw new Error("Photo editing is not available in this browser.");
-  }
-
-  canvas.width = outputSize;
-  canvas.height = outputSize;
-  context.drawImage(sourceImage, dx, dy, drawWidth, drawHeight);
-
-  const type = getCropOutputType(image.originalFile);
-  const blob = await new Promise<Blob>((resolve, reject) => {
-    canvas.toBlob((nextBlob) => {
-      if (nextBlob) {
-        resolve(nextBlob);
-        return;
-      }
-
-      reject(new Error("Could not save the edited photo."));
-    }, type, 0.92);
-  });
-  const file = new File([blob], getCroppedFileName(image.name, type), { type });
-
-  return {
-    ...image,
-    file,
-    url: URL.createObjectURL(file),
-    crop: { zoom: safeZoom, x: offsetX, y: offsetY },
-  };
 }
 
 function getInitialPostDraft() {
@@ -3174,6 +3098,7 @@ function App() {
   const [authMessage, setAuthMessage] = useState("");
   const [emailOtpSentTo, setEmailOtpSentTo] = useState("");
   const [postDraft, setPostDraft] = useState<PostDraft>(() => getInitialPostDraft());
+  const [postReferenceImageDrafts, setPostReferenceImageDrafts] = useState<PostReferenceImageDraft[]>([]);
   const [activeBountyId, setActiveBountyId] = useState(() => getBountyIdFromCurrentRoute() || bountyListings[0].id);
   const visibleRoute = !signedIn && protectedPages.has(route) ? "auth" : route;
   const currencyPreference = useViewerCurrencyPreference(routeUsesCurrency(visibleRoute));
@@ -3430,7 +3355,7 @@ function App() {
     window.sessionStorage.removeItem(authProviderStorageKey);
     window.sessionStorage.removeItem(authEmailStorageKey);
     window.sessionStorage.removeItem(pendingRouteStorageKey);
-    setPendingRoute("post-photo");
+    setPendingRoute("post-describe");
     setAuthMode("login");
 
     if (shouldReturnHome) {
@@ -3500,19 +3425,23 @@ function App() {
     const urlStarter = !prompt ? getAcquisitionStarterFromUrl() : null;
     const selectedPrompt = prompt ?? urlStarter?.prompt ?? null;
 
+    if (!selectedPrompt) {
+      setPostReferenceImageDrafts([]);
+    }
+
     if (selectedPrompt) {
       const nextDraft =
         urlStarter?.draft ?? {
           itemName: selectedPrompt.itemName,
           category: selectedPrompt.category,
           details: selectedPrompt.details,
-          referenceImages: [],
           reward: selectedPrompt.reward,
           durationDays: selectedPrompt.durationDays,
         };
 
       setPostDraft(nextDraft);
       writeStoredPostDraft(nextDraft);
+      setPostReferenceImageDrafts([]);
     }
 
     trackAcquisitionEvent("start_request", {
@@ -3522,22 +3451,17 @@ function App() {
       starter_id: selectedPrompt?.id,
       from_starter_link: Boolean(urlStarter),
     });
-    requireAuth("post-photo");
-  };
-
-  const continueFromPhoto = () => {
-    navigate("post-describe");
+    requireAuth("post-describe");
   };
 
   const continueFromDescribe = () => {
-    trackAcquisitionEvent("post_describe_completed", {
-      category: getCategoryLabel(postDraft.category),
-      has_item_name: Boolean(postDraft.itemName.trim()),
-      duration_days: postDraft.durationDays,
-      reference_image_count: postDraft.referenceImages.length,
-    });
-    navigate("post-reward");
-  };
+  trackAcquisitionEvent("post_describe_completed", {
+    category: getCategoryLabel(postDraft.category),
+    has_item_name: Boolean(postDraft.itemName.trim()),
+    duration_days: postDraft.durationDays,
+  });
+  navigate("post-reward");
+};
 
   const continueFromReward = () => {
     trackAcquisitionEvent("choose_visibility", {
@@ -3665,17 +3589,30 @@ function App() {
               onPublicBrowse={() => navigate("browse")}
             />
           ) : null}
-          {visibleRoute === "post-photo" ? (
-            <PostPhotoSourcePage draft={postDraft} onBack={() => navigate("landing")} onDraftChange={updatePostDraft} onNext={continueFromPhoto} />
-          ) : null}
           {visibleRoute === "post-describe" ? (
-            <PostDescribePage draft={postDraft} onBack={() => navigate("post-photo")} onDraftChange={updatePostDraft} onNext={continueFromDescribe} />
+            <PostDescribePage
+              draft={postDraft}
+              onDraftChange={updatePostDraft}
+              onNext={continueFromDescribe}
+              referenceImageFiles={postReferenceImageDrafts}
+              onReferenceImageFilesChange={setPostReferenceImageDrafts}
+            />
           ) : null}
           {visibleRoute === "post-reward" ? (
             <PostRewardPage draft={postDraft} onBack={() => navigate("post-describe")} onDraftChange={updatePostDraft} onNext={continueFromReward} />
           ) : null}
           {visibleRoute === "post-pay" ? (
-            <PostPayPage checkoutReturnStatus={checkoutReturnStatus} draft={postDraft} onBack={() => navigate("post-reward")} onPublished={() => navigate("poster-dashboard")} />
+            <PostPayPage
+              checkoutReturnStatus={checkoutReturnStatus}
+              draft={postDraft}
+              referenceImageFiles={postReferenceImageDrafts}
+              onBack={() => navigate("post-reward")}
+              onPublished={() => {
+                setPostReferenceImageDrafts([]);
+                clearStoredPostDraft();
+                navigate("poster-dashboard");
+              }}
+            />
           ) : null}
           {visibleRoute === "browse" ? (
             <BrowsePage
@@ -3765,7 +3702,7 @@ function PageChrome({
     ["Browse requests", "browse", false],
     ["Trust", "profile", false],
     ...(signedIn ? ([["Messages", "messages", true]] as Array<[string, Page, boolean]>) : []),
-    [signedIn ? "Dashboard" : "Post a request", signedIn ? "poster-dashboard" : "post-photo", true],
+    [signedIn ? "Dashboard" : "Post a request", signedIn ? "poster-dashboard" : "post-describe", true],
   ];
   const handleNavItem = (page: Page, gated: boolean) => {
     if (page === "browse") {
@@ -3773,7 +3710,7 @@ function PageChrome({
       return;
     }
 
-    if (page === "post-photo") {
+    if (page === "post-describe") {
       onPostRequest();
       return;
     }
@@ -3943,6 +3880,12 @@ function LandingPage({
 }) {
   const [heroSearch, setHeroSearch] = useState("");
   const [heroPlaceholder, setHeroPlaceholder] = useState(heroPlaceholderExamples[0]);
+  const railBounties = useMemo(() => {
+    const source = bounties.length ? bounties : bountyListings;
+    const doubled = [...source, ...source];
+    return doubled.slice(0, Math.min(8, doubled.length));
+  }, [bounties]);
+  const tickerBounties = useMemo(() => [...railBounties, ...railBounties], [railBounties]);
 
   useEffect(() => {
     const reduceMotionQuery = window.matchMedia("(prefers-reduced-motion: reduce)");
@@ -4009,7 +3952,64 @@ function LandingPage({
 
   return (
     <main id="top" className="landing-page">
+      {tickerBounties.length ? (
+        <>
+          <aside className="mobile-find-ticker mobile-find-ticker-top" aria-hidden="true">
+            <div className="mobile-find-ticker-track mobile-find-ticker-track-left">
+              {tickerBounties.map((bounty, index) => (
+                <article className="mobile-find-ticker-card" key={`mobile-rail-top-${bounty.id}-${index}`}>
+                  <img src={bounty.image} alt="" />
+                  <span>
+                    <strong>{bounty.name}</strong>
+                    <small>{bounty.location}</small>
+                  </span>
+                </article>
+              ))}
+            </div>
+          </aside>
+          <aside className="mobile-find-ticker mobile-find-ticker-bottom" aria-hidden="true">
+            <div className="mobile-find-ticker-track mobile-find-ticker-track-right">
+              {tickerBounties.map((bounty, index) => (
+                <article className="mobile-find-ticker-card" key={`mobile-rail-bottom-${bounty.id}-${index}`}>
+                  <img src={bounty.image} alt="" />
+                  <span>
+                    <strong>{bounty.name}</strong>
+                    <small>{bounty.reward} bounty</small>
+                  </span>
+                </article>
+              ))}
+            </div>
+          </aside>
+        </>
+      ) : null}
       <section className="hero-section">
+        {railBounties.length ? (
+          <>
+            <aside className="side-find-rail" aria-hidden="true">
+              <div className="side-find-track side-find-track-down">
+                {railBounties.map((bounty, index) => (
+                  <article className="side-find-card" key={`landing-rail-top-${bounty.id}-${index}`}>
+                    <strong>{bounty.name}</strong>
+                    <p>{bounty.location}</p>
+                    <img className="side-find-image" src={bounty.image} alt={bounty.name} />
+                  </article>
+                ))}
+              </div>
+            </aside>
+            <aside className="side-find-rail side-find-rail-right side-find-rail-bottom" aria-hidden="true">
+              <div className="side-find-track side-find-track-up">
+                {railBounties.map((bounty, index) => (
+                  <article className="side-find-card" key={`landing-rail-bottom-${bounty.id}-${index}`}>
+                    <strong>{bounty.name}</strong>
+                    <p>{bounty.category}</p>
+                    <img className="side-find-image" src={bounty.image} alt={bounty.name} />
+                  </article>
+                ))}
+              </div>
+            </aside>
+          </>
+        ) : null}
+
         <div className="canvas-nav">
           <a
             className="brand brand-button"
@@ -4030,7 +4030,7 @@ function LandingPage({
             <a href={routeHref("browse")} onClick={(event) => handleRoutedAnchorClick(event, onBrowse)}>
               Browse requests
             </a>
-            <a href={routeHref("post-photo")} onClick={(event) => handleRoutedAnchorClick(event, onPost)}>
+            <a href={routeHref("post-describe")} onClick={(event) => handleRoutedAnchorClick(event, onPost)}>
               Post request
             </a>
           </nav>
@@ -4065,7 +4065,7 @@ function LandingPage({
               <a href={routeHref("browse")} onClick={(event) => handleRoutedAnchorClick(event, onBrowse)}>
                 Browse requests
               </a>
-              <a href={routeHref("post-photo")} onClick={(event) => handleRoutedAnchorClick(event, onPost)}>
+              <a href={routeHref("post-describe")} onClick={(event) => handleRoutedAnchorClick(event, onPost)}>
                 Post request
               </a>
               {signedIn ? (
@@ -4288,8 +4288,8 @@ function AuthPage({
   );
 }
 
-function PostProgress({ current }: { current: 1 | 2 | 3 | 4 }) {
-  const steps = ["Photo", "Details", "Visibility", "Publish"] as const;
+function PostProgress({ current }: { current: 1 | 2 | 3 }) {
+  const steps = ["Details", "Visibility", "Publish"] as const;
 
   return (
     <div className="post-progress" aria-label="Post request progress">
@@ -4303,313 +4303,132 @@ function PostProgress({ current }: { current: 1 | 2 | 3 | 4 }) {
   );
 }
 
-function PostPhotoSourcePage({
+function PostDescribePage({
   draft,
-  onBack,
   onDraftChange,
   onNext,
+  referenceImageFiles,
+  onReferenceImageFilesChange,
 }: {
   draft: PostDraft;
-  onBack: () => void;
   onDraftChange: (updates: Partial<PostDraft>) => void;
   onNext: () => void;
+  referenceImageFiles: PostReferenceImageDraft[];
+  onReferenceImageFilesChange: React.Dispatch<React.SetStateAction<PostReferenceImageDraft[]>>;
 }) {
-  const selectedImage = draft.referenceImages[0];
-  const [photoEditOpen, setPhotoEditOpen] = useState(false);
-  const [photoCrop, setPhotoCrop] = useState<ReferenceImageCrop>(defaultReferenceImageCrop);
-  const [photoEditStatus, setPhotoEditStatus] = useState("");
+  const [referenceImagePreviewUrls, setReferenceImagePreviewUrls] = useState<string[]>([]);
+  const maxReferenceImageFiles = 4;
 
   useEffect(() => {
-    setPhotoCrop(selectedImage?.crop ?? defaultReferenceImageCrop);
-    setPhotoEditOpen(false);
-    setPhotoEditStatus("");
-  }, [selectedImage?.url]);
+    const urls = referenceImageFiles.map((item) => URL.createObjectURL(item.file));
+    setReferenceImagePreviewUrls(urls);
 
-  const handleReferenceImagesChange = async (event: React.ChangeEvent<HTMLInputElement>, source: "camera" | "gallery") => {
-    const files = Array.from(event.target.files ?? []);
-    if (!files.length) {
+    return () => {
+      urls.forEach((url) => URL.revokeObjectURL(url));
+    };
+  }, [referenceImageFiles]);
+
+  const continueWithDetails = (event: React.FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+
+    if (!draft.itemName.trim()) {
       return;
     }
 
-    revokeReferenceImageDrafts(draft.referenceImages);
-    const referenceImageDrafts = createReferenceImageDrafts(files);
-    const referenceImages = await Promise.all(
-      referenceImageDrafts.map((image) => cropReferenceImageDraft(image, defaultReferenceImageCrop).catch(() => image)),
-    );
-    onDraftChange({ referenceImages });
-    trackAcquisitionEvent("post_photo_source_selected", {
-      source,
-      category: getCategoryLabel(draft.category),
-      reference_image_count: referenceImages.length,
+    onNext();
+  };
+
+  const handleReferenceImageSelection = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const selectedFiles = Array.from(event.target.files ?? []);
+    if (!selectedFiles.length) {
+      return;
+    }
+
+    const nextFiles = selectedFiles.slice(0, maxReferenceImageFiles).map((file) => ({ file, name: file.name }));
+    onReferenceImageFilesChange((previous) => {
+      const merged = [...previous, ...nextFiles].filter((item, index, all) => {
+        return all.findIndex((entry) => entry.name === item.name && entry.file.size === item.file.size && entry.file.lastModified === item.file.lastModified) === index;
+      });
+
+      return merged.slice(0, maxReferenceImageFiles);
     });
     event.target.value = "";
   };
 
-  const updatePhotoCrop = (updates: Partial<ReferenceImageCrop>) => {
-    setPhotoEditStatus("");
-    setPhotoCrop((crop) => ({ ...crop, ...updates }));
+  const removeReferenceImage = (index: number) => {
+    onReferenceImageFilesChange((previous) => previous.filter((_, currentIndex) => currentIndex !== index));
   };
 
-  const applyPhotoCrop = async () => {
-    if (!selectedImage) {
-      return;
-    }
-
-    setPhotoEditStatus("Applying crop...");
-
-    try {
-      const croppedImage = await cropReferenceImageDraft(selectedImage, photoCrop);
-
-      if (selectedImage.url && selectedImage.url !== selectedImage.originalUrl) {
-        URL.revokeObjectURL(selectedImage.url);
+  const handleTitleKeyDown = (event: React.KeyboardEvent<HTMLTextAreaElement>) => {
+    if (event.key === "Enter" && !event.shiftKey) {
+      event.preventDefault();
+      if (!draft.itemName.trim()) {
+        return;
       }
 
-      onDraftChange({ referenceImages: [croppedImage, ...draft.referenceImages.slice(1)] });
-      setPhotoEditOpen(false);
-      setPhotoEditStatus("Crop applied.");
-    } catch (error) {
-      setPhotoEditStatus(error instanceof Error ? error.message : "Could not edit this photo.");
+      onNext();
     }
-  };
-
-  const continueToDetails = () => {
-    trackAcquisitionEvent(draft.referenceImages.length ? "post_photo_step_completed" : "post_photo_step_skipped", {
-      category: getCategoryLabel(draft.category),
-      reference_image_count: draft.referenceImages.length,
-      has_reference_images: draft.referenceImages.length > 0,
-    });
-    onNext();
-  };
-
-  return (
-      <main className="route-page post-wizard-page post-photo-minimal-page" aria-label="Add item photo">
-        <button className="back-button post-photo-back" type="button" onClick={onBack}>
-          <ArrowLeft size={17} /> Back
-        </button>
-        <section className="post-photo-minimal" aria-label="Choose photo source">
-          <div className="photo-source-grid photo-source-grid-minimal" aria-label="How to add an item photo">
-            <input
-              id="camera-photo-input"
-              className="sr-only-file-input"
-              type="file"
-              accept="image/*"
-              capture="environment"
-              onChange={(event) => handleReferenceImagesChange(event, "camera")}
-            />
-            <label className="photo-source-card photo-source-card-minimal" htmlFor="camera-photo-input">
-              <span className="photo-source-icon" aria-hidden="true">
-                <Camera size={42} />
-              </span>
-              <strong>Use camera</strong>
-            </label>
-          <input
-            id="gallery-photo-input"
-            className="sr-only-file-input"
-            type="file"
-            accept="image/*"
-            multiple
-            onChange={(event) => handleReferenceImagesChange(event, "gallery")}
-          />
-            <label className="photo-source-card photo-source-card-minimal" htmlFor="gallery-photo-input">
-              <span className="photo-source-icon" aria-hidden="true">
-                <Images size={42} />
-              </span>
-              <strong>Use gallery</strong>
-            </label>
-        </div>
-        <div className={selectedImage ? "photo-preview-minimal has-selected-image" : "photo-preview-minimal"} aria-label="Photo preview">
-          {selectedImage ? (
-            <>
-              <div className="photo-preview-frame">
-                <img
-                  src={photoEditOpen ? selectedImage.originalUrl : selectedImage.url}
-                  alt={`${selectedImage.name} selected reference`}
-                  decoding="async"
-                  style={
-                    photoEditOpen
-                      ? {
-                          transform: `translate(${photoCrop.x}%, ${photoCrop.y}%) scale(${photoCrop.zoom})`,
-                        }
-                      : undefined
-                  }
-                />
-              </div>
-              <button className="photo-edit-toggle" type="button" onClick={() => setPhotoEditOpen((value) => !value)}>
-                {photoEditOpen ? "Done" : "Crop"}
-              </button>
-            </>
-          ) : (
-            <span>Add photo to start</span>
-          )}
-        </div>
-        {selectedImage && photoEditOpen ? (
-          <div className="photo-edit-panel" aria-label="Photo crop controls">
-            <label>
-              Zoom
-              <input
-                type="range"
-                min="1"
-                max="3"
-                step="0.05"
-                value={photoCrop.zoom}
-                onChange={(event) => updatePhotoCrop({ zoom: Number(event.target.value) })}
-              />
-            </label>
-            <label>
-              Horizontal
-              <input
-                type="range"
-                min="-25"
-                max="25"
-                step="1"
-                value={photoCrop.x}
-                onChange={(event) => updatePhotoCrop({ x: Number(event.target.value) })}
-              />
-            </label>
-              <label>
-                Vertical
-                <input
-                  type="range"
-                  min="-25"
-                  max="25"
-                  step="1"
-                  value={photoCrop.y}
-                  onChange={(event) => updatePhotoCrop({ y: Number(event.target.value) })}
-                />
-              </label>
-              <div className="photo-edit-actions">
-                <button className="photo-edit-button" type="button" onClick={applyPhotoCrop}>
-                  Apply
-                </button>
-                <button className="photo-edit-button secondary" type="button" onClick={() => updatePhotoCrop(defaultReferenceImageCrop)}>
-                  Reset
-                </button>
-              </div>
-            </div>
-          ) : null}
-        {photoEditStatus ? <p className="photo-edit-status" role="status">{photoEditStatus}</p> : null}
-        <button className="primary-button post-photo-next-button" type="button" onClick={continueToDetails}>
-          Next <ArrowRight size={17} />
-        </button>
-      </section>
-    </main>
-  );
-}
-
-function PostDescribePage({
-  draft,
-  onBack,
-  onDraftChange,
-  onNext,
-}: {
-  draft: PostDraft;
-  onBack: () => void;
-  onDraftChange: (updates: Partial<PostDraft>) => void;
-  onNext: () => void;
-}) {
-  const [draftError, setDraftError] = useState("");
-  const requestBrief = getRequestBriefFields(draft.details);
-
-  const continueWithDetails = () => {
-    if (!draft.itemName.trim()) {
-      setDraftError("Add a title so helpers know what to search for.");
-      return;
-    }
-
-    if (!hasUsefulRequestBrief(requestBrief)) {
-      setDraftError("Add at least one search-ready detail so helpers know what to look for.");
-      return;
-    }
-
-    setDraftError("");
-    onNext();
-  };
-
-  const updateBriefField = (key: RequestBriefFieldKey, value: string) => {
-    setDraftError("");
-    onDraftChange({
-      details: formatRequestBriefDetails({
-        ...requestBrief,
-        [key]: value,
-      }),
-    });
   };
 
   return (
     <main className="route-page post-wizard-page" aria-labelledby="describe-title">
-      <PostProgress current={2} />
       <section className="two-column-page">
-        <div className="form-panel post-flow-panel">
-          <button className="back-button" type="button" onClick={onBack}>
-            <ArrowLeft size={17} /> Photo
-          </button>
-          <div className="post-flow-intro">
-            <h1 id="describe-title">Write your request in plain words.</h1>
-            <p>Add what you need, what must match, and what you already tried.</p>
-          </div>
-            <div className="post-question-card is-active">
-              <span className="post-question-label">
-              <FileText size={15} /> Request details
-              </span>
-            <label>
-              Title
-              <input
-                value={draft.itemName}
-                placeholder="Help me find this exact item"
-                onChange={(event) => {
-                  setDraftError("");
-                  onDraftChange({ itemName: event.target.value });
-                }}
-              />
-              </label>
-              <label>
-                Open time
-                <select
-                  value={draft.durationDays}
-                  onChange={(event) => {
-                  setDraftError("");
-                  onDraftChange({ durationDays: Number(event.target.value) as RequestDuration });
-                }}
-              >
-                <option value={7}>7 days</option>
-                <option value={14}>14 days</option>
-                <option value={30}>30 days</option>
-                <option value={60}>60 days</option>
-              </select>
-            </label>
-          </div>
-          <div className="post-question-card is-active">
+        <form className="form-panel post-flow-panel" onSubmit={continueWithDetails}>
+          <h1 id="describe-title">What are you trying to find ?</h1>
+          <textarea
+            aria-label="What are you trying to find?"
+            value={draft.itemName}
+            rows={4}
+            placeholder="Help me find this exact item"
+            onChange={(event) => onDraftChange({ itemName: event.target.value })}
+            onKeyDown={handleTitleKeyDown}
+          />
+          <div className="post-question-card">
             <span className="post-question-label">
-              <MessageSquare size={15} /> Request brief
+              <Upload size={24} /> Add a photo reference
             </span>
-              <h2>What should helpers see first?</h2>
-            <div className="request-brief-grid">
-              {requestBriefFieldConfigs.map((field) => (
-                <label
-                  className={field.key === "story" || field.key === "mustMatch" || field.key === "extraNotes" ? "request-brief-field is-wide" : "request-brief-field"}
-                  key={field.key}
-                >
-                  {field.label}
-                  <textarea
-                    value={requestBrief[field.key]}
-                    rows={field.rows}
-                    placeholder={field.placeholder}
-                    onChange={(event) => updateBriefField(field.key, event.target.value)}
-                  />
-                  <span className="brief-field-hint">{field.hint}</span>
-                </label>
-              ))}
+            <div className="photo-source-grid">
+              <label className="photo-source-card">
+                <input className="sr-only-file-input" type="file" accept="image/*" onChange={handleReferenceImageSelection} />
+                <div className="photo-source-icon">
+                  <ImagePlus size={25} />
+                </div>
+                <div>
+                  <strong>From gallery</strong>
+                  <small>Pick image files from your photos</small>
+                </div>
+              </label>
+              <label className="photo-source-card">
+                <input className="sr-only-file-input" type="file" accept="image/*" capture="environment" onChange={handleReferenceImageSelection} />
+                <div className="photo-source-icon">
+                  <Upload size={25} />
+                </div>
+                <div>
+                  <strong>From camera</strong>
+                  <small>Take a new photo now</small>
+                </div>
+              </label>
             </div>
+            {referenceImagePreviewUrls.length ? (
+              <div className="upload-preview-grid">
+                {referenceImagePreviewUrls.map((imageUrl, index) => (
+                  <figure key={`${imageUrl}-${index}`} className="upload-preview-card">
+                    <img src={imageUrl} alt={`Request photo ${index + 1}`} />
+                    <figcaption>
+                      <span>{referenceImageFiles[index]?.name ?? `Photo ${index + 1}`}</span>
+                      <button type="button" className="section-link" onClick={() => removeReferenceImage(index)}>
+                        Remove
+                      </button>
+                    </figcaption>
+                  </figure>
+                ))}
+              </div>
+            ) : null}
           </div>
-              {draftError ? (
-                <p className="dialog-error" role="alert">
-                  {draftError}
-                </p>
-              ) : null}
-              <button className="primary-button" type="button" onClick={continueWithDetails}>
-                Next: Duration <ArrowRight size={18} />
-              </button>
-            </div>
+          <button className="primary-button" type="submit">
+            Next <ArrowRight size={17} />
+          </button>
+        </form>
       </section>
     </main>
   );
@@ -4628,16 +4447,16 @@ function PostRewardPage({
 }) {
   return (
     <main className="route-page post-wizard-page" aria-labelledby="visibility-title">
-      <PostProgress current={3} />
+      <PostProgress current={2} />
       <section className="two-column-page">
         <div className="form-panel reward-form-panel post-flow-panel">
           <button className="back-button" type="button" onClick={onBack}>
             <ArrowLeft size={17} /> Describe
           </button>
-            <div className="post-flow-intro">
-              <h1 id="visibility-title">Pick how long it stays open.</h1>
-              <p>Your request stays public and searchable.</p>
-            </div>
+          <div className="post-flow-intro">
+            <h1 id="visibility-title">Pick how long it stays open.</h1>
+            <p>Your request stays public and searchable.</p>
+          </div>
           <div className="post-question-card">
             <span className="post-question-label">
               <CalendarDays size={15} /> Request days
@@ -4662,9 +4481,9 @@ function PostRewardPage({
               </label>
             </div>
           </div>
-            <button className="primary-button" type="button" onClick={onNext}>
-              Next: Publish request <ArrowRight size={18} />
-            </button>
+          <button className="primary-button" type="button" onClick={onNext}>
+            Next: Publish request <ArrowRight size={18} />
+          </button>
         </div>
       </section>
     </main>
@@ -4676,11 +4495,13 @@ function PostPayPage({
   draft,
   onBack,
   onPublished,
+  referenceImageFiles,
 }: {
   checkoutReturnStatus: CheckoutReturnStatus;
   draft: PostDraft;
   onBack: () => void;
   onPublished: () => void;
+  referenceImageFiles: PostReferenceImageDraft[];
 }) {
   const [publishStatus, setPublishStatus] = useState<"idle" | "loading" | "error" | "success">("idle");
   const [publishMessage, setPublishMessage] = useState("");
@@ -4709,20 +4530,22 @@ function PostPayPage({
     trackAcquisitionEvent("publish_request_started", {
       category: categoryName,
       duration_days: draft.durationDays,
-      has_reference_images: draft.referenceImages.length > 0,
-      reference_image_count: draft.referenceImages.length,
       visibility_plan: "free",
     });
     setPublishStatus("loading");
     setPublishMessage("");
+    if (!draft.itemName.trim()) {
+      setPublishStatus("error");
+      setPublishMessage("Add what you are trying to find first.");
+      return;
+    }
 
+    const detailsText = draft.details.trim() || `Looking for: ${draft.itemName.trim()}`;
+    const requestReferenceImageFiles = referenceImageFiles.slice(0, 4).map((item) => item.file);
     const uploadedPaths: string[] = [];
-    let createdRequestId: string | null = null;
 
     try {
       const requestId = crypto.randomUUID();
-      const uploadedImages = [];
-
       const {
         data: { user },
         error: userError,
@@ -4740,40 +4563,15 @@ function PostPayPage({
         window.sessionStorage.setItem(authEmailStorageKey, user.email);
       }
 
-      for (const [index, image] of draft.referenceImages.entries()) {
-        const fileExtension = image.file.name.includes(".") ? image.file.name.split(".").pop()?.toLowerCase() ?? "jpg" : "jpg";
-        const filePath = `${user.id}/${requestId}/${index + 1}-${crypto.randomUUID()}.${fileExtension}`;
-        const { error: uploadError } = await supabase.storage
-          .from(requestReferenceImagesBucket)
-          .upload(filePath, image.file, {
-            cacheControl: "3600",
-            contentType: image.file.type || undefined,
-            upsert: false,
-          });
-
-        if (uploadError) {
-          throw uploadError;
-        }
-
-        uploadedPaths.push(filePath);
-        const {
-          data: { publicUrl },
-        } = supabase.storage.from(requestReferenceImagesBucket).getPublicUrl(filePath);
-
-        uploadedImages.push({
-          name: image.name,
-          path: filePath,
-          type: image.file.type || null,
-          url: publicUrl,
-        });
-      }
+      const uploadResult = requestReferenceImageFiles.length ? await uploadRequestReferenceFiles(user.id, requestId, requestReferenceImageFiles) : { referenceImages: [], uploadedPaths };
+      uploadedPaths.push(...uploadResult.uploadedPaths);
 
       const { error: insertError } = await supabase.from("requests").insert({
         id: requestId,
         user_id: user.id,
         item_name: itemName,
         category: categoryName,
-        details: draft.details.slice(0, 5000),
+        details: detailsText.slice(0, 5000),
         currency: "USD",
         reward: 0,
         service_fee: 0,
@@ -4787,26 +4585,27 @@ function PostPayPage({
         platform_fee_status: "unearned",
         customer_email: user.email ?? null,
         customer_name: null,
-        reference_images: uploadedImages,
+        reference_images: uploadResult.referenceImages,
       });
 
       if (insertError) {
+        if (uploadedPaths.length) {
+          await supabase.storage.from(requestReferenceImagesBucket).remove(uploadedPaths);
+        }
         throw insertError;
       }
 
-      createdRequestId = requestId;
-      clearStoredPostDraft();
       trackAcquisitionEvent("request_published", {
         category: categoryName,
         duration_days: draft.durationDays,
-        reference_image_count: draft.referenceImages.length,
+        reference_image_count: uploadResult.referenceImages.length,
         visibility_plan: "free",
       });
       setPublishStatus("success");
       setPublishMessage("Request published. Opening your dashboard...");
       window.setTimeout(onPublished, 700);
     } catch (error) {
-      if (supabase && !createdRequestId && uploadedPaths.length) {
+      if (supabase && uploadedPaths.length) {
         await supabase.storage.from(requestReferenceImagesBucket).remove(uploadedPaths);
       }
 
@@ -4816,13 +4615,25 @@ function PostPayPage({
         visibility_plan: "free",
       });
       setPublishStatus("error");
-      setPublishMessage(error instanceof Error ? error.message : "The request could not be published. Please try again.");
+      if (error instanceof Error) {
+        setPublishMessage(error.message);
+        return;
+      }
+
+      if (typeof error === "object" && error !== null) {
+        const typed = error as { message?: string; details?: string; hint?: string; code?: string; name?: string };
+        const message = [typed.message, typed.details, typed.hint, typed.code, typed.name].filter(Boolean).join(" · ");
+        setPublishMessage(message || "The request could not be published. Please try again.");
+        return;
+      }
+
+      setPublishMessage("The request could not be published. Please try again.");
     }
   };
 
   return (
     <main className="route-page post-wizard-page" aria-labelledby="pay-title">
-      <PostProgress current={4} />
+      <PostProgress current={3} />
       <section className="two-column-page pay-layout">
         <div className="form-panel payment-form-panel">
           <button className="back-button" type="button" onClick={onBack}>

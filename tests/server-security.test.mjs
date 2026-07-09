@@ -108,6 +108,76 @@ test("Razorpay webhook signatures are checked against the raw body", async () =>
   assert.equal(verifyRazorpaySignature(body, signature, "wrong-secret"), false);
 });
 
+test("payment metadata preserves DataFast visitor attribution", async () => {
+  const {
+    getAnalyticsContextFromPaymentMetadata,
+    getPaymentAnalyticsMetadata,
+    getRazorpayPaymentNotes,
+    sanitizeCheckoutAnalyticsContext,
+  } = await loadSecurityHelpers({});
+  const analytics = sanitizeCheckoutAnalyticsContext({
+    datafast_visitor_id: " dfv_test_123 ",
+    ga_client_id: "ga-client",
+    latest_source: "google",
+  });
+
+  const metadata = getPaymentAnalyticsMetadata(analytics);
+  const restored = getAnalyticsContextFromPaymentMetadata(metadata);
+  const razorpayNotes = getRazorpayPaymentNotes({
+    analytics,
+    category: "Fashion",
+    durationDays: 30,
+    itemName: "Rare jacket",
+    requestId: "req_123",
+  });
+
+  assert.equal(metadata.datafast_visitor_id, "dfv_test_123");
+  assert.equal(restored.datafast_visitor_id, "dfv_test_123");
+  assert.equal(razorpayNotes.datafast_visitor_id, "dfv_test_123");
+  assert.ok(Object.keys(razorpayNotes).length <= 15);
+});
+
+test("DataFast Payment API receives confirmed payment revenue", async () => {
+  const originalFetch = globalThis.fetch;
+  const calls = [];
+
+  globalThis.fetch = async (url, options) => {
+    calls.push({ url, options });
+    return new Response("", { status: 200 });
+  };
+
+  try {
+    const { sendPaidRequestDataFastPayment } = await loadSecurityHelpers({
+      DATAFAST_API_KEY: "test-datafast-key",
+      DATAFAST_PAYMENT_API_URL: "https://datafa.st.test/api/v1/payments",
+    });
+
+    await sendPaidRequestDataFastPayment({
+      analytics: { datafast_visitor_id: "dfv_test_123" },
+      provider: "razorpay",
+      providerEventId: "evt_test_123",
+      request: {
+        id: "req_123",
+        total_due: 25,
+        currency: "USD",
+      },
+      transactionId: "pay_test_123",
+    });
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
+
+  assert.equal(calls.length, 1);
+  assert.equal(calls[0].url, "https://datafa.st.test/api/v1/payments");
+  assert.equal(calls[0].options.headers.Authorization, "Bearer test-datafast-key");
+  assert.deepEqual(JSON.parse(calls[0].options.body), {
+    amount: 25,
+    currency: "USD",
+    transaction_id: "razorpay:pay_test_123",
+    datafast_visitor_id: "dfv_test_123",
+  });
+});
+
 test("admin payout review route does not expose queues without an admin bearer token", async () => {
   const { handleRequest } = await loadServer({
     PUBLIC_APP_URL: "https://pleasefindmethis.com",

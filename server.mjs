@@ -4,6 +4,7 @@ import http from "node:http";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { createClient } from "@supabase/supabase-js";
+import { trackAICrawlerRequest } from "@datafast/ai-crawl";
 import { Webhook } from "standardwebhooks";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
@@ -27,10 +28,14 @@ const minimumTrustProtectionFee = 1;
 const ga4MeasurementId = parseString(process.env.GA4_MEASUREMENT_ID ?? process.env.VITE_GA4_MEASUREMENT_ID ?? process.env.VITE_GOOGLE_TAG_ID, 40);
 const ga4ApiSecret = parseString(process.env.GA4_API_SECRET, 160);
 const ga4MeasurementTimeoutMs = 6000;
+const dataFastApiKey = parseString(process.env.DATAFAST_API_KEY, 240);
+const dataFastBotWebsiteId = parseString(
+  process.env.DATAFAST_WEBSITE_ID || process.env.VITE_DATAFAST_WEBSITE_ID,
+  64,
+) || "dfid_oKAGjqAhs9HTD5Ic9yvxt";
+const dataFastPaymentApiUrl = parseString(process.env.DATAFAST_PAYMENT_API_URL, 300) || "https://datafa.st/api/v1/payments";
+const dataFastPaymentTimeoutMs = 6000;
 const homeMarketCountry = sanitizeCountryCode(process.env.HOME_MARKET_COUNTRY) || "IN";
-const waitlistRecipientEmail = parseString(process.env.WAITLIST_TO_EMAIL ?? process.env.OWNER_EMAIL ?? "saharashsharma3@gmail.com", 160);
-const waitlistFromEmail = parseString(process.env.WAITLIST_FROM_EMAIL ?? process.env.RESEND_FROM_EMAIL ?? "pleasefindmethis <waitlist@pleasefindmethis.com>", 220);
-const waitlistNotificationTimeoutMs = 10000;
 const attributionAnalyticsKeys = [
   "first_landing_page",
   "first_referrer_host",
@@ -59,6 +64,7 @@ const vite = isProduction ? null : await createDevViteServer();
 export async function handleRequest(req, res) {
   try {
     const requestUrl = new URL(req.url ?? "/", getRequestOrigin(req));
+    trackAICrawlerRequestIfNeeded(req, requestUrl);
 
     const canonicalRedirectUrl = getCanonicalRedirectUrl(req, requestUrl);
     if (canonicalRedirectUrl) {
@@ -93,11 +99,6 @@ export async function handleRequest(req, res) {
 
     if (requestUrl.pathname === "/api/payments/checkout") {
       await handleCreatePaymentCheckout(req, res);
-      return;
-    }
-
-    if (requestUrl.pathname === "/api/waitlist") {
-      await handleJoinWaitlist(req, res);
       return;
     }
 
@@ -203,6 +204,34 @@ async function createDevViteServer() {
       middlewareMode: true,
     },
   });
+}
+
+function trackAICrawlerRequestIfNeeded(req, requestUrl) {
+  if (!dataFastBotWebsiteId) {
+    return;
+  }
+
+  const method = (req.method ?? "GET").toUpperCase();
+  if (!["GET", "HEAD", "OPTIONS"].includes(method)) {
+    return;
+  }
+
+  try {
+    trackAICrawlerRequest(
+      new Request(requestUrl.toString(), {
+        method,
+        headers: req.headers,
+      }),
+      undefined,
+      {
+        websiteId: dataFastBotWebsiteId,
+      },
+    );
+  } catch (error) {
+    if (!isProduction) {
+      console.warn("[DataFast] Failed to enqueue AI crawler tracking.", error);
+    }
+  }
 }
 
 function findOpenPort(startPort) {
@@ -560,7 +589,7 @@ async function handlePublicRequests(req, res) {
   const { data, error } = await supabaseAdmin
     .from("public_request_cards")
     .select("id,item_name,category,details,reward,duration_days,status,payment_status,created_at,paid_at,closes_at,days_remaining,primary_image_url,submission_count")
-    .order("reward", { ascending: false })
+    .order("created_at", { ascending: false })
     .limit(24);
 
   if (!error) {
@@ -589,18 +618,23 @@ async function loadPublicRequestsFallback() {
   const { data: requestRows, error: requestError } = await supabaseAdmin
     .from("requests")
     .select("id,item_name,category,details,reward,duration_days,status,payment_status,reference_images,created_at,paid_at")
-    .in("status", ["paid", "disputed"])
-    .in("payment_status", ["paid", "disputed"])
-    .not("paid_at", "is", null)
-    .order("reward", { ascending: false })
-    .limit(24);
+    .in("status", ["open", "paid", "disputed"])
+    .in("payment_status", ["free", "paid", "disputed"])
+    .order("created_at", { ascending: false })
+    .limit(48);
 
   if (requestError) {
     console.error("Could not load fallback public request rows", requestError);
     throw new Error("Public request feed is unavailable.");
   }
 
-  const requests = requestRows ?? [];
+  const requests = (requestRows ?? [])
+    .filter((request) => {
+      const isFreeOpenRequest = request.status === "open" && request.payment_status === "free";
+      const isLegacyPaidRequest = ["paid", "disputed"].includes(request.status) && ["paid", "disputed"].includes(request.payment_status) && Boolean(request.paid_at);
+      return isFreeOpenRequest || isLegacyPaidRequest;
+    })
+    .slice(0, 24);
   const requestIds = requests.map((request) => request.id).filter(Boolean);
   const submissionCounts = await loadSubmissionCounts(requestIds);
 
@@ -618,7 +652,7 @@ async function loadPublicRequestsFallback() {
       item_name: parseString(request.item_name, 120),
       category: parseString(request.category, 80),
       details: parseString(request.details, 500),
-      reward: Number(request.reward) || minimumReward,
+      reward: Number(request.reward) || 0,
       duration_days: durationDays,
       status: request.status,
       payment_status: request.payment_status,
@@ -1526,115 +1560,6 @@ function getDefaultDuplicateSourceFlagNote(action) {
   }
 
   return "";
-}
-
-async function handleJoinWaitlist(req, res) {
-  if (req.method !== "POST") {
-    sendJson(res, 405, { error: "Method not allowed." });
-    return;
-  }
-
-  let body;
-
-  try {
-    body = await readJson(req);
-  } catch (error) {
-    sendJson(res, 400, { error: error instanceof Error ? error.message : "Request body must be valid JSON." });
-    return;
-  }
-
-  const email = parseString(body.email, 160).toLowerCase();
-  const intent = sanitizeWaitlistString(body.intent, 40) || "unknown";
-  const source = sanitizeWaitlistString(body.source, 80) || "unknown";
-  const pagePath = sanitizePagePath(body.pagePath) || "/";
-  const referrer = sanitizeWaitlistString(body.referrer, 240);
-  const accessNote = sanitizeWaitlistString(body.accessNote, 500);
-  const userAgent = sanitizeWaitlistString(req.headers["user-agent"], 240);
-  const submittedAt = new Date().toISOString();
-
-  if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
-    sendJson(res, 400, { error: "Enter a valid email address." });
-    return;
-  }
-
-  if (!waitlistRecipientEmail || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(waitlistRecipientEmail)) {
-    sendJson(res, 503, { error: "Waitlist is unavailable right now." });
-    return;
-  }
-
-  const notification = {
-    email,
-    intent,
-    accessNote,
-    source,
-    pagePath,
-    referrer,
-    userAgent,
-    submittedAt,
-  };
-
-  const resendApiKey = parseString(process.env.RESEND_API_KEY, 240);
-
-  if (!resendApiKey) {
-    console.warn("Waitlist signup captured but RESEND_API_KEY is not configured, so no owner email was sent", notification);
-    sendJson(res, 200, {
-      ok: true,
-      emailQueued: false,
-    });
-    return;
-  }
-
-  const text = [
-    "New pleasefindmethis waitlist signup",
-    "",
-    `Email: ${email}`,
-    accessNote ? `Access note: ${accessNote}` : "",
-    `Intent: ${intent}`,
-    `Source: ${source}`,
-    `Page: ${pagePath}`,
-    referrer ? `Referrer: ${referrer}` : "",
-    `Submitted: ${submittedAt}`,
-    userAgent ? `User agent: ${userAgent}` : "",
-  ]
-    .filter(Boolean)
-    .join("\n");
-
-  let response;
-
-  try {
-    response = await fetchWithTimeout(
-      "https://api.resend.com/emails",
-      {
-        method: "POST",
-        headers: {
-          Authorization: `Bearer ${resendApiKey}`,
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          from: waitlistFromEmail,
-          to: [waitlistRecipientEmail],
-          reply_to: email,
-          subject: `pleasefindmethis waitlist: ${email}`,
-          text,
-          html: renderWaitlistEmailHtml(notification),
-        }),
-      },
-      waitlistNotificationTimeoutMs,
-    );
-  } catch (error) {
-    console.error("Waitlist notification failed", error);
-    sendJson(res, 504, { error: "The waitlist notification timed out. Please try again." });
-    return;
-  }
-
-  if (!response.ok) {
-    const responseText = await response.text().catch(() => "");
-    console.error("Waitlist notification was rejected", response.status, responseText.slice(0, 500));
-    sendJson(res, 502, { error: "Could not email the waitlist signup. Please try again." });
-    return;
-  }
-
-  sendJson(res, 200, { ok: true, emailQueued: true });
 }
 
 async function handleHealthCheck(req, res) {
@@ -3300,6 +3225,7 @@ function getRazorpayPaymentUpdateForEvent(eventType, eventData, request) {
 
 function sanitizeCheckoutAnalyticsContext(value) {
   return stripEmpty({
+    datafast_visitor_id: sanitizeAnalyticsString(value.datafast_visitor_id, 160),
     ga_client_id: sanitizeAnalyticsString(value.ga_client_id, 80),
     ga_session_id: sanitizeAnalyticsString(value.ga_session_id, 80),
     page_path: sanitizePagePath(value.page_path),
@@ -3315,6 +3241,7 @@ function sanitizeCheckoutAnalyticsContext(value) {
 
 function getPaymentAnalyticsMetadata(analytics) {
   return stripEmpty({
+    datafast_visitor_id: analytics.datafast_visitor_id,
     ga_client_id: analytics.ga_client_id,
     ga_session_id: analytics.ga_session_id,
     analytics_page_path: analytics.page_path,
@@ -3337,6 +3264,7 @@ function getRazorpayPaymentNotes({ analytics, category, durationDays, itemName, 
     payment_provider: "razorpay",
     payment_environment: getRazorpayEnvironment(),
     source: "pleasefindmethis-post-paywall",
+    datafast_visitor_id: sanitizeRazorpayNote(analytics.datafast_visitor_id),
     ga_client_id: sanitizeRazorpayNote(analytics.ga_client_id),
     ga_session_id: sanitizeRazorpayNote(analytics.ga_session_id),
     utm_source: sanitizeRazorpayNote(analytics.utm_source),
@@ -3344,7 +3272,6 @@ function getRazorpayPaymentNotes({ analytics, category, durationDays, itemName, 
     utm_campaign: sanitizeRazorpayNote(analytics.utm_campaign),
     first_channel: sanitizeRazorpayNote(analytics.first_channel),
     latest_channel: sanitizeRazorpayNote(analytics.latest_channel),
-    latest_source: sanitizeRazorpayNote(analytics.latest_source),
   });
 }
 
@@ -3355,6 +3282,7 @@ function sanitizeRazorpayNote(value) {
 
 function getAnalyticsContextFromPaymentMetadata(metadata) {
   return stripEmpty({
+    datafast_visitor_id: sanitizeAnalyticsString(metadata.datafast_visitor_id, 160),
     ga_client_id: sanitizeAnalyticsString(metadata.ga_client_id, 80),
     ga_session_id: sanitizeAnalyticsString(metadata.ga_session_id, 80),
     page_path: sanitizePagePath(metadata.analytics_page_path),
@@ -3501,7 +3429,74 @@ function getAttributionAnalyticsMetadata(analytics) {
   );
 }
 
-async function sendPaidRequestAnalytics({ analytics, countryContext = {}, provider, providerEventId, request, transactionId }) {
+async function sendPaidRequestAnalytics(args) {
+  await Promise.all([
+    sendPaidRequestDataFastPayment(args),
+    sendPaidRequestGa4Events(args),
+  ]);
+}
+
+async function sendPaidRequestDataFastPayment({ analytics, provider, providerEventId, request, transactionId }) {
+  if (!dataFastApiKey) {
+    return;
+  }
+
+  const visitorId = sanitizeAnalyticsString(analytics.datafast_visitor_id, 160);
+
+  if (!visitorId) {
+    console.info("Skipping DataFast payment event because datafast_visitor_id is missing", { requestId: request.id, provider });
+    return;
+  }
+
+  const amount = Number(request.total_due);
+  const rawTransactionId = sanitizeAnalyticsString(transactionId, 160) || sanitizeAnalyticsString(providerEventId, 160) || sanitizeAnalyticsString(request.id, 64);
+  const dataFastTransactionId = rawTransactionId ? sanitizeAnalyticsString(`${provider}:${rawTransactionId}`, 190) : undefined;
+
+  if (!Number.isFinite(amount) || amount <= 0 || !dataFastTransactionId) {
+    console.info("Skipping DataFast payment event because payment details are incomplete", { requestId: request.id, provider });
+    return;
+  }
+
+  const currency = (sanitizeAnalyticsString(request.currency, 10) || "USD").toUpperCase();
+
+  try {
+    const response = await fetchWithTimeout(
+      dataFastPaymentApiUrl,
+      {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${dataFastApiKey}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          amount,
+          currency,
+          transaction_id: dataFastTransactionId,
+          datafast_visitor_id: visitorId,
+        }),
+      },
+      dataFastPaymentTimeoutMs,
+    );
+
+    if (!response.ok) {
+      const responseText = await response.text().catch(() => "");
+      console.error("DataFast Payment API request failed", {
+        requestId: request.id,
+        provider,
+        status: response.status,
+        response: responseText.slice(0, 500),
+      });
+    }
+  } catch (error) {
+    console.error("DataFast Payment API request failed", {
+      requestId: request.id,
+      provider,
+      error: error instanceof Error ? error.message : "Unknown error",
+    });
+  }
+}
+
+async function sendPaidRequestGa4Events({ analytics, countryContext = {}, provider, providerEventId, request, transactionId }) {
   if (!ga4MeasurementId || !ga4ApiSecret) {
     return;
   }
@@ -3709,10 +3704,6 @@ function sanitizeCountryCode(value) {
   return /^[A-Z]{2}$/.test(country) ? country : undefined;
 }
 
-function sanitizeWaitlistString(value, maxLength) {
-  return parseString(firstHeader(value), maxLength).replace(/[\r\n\t]/g, " ").trim();
-}
-
 function sanitizePagePath(value) {
   const pathValue = sanitizeAnalyticsString(value, 200);
 
@@ -3730,40 +3721,6 @@ function parseNumericString(value) {
 
 function stripEmpty(value) {
   return Object.fromEntries(Object.entries(value).filter(([, entry]) => entry !== undefined && entry !== ""));
-}
-
-function renderWaitlistEmailHtml(notification) {
-  const rows = [
-    ["Email", notification.email],
-    ["Access note", notification.accessNote],
-    ["Intent", notification.intent],
-    ["Source", notification.source],
-    ["Page", notification.pagePath],
-    ["Referrer", notification.referrer],
-    ["Submitted", notification.submittedAt],
-    ["User agent", notification.userAgent],
-  ].filter(([, value]) => value);
-
-  return `<!doctype html>
-<html>
-  <body style="margin:0;padding:24px;background:#f6f8f5;color:#111513;font-family:Inter,Arial,sans-serif;">
-    <div style="max-width:560px;margin:0 auto;background:#ffffff;border:1px solid #d4d6d2;border-radius:8px;padding:24px;">
-      <h1 style="margin:0 0 16px;font-size:22px;line-height:1.2;">New waitlist signup</h1>
-      <table style="width:100%;border-collapse:collapse;">
-        <tbody>
-          ${rows
-            .map(
-              ([label, value]) => `<tr>
-                <th style="width:128px;padding:10px 12px;border-top:1px solid #d4d6d2;text-align:left;color:#5d625f;font-size:13px;">${escapeHtml(label)}</th>
-                <td style="padding:10px 12px;border-top:1px solid #d4d6d2;font-size:14px;">${escapeHtml(value)}</td>
-              </tr>`,
-            )
-            .join("")}
-        </tbody>
-      </table>
-    </div>
-  </body>
-</html>`;
 }
 
 function escapeHtml(value) {
@@ -4480,8 +4437,13 @@ function getContentType(filePath) {
 }
 
 export const __securityTest = {
+  getAnalyticsContextFromPaymentMetadata,
   getCheckoutRedirectOrigin,
+  getPaymentAnalyticsMetadata,
   getPaymentProvider,
+  getRazorpayPaymentNotes,
   normalizeDeploymentAppUrl,
+  sanitizeCheckoutAnalyticsContext,
+  sendPaidRequestDataFastPayment,
   verifyRazorpaySignature,
 };

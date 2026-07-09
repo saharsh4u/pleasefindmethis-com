@@ -103,10 +103,6 @@
       "destination": "/index.html"
     },
     {
-      "source": "/faq",
-      "destination": "/index.html"
-    },
-    {
       "source": "/privacy",
       "destination": "/index.html"
     },
@@ -116,18 +112,6 @@
     },
     {
       "source": "/refunds",
-      "destination": "/index.html"
-    },
-    {
-      "source": "/rules",
-      "destination": "/index.html"
-    },
-    {
-      "source": "/support",
-      "destination": "/index.html"
-    },
-    {
-      "source": "/report",
       "destination": "/index.html"
     },
     {

@@ -35,6 +35,7 @@ type AcquisitionAttribution = {
 };
 
 type GoogleAnalyticsContext = AcquisitionAttribution & {
+  datafast_visitor_id?: string;
   ga_client_id?: string;
   ga_session_id?: string;
   page_path?: string;
@@ -75,6 +76,9 @@ type SimpleEventDefinition = {
 
 declare global {
   interface Window {
+    datafast?: {
+      visitorId?: string;
+    };
     dataLayer?: DataLayerEvent[];
     gtag?: (...args: unknown[]) => void;
   }
@@ -103,7 +107,7 @@ const simpleEventDefinitions: Record<string, SimpleEventDefinition> = {
     actionType: "link_open",
     funnelStep: "prefilled_request",
   },
-  start_bounty: {
+  start_request: {
     eventName: "user_clicked_start_request",
     whatHappened: "User clicked a button to start a request",
     actionType: "button_click",
@@ -130,20 +134,6 @@ const simpleEventDefinitions: Record<string, SimpleEventDefinition> = {
     actionType: "login",
     funnelStep: "signed_in",
   },
-  waitlist_modal_opened: {
-    eventName: "user_opened_waitlist",
-    whatHappened: "User opened the waitlist form",
-    actionType: "button_click",
-    buttonName: "Join waitlist",
-    funnelStep: "waitlist_open",
-  },
-  waitlist_joined: {
-    eventName: "user_joined_waitlist",
-    whatHappened: "User joined the waitlist",
-    actionType: "form_submit",
-    buttonName: "Submit waitlist",
-    funnelStep: "waitlist_joined",
-  },
   category_selected: {
     eventName: "user_chose_item_category",
     whatHappened: "User chose an item category",
@@ -164,12 +154,32 @@ const simpleEventDefinitions: Record<string, SimpleEventDefinition> = {
     buttonName: "Continue",
     funnelStep: "item_details_done",
   },
-  set_reward: {
-    eventName: "user_set_reward",
-    whatHappened: "User set the finder reward",
+  choose_visibility: {
+    eventName: "user_chose_request_visibility",
+    whatHappened: "User chose request visibility",
     actionType: "form_step",
-    buttonName: "Continue to payment",
-    funnelStep: "reward_set",
+    buttonName: "Continue",
+    funnelStep: "visibility_chosen",
+  },
+  publish_request_started: {
+    eventName: "user_started_free_request_publish",
+    whatHappened: "User started publishing a free request",
+    actionType: "button_click",
+    buttonName: "Publish free request",
+    funnelStep: "publish_started",
+  },
+  request_published: {
+    eventName: "user_published_free_request",
+    whatHappened: "User published a free request",
+    actionType: "form_submit",
+    buttonName: "Publish free request",
+    funnelStep: "request_published",
+  },
+  request_publish_failed: {
+    eventName: "free_request_publish_failed",
+    whatHappened: "Free request publishing failed",
+    actionType: "error",
+    funnelStep: "publish_error",
   },
   checkout_started: {
     eventName: "user_started_checkout",
@@ -191,29 +201,29 @@ const simpleEventDefinitions: Record<string, SimpleEventDefinition> = {
     funnelStep: "checkout_error",
   },
   submit_source: {
-    eventName: "finder_submitted_source",
-    whatHappened: "Finder submitted a source",
+    eventName: "helper_submitted_source_suggestion",
+    whatHappened: "Helper submitted a source suggestion",
     actionType: "form_submit",
-    buttonName: "Submit source for review",
+    buttonName: "Share source suggestion",
     funnelStep: "source_submitted",
   },
   source_revealed: {
-    eventName: "poster_revealed_source",
-    whatHappened: "Poster revealed a source",
+    eventName: "requester_opened_source_details",
+    whatHappened: "Requester opened source details",
     actionType: "button_click",
-    buttonName: "Reveal source",
-    funnelStep: "source_revealed",
+    buttonName: "Open source details",
+    funnelStep: "source_details_opened",
   },
   source_accepted: {
-    eventName: "poster_accepted_source",
-    whatHappened: "Poster accepted a source",
+    eventName: "requester_marked_source_useful",
+    whatHappened: "Requester marked a source useful",
     actionType: "button_click",
-    buttonName: "Accept source",
+    buttonName: "Mark useful",
     funnelStep: "source_accepted",
   },
   source_sent_to_review: {
-    eventName: "poster_sent_source_to_review",
-    whatHappened: "Poster sent a source to review",
+    eventName: "requester_sent_source_to_review",
+    whatHappened: "Requester sent a source to review",
     actionType: "button_click",
     buttonName: "Send to review",
     funnelStep: "source_review",
@@ -274,14 +284,16 @@ export function trackMarketingEvent(name: string, properties: AnalyticsPropertie
   sendSimpleMarketingEvent(name, eventProperties);
 }
 
-export function getCheckoutAnalyticsContext(): GoogleAnalyticsContext {
+export async function getCheckoutAnalyticsContext(): Promise<GoogleAnalyticsContext> {
   const utmProperties = getUtmProperties();
   const attributionProperties = getAttributionProperties();
   const readableProperties = getReadableSourceProperties(attributionProperties, utmProperties);
+  const dataFastVisitorId = await getDataFastVisitorId();
 
   return stripUndefined({
     ...attributionProperties,
     ...readableProperties,
+    datafast_visitor_id: dataFastVisitorId,
     ga_client_id: getGaClientId(),
     ga_session_id: getGaSessionId(),
     page_path: window.location.pathname,
@@ -496,6 +508,24 @@ function sendDataFastEvent(name: string, properties: AnalyticsProperties) {
       console.warn("[Analytics] DataFast event failed", error);
     }
   });
+}
+
+async function getDataFastVisitorId() {
+  const cookieVisitorId = getCookie("datafast_visitor_id");
+
+  if (cookieVisitorId) {
+    return cookieVisitorId.slice(0, maxStringLength);
+  }
+
+  const client = await initializeDataFast();
+  const clientVisitorId = client?.getVisitorId?.();
+
+  if (clientVisitorId) {
+    return clientVisitorId.slice(0, maxStringLength);
+  }
+
+  const windowVisitorId = typeof window.datafast?.visitorId === "string" ? window.datafast.visitorId.trim() : "";
+  return windowVisitorId ? windowVisitorId.slice(0, maxStringLength) : undefined;
 }
 
 function toDataFastEventName(name: string) {
