@@ -36,6 +36,46 @@ const dataFastBotWebsiteId = parseString(
 const dataFastPaymentApiUrl = parseString(process.env.DATAFAST_PAYMENT_API_URL, 300) || "https://datafa.st/api/v1/payments";
 const dataFastPaymentTimeoutMs = 6000;
 const homeMarketCountry = sanitizeCountryCode(process.env.HOME_MARKET_COUNTRY) || "IN";
+const uuidPattern = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+const requestCommentMaxLength = 700;
+const publicHelperAdjectives = [
+  "amber",
+  "blue",
+  "brisk",
+  "cedar",
+  "copper",
+  "gold",
+  "green",
+  "ivory",
+  "jade",
+  "mint",
+  "navy",
+  "opal",
+  "pearl",
+  "silver",
+  "tan",
+  "teal",
+  "violet",
+  "warm",
+];
+const publicHelperNouns = [
+  "anchovy",
+  "angelfish",
+  "cod",
+  "darter",
+  "goby",
+  "herring",
+  "minnow",
+  "parrotfish",
+  "perch",
+  "pike",
+  "ray",
+  "sardine",
+  "squid",
+  "tetra",
+  "trout",
+  "tuna",
+];
 const attributionAnalyticsKeys = [
   "first_landing_page",
   "first_referrer_host",
@@ -104,6 +144,12 @@ export async function handleRequest(req, res) {
 
     if (requestUrl.pathname === "/api/requests/public") {
       await handlePublicRequests(req, res);
+      return;
+    }
+
+    const publicRequestCommentsMatch = requestUrl.pathname.match(/^\/api\/requests\/([^/]+)\/comments$/);
+    if (publicRequestCommentsMatch) {
+      await handlePublicRequestComments(req, res, decodeURIComponent(publicRequestCommentsMatch[1]));
       return;
     }
 
@@ -692,6 +738,226 @@ async function loadSubmissionCounts(requestIds) {
   }
 
   return counts;
+}
+
+async function handlePublicRequestComments(req, res, rawRequestId) {
+  if (req.method !== "GET" && req.method !== "POST") {
+    sendJson(res, 405, { error: "Method not allowed." });
+    return;
+  }
+
+  const requestId = parseString(rawRequestId, 80);
+
+  if (!isUuid(requestId)) {
+    sendJson(res, 400, { error: "A valid request id is required." });
+    return;
+  }
+
+  if (!supabaseAdmin) {
+    sendJson(res, 503, { error: "Request comments are unavailable." });
+    return;
+  }
+
+  try {
+    const publicRequest = await loadPublicRequestForComments(requestId);
+
+    if (!publicRequest) {
+      sendJson(res, 404, { error: "This request is not open for public comments." });
+      return;
+    }
+
+    if (req.method === "GET") {
+      const comments = await loadPublicRequestComments(requestId);
+      sendJson(res, 200, { comments });
+      return;
+    }
+
+    let body;
+
+    try {
+      body = await readJson(req);
+    } catch {
+      throw new RequestCommentApiError("Request body must be valid JSON.", 400);
+    }
+
+    const comment = await createPublicRequestComment(requestId, body);
+    sendJson(res, 201, { comment });
+  } catch (error) {
+    const statusCode = Number(error?.statusCode) || 500;
+
+    if (statusCode >= 500) {
+      console.error("Public request comments failed", error);
+    }
+
+    sendJson(res, statusCode, {
+      error: error instanceof Error ? error.message : "Request comments are unavailable.",
+    });
+  }
+}
+
+async function loadPublicRequestForComments(requestId) {
+  const { data, error } = await supabaseAdmin
+    .from("requests")
+    .select("id,status,payment_status,paid_at")
+    .eq("id", requestId)
+    .maybeSingle();
+
+  if (error) {
+    console.error("Could not verify public request for comments", error);
+    throw new RequestCommentApiError("Request comments are unavailable.", 503);
+  }
+
+  if (!data) {
+    return null;
+  }
+
+  const isFreeOpenRequest = data.status === "open" && data.payment_status === "free";
+  const isLegacyPaidRequest = ["paid", "disputed"].includes(data.status) && ["paid", "disputed"].includes(data.payment_status) && Boolean(data.paid_at);
+
+  return isFreeOpenRequest || isLegacyPaidRequest ? data : null;
+}
+
+async function loadPublicRequestComments(requestId) {
+  const { data, error } = await supabaseAdmin
+    .from("request_comments")
+    .select("id,request_id,body,source_url,helper_alias,helper_avatar_tone,created_at")
+    .eq("request_id", requestId)
+    .eq("status", "visible")
+    .order("created_at", { ascending: false })
+    .limit(40);
+
+  if (error) {
+    console.error("Could not load public request comments", error);
+    throw new RequestCommentApiError("Request comments are not ready yet.", 503);
+  }
+
+  return (data ?? []).map(toPublicRequestComment);
+}
+
+async function createPublicRequestComment(requestId, body) {
+  const commentBody = sanitizePublicCommentBody(body.body);
+  const sourceUrl = normalizePublicCommentSourceUrl(body.sourceUrl ?? body.source_url);
+
+  if (commentBody.length < 2) {
+    throw new RequestCommentApiError("Add a short comment before posting.", 400);
+  }
+
+  if ((body.sourceUrl || body.source_url) && !sourceUrl) {
+    throw new RequestCommentApiError("Add a valid http or https source link.", 400);
+  }
+
+  const identity = getPublicRequestCommentIdentity(body.visitorSeed ?? body.visitor_seed);
+  const { data, error } = await supabaseAdmin
+    .from("request_comments")
+    .insert({
+      request_id: requestId,
+      body: commentBody,
+      source_url: sourceUrl || null,
+      helper_alias: identity.alias,
+      helper_seed_hash: identity.seedHash,
+      helper_avatar_tone: identity.avatarTone,
+      status: "visible",
+    })
+    .select("id,request_id,body,source_url,helper_alias,helper_avatar_tone,created_at")
+    .single();
+
+  if (error) {
+    console.error("Could not create public request comment", error);
+    throw new RequestCommentApiError("Could not post this comment.", 503);
+  }
+
+  return toPublicRequestComment(data);
+}
+
+function sanitizePublicCommentBody(value) {
+  return parseString(value, requestCommentMaxLength)
+    .replace(/\r\n/g, "\n")
+    .replace(/[ \t]+/g, " ")
+    .replace(/\n{3,}/g, "\n\n");
+}
+
+function normalizePublicCommentSourceUrl(value) {
+  const rawValue = parseString(value, 1000);
+
+  if (!rawValue) {
+    return "";
+  }
+
+  if (/^[a-z][a-z0-9+.-]*:/i.test(rawValue) && !/^https?:\/\//i.test(rawValue)) {
+    return "";
+  }
+
+  try {
+    const sourceUrl = new URL(/^https?:\/\//i.test(rawValue) ? rawValue : `https://${rawValue}`);
+
+    if (sourceUrl.protocol !== "http:" && sourceUrl.protocol !== "https:") {
+      return "";
+    }
+
+    sourceUrl.hash = "";
+
+    for (const key of [...sourceUrl.searchParams.keys()]) {
+      if (/^(utm_|fbclid$|gclid$|mc_|igshid$|ref$|ref_src$)/i.test(key)) {
+        sourceUrl.searchParams.delete(key);
+      }
+    }
+
+    return sourceUrl.toString().slice(0, 1000);
+  } catch {
+    return "";
+  }
+}
+
+function getPublicRequestCommentIdentity(value) {
+  const visitorSeed = parseString(value, 160) || crypto.randomUUID();
+  const seedHash = crypto.createHash("sha256").update(visitorSeed).digest("hex");
+
+  return {
+    alias: getPublicHelperAlias(visitorSeed),
+    avatarTone: getPublicHelperAvatarTone(visitorSeed),
+    seedHash,
+  };
+}
+
+function getPublicHelperAlias(seed) {
+  const hash = hashPublicHelperSeed(seed);
+  const adjective = publicHelperAdjectives[hash % publicHelperAdjectives.length];
+  const noun = publicHelperNouns[Math.floor(hash / publicHelperAdjectives.length) % publicHelperNouns.length];
+  return `${adjective} ${noun}`;
+}
+
+function getPublicHelperAvatarTone(seed) {
+  return hashPublicHelperSeed(`tone:${seed}`) % 6;
+}
+
+function hashPublicHelperSeed(seed) {
+  let hash = 2166136261;
+
+  for (let index = 0; index < seed.length; index += 1) {
+    hash ^= seed.charCodeAt(index);
+    hash = Math.imul(hash, 16777619);
+  }
+
+  return hash >>> 0;
+}
+
+function toPublicRequestComment(row) {
+  const helperAlias = parseString(row?.helper_alias, 60) || getPublicHelperAlias(parseString(row?.id, 80));
+  const avatarTone = Number(row?.helper_avatar_tone);
+
+  return {
+    id: parseString(row?.id, 80),
+    request_id: parseString(row?.request_id, 80),
+    body: parseString(row?.body, requestCommentMaxLength),
+    source_url: parseString(row?.source_url, 1000) || null,
+    helper_alias: helperAlias,
+    helper_avatar_tone: Number.isInteger(avatarTone) && avatarTone >= 0 ? avatarTone % 6 : getPublicHelperAvatarTone(helperAlias),
+    created_at: parseString(row?.created_at, 80),
+  };
+}
+
+function isUuid(value) {
+  return uuidPattern.test(value);
 }
 
 async function handleAdminPayoutCases(req, res) {
@@ -2261,6 +2527,14 @@ class AdminApiError extends Error {
   constructor(message, statusCode = 400) {
     super(message);
     this.name = "AdminApiError";
+    this.statusCode = statusCode;
+  }
+}
+
+class RequestCommentApiError extends Error {
+  constructor(message, statusCode = 400) {
+    super(message);
+    this.name = "RequestCommentApiError";
     this.statusCode = statusCode;
   }
 }
@@ -4441,9 +4715,13 @@ export const __securityTest = {
   getCheckoutRedirectOrigin,
   getPaymentAnalyticsMetadata,
   getPaymentProvider,
+  getPublicRequestCommentIdentity,
   getRazorpayPaymentNotes,
+  isUuid,
   normalizeDeploymentAppUrl,
+  normalizePublicCommentSourceUrl,
   sanitizeCheckoutAnalyticsContext,
+  sanitizePublicCommentBody,
   sendPaidRequestDataFastPayment,
   verifyRazorpaySignature,
 };

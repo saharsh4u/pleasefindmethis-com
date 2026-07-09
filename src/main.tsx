@@ -144,6 +144,16 @@ type PublicRequestCardRow = {
   submission_count: number | null;
 };
 
+type PublicRequestCommentRow = {
+  id: string;
+  request_id: string;
+  body: string;
+  source_url: string | null;
+  helper_alias: string;
+  helper_avatar_tone: number;
+  created_at: string;
+};
+
 type RequestRow = {
   id: string;
   user_id: string;
@@ -462,6 +472,47 @@ const findSourceOptions: Array<{ value: FindSourceType; label: string; copy: str
     label: "I found it for them",
     copy: "Use this when you can share a direct handoff path or clear next step.",
   },
+];
+
+const requestCommentVisitorStorageKey = "pleasefindmethis-comment-visitor-v1";
+const requestCommentMaxLength = 700;
+const publicHelperAdjectives = [
+  "amber",
+  "blue",
+  "brisk",
+  "cedar",
+  "copper",
+  "gold",
+  "green",
+  "ivory",
+  "jade",
+  "mint",
+  "navy",
+  "opal",
+  "pearl",
+  "silver",
+  "tan",
+  "teal",
+  "violet",
+  "warm",
+];
+const publicHelperNouns = [
+  "anchovy",
+  "angelfish",
+  "cod",
+  "darter",
+  "goby",
+  "herring",
+  "minnow",
+  "parrotfish",
+  "perch",
+  "pike",
+  "ray",
+  "sardine",
+  "squid",
+  "tetra",
+  "trout",
+  "tuna",
 ];
 
 type RequestBriefFieldKey = "story" | "mustMatch" | "alreadyTried" | "wrongMatches" | "sourceProof" | "buyingLimits" | "extraNotes";
@@ -1564,6 +1615,301 @@ function usePublicRequestListings(enabled = true) {
   }, [enabled]);
 
   return { listings, loading, error };
+}
+
+function hashPublicHelperSeed(seed: string) {
+  let hash = 2166136261;
+
+  for (let index = 0; index < seed.length; index += 1) {
+    hash ^= seed.charCodeAt(index);
+    hash = Math.imul(hash, 16777619);
+  }
+
+  return hash >>> 0;
+}
+
+function getPublicHelperAlias(seed: string) {
+  const hash = hashPublicHelperSeed(seed);
+  const adjective = publicHelperAdjectives[hash % publicHelperAdjectives.length];
+  const noun = publicHelperNouns[Math.floor(hash / publicHelperAdjectives.length) % publicHelperNouns.length];
+  return `${adjective} ${noun}`;
+}
+
+function getPublicHelperAvatarTone(seed: string) {
+  return hashPublicHelperSeed(`tone:${seed}`) % 6;
+}
+
+function getAliasInitials(alias: string) {
+  return alias
+    .split(/\s+/)
+    .map((part) => part.charAt(0))
+    .join("")
+    .slice(0, 2)
+    .toUpperCase();
+}
+
+function createVisitorSeed() {
+  if (crypto.randomUUID) {
+    return crypto.randomUUID();
+  }
+
+  return `${Date.now()}-${Math.random().toString(36).slice(2)}`;
+}
+
+function getRequestCommentVisitor() {
+  const createVisitor = (seed = createVisitorSeed()) => ({
+    seed,
+    alias: getPublicHelperAlias(seed),
+    avatarTone: getPublicHelperAvatarTone(seed),
+  });
+
+  try {
+    const stored = window.localStorage.getItem(requestCommentVisitorStorageKey);
+    const parsed = stored ? (JSON.parse(stored) as { seed?: unknown }) : null;
+    const storedSeed = typeof parsed?.seed === "string" ? parsed.seed.trim().slice(0, 160) : "";
+
+    if (storedSeed) {
+      return createVisitor(storedSeed);
+    }
+
+    const visitor = createVisitor();
+    window.localStorage.setItem(requestCommentVisitorStorageKey, JSON.stringify({ seed: visitor.seed }));
+    return visitor;
+  } catch {
+    return createVisitor();
+  }
+}
+
+function normalizeCommentSourceUrl(value: string) {
+  const trimmed = value.trim();
+
+  if (!trimmed) {
+    return "";
+  }
+
+  if (/^[a-z][a-z0-9+.-]*:/i.test(trimmed) && !/^https?:\/\//i.test(trimmed)) {
+    return "";
+  }
+
+  try {
+    const sourceUrl = new URL(/^https?:\/\//i.test(trimmed) ? trimmed : `https://${trimmed}`);
+
+    if (sourceUrl.protocol !== "http:" && sourceUrl.protocol !== "https:") {
+      return "";
+    }
+
+    sourceUrl.hash = "";
+
+    for (const key of [...sourceUrl.searchParams.keys()]) {
+      if (/^(utm_|fbclid$|gclid$|mc_|igshid$|ref$|ref_src$)/i.test(key)) {
+        sourceUrl.searchParams.delete(key);
+      }
+    }
+
+    return sourceUrl.toString().slice(0, 1000);
+  } catch {
+    return "";
+  }
+}
+
+function getCommentSourceHost(sourceUrl: string | null) {
+  if (!sourceUrl) {
+    return "";
+  }
+
+  try {
+    return new URL(sourceUrl).hostname.replace(/^www\./, "");
+  } catch {
+    return "source link";
+  }
+}
+
+function normalizeRequestComment(row: Partial<PublicRequestCommentRow>, requestId: string): PublicRequestCommentRow {
+  const seed = row.id || `${requestId}:${row.created_at || "comment"}`;
+  const helperAlias = typeof row.helper_alias === "string" && row.helper_alias.trim() ? row.helper_alias.trim().slice(0, 60) : getPublicHelperAlias(seed);
+  const avatarTone = Number(row.helper_avatar_tone);
+
+  return {
+    id: typeof row.id === "string" && row.id ? row.id : `local-${createVisitorSeed()}`,
+    request_id: typeof row.request_id === "string" && row.request_id ? row.request_id : requestId,
+    body: typeof row.body === "string" ? row.body.trim().slice(0, requestCommentMaxLength) : "",
+    source_url: typeof row.source_url === "string" && row.source_url ? row.source_url : null,
+    helper_alias: helperAlias,
+    helper_avatar_tone: Number.isInteger(avatarTone) && avatarTone >= 0 ? avatarTone % 6 : getPublicHelperAvatarTone(seed),
+    created_at: typeof row.created_at === "string" && row.created_at ? row.created_at : new Date().toISOString(),
+  };
+}
+
+function getFallbackRequestComments(bounty: BountyListing): PublicRequestCommentRow[] {
+  if (isUuid(bounty.id)) {
+    return [];
+  }
+
+  const firstSeed = `${bounty.id}:listing-check`;
+  const secondSeed = `${bounty.id}:detail-question`;
+
+  return [
+    normalizeRequestComment(
+      {
+        id: `demo-${bounty.id}-listing-check`,
+        request_id: bounty.id,
+        body: `I checked a few resale listings for ${bounty.name}. Most are close, but the details still need a better match.`,
+        source_url: null,
+        helper_alias: getPublicHelperAlias(firstSeed),
+        helper_avatar_tone: getPublicHelperAvatarTone(firstSeed),
+        created_at: new Date(Date.now() - 38 * 60 * 1000).toISOString(),
+      },
+      bounty.id,
+    ),
+    normalizeRequestComment(
+      {
+        id: `demo-${bounty.id}-detail-question`,
+        request_id: bounty.id,
+        body: "Do you know the rough year or store where this came from? That clue can narrow the search fast.",
+        source_url: null,
+        helper_alias: getPublicHelperAlias(secondSeed),
+        helper_avatar_tone: getPublicHelperAvatarTone(secondSeed),
+        created_at: new Date(Date.now() - 4 * 60 * 60 * 1000).toISOString(),
+      },
+      bounty.id,
+    ),
+  ];
+}
+
+function useRequestComments(bounty: BountyListing) {
+  const [comments, setComments] = useState<PublicRequestCommentRow[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
+
+  useEffect(() => {
+    let mounted = true;
+    const fallbackComments = getFallbackRequestComments(bounty);
+
+    if (!isUuid(bounty.id)) {
+      setComments(fallbackComments);
+      setLoading(false);
+      setError("");
+      return undefined;
+    }
+
+    const loadComments = async () => {
+      setLoading(true);
+      setError("");
+
+      try {
+        const response = await fetch(`/api/requests/${encodeURIComponent(bounty.id)}/comments`, {
+          headers: {
+            Accept: "application/json",
+          },
+        });
+        const payload = (await response.json()) as { comments?: PublicRequestCommentRow[]; error?: string };
+
+        if (!mounted) {
+          return;
+        }
+
+        if (!response.ok || !Array.isArray(payload.comments)) {
+          throw new Error(payload.error || "Comments are not ready yet.");
+        }
+
+        setComments(payload.comments.map((comment) => normalizeRequestComment(comment, bounty.id)));
+      } catch {
+        if (!mounted) {
+          return;
+        }
+
+        setComments(fallbackComments);
+        setError("Comments are not ready yet.");
+      } finally {
+        if (mounted) {
+          setLoading(false);
+        }
+      }
+    };
+
+    void loadComments();
+
+    return () => {
+      mounted = false;
+    };
+  }, [bounty.id, bounty.name]);
+
+  const addComment = async (body: string, sourceUrl: string) => {
+    const visitor = getRequestCommentVisitor();
+    const normalizedBody = body.trim().slice(0, requestCommentMaxLength);
+    const normalizedSourceUrl = normalizeCommentSourceUrl(sourceUrl);
+
+    if (!normalizedBody || normalizedBody.length < 2) {
+      throw new Error("Add a short comment before posting.");
+    }
+
+    if (sourceUrl.trim() && !normalizedSourceUrl) {
+      throw new Error("Add a valid http or https source link.");
+    }
+
+    if (!isUuid(bounty.id)) {
+      const localComment = normalizeRequestComment(
+        {
+          id: `local-${createVisitorSeed()}`,
+          request_id: bounty.id,
+          body: normalizedBody,
+          source_url: normalizedSourceUrl || null,
+          helper_alias: visitor.alias,
+          helper_avatar_tone: visitor.avatarTone,
+          created_at: new Date().toISOString(),
+        },
+        bounty.id,
+      );
+
+      setComments((current) => [localComment, ...current]);
+      return localComment;
+    }
+
+    const response = await fetch(`/api/requests/${encodeURIComponent(bounty.id)}/comments`, {
+      method: "POST",
+      headers: {
+        Accept: "application/json",
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        body: normalizedBody,
+        sourceUrl: normalizedSourceUrl || null,
+        visitorSeed: visitor.seed,
+      }),
+    });
+    const payload = (await response.json()) as { comment?: PublicRequestCommentRow; error?: string };
+
+    if (!response.ok || !payload.comment) {
+      throw new Error(payload.error || "Could not post this comment.");
+    }
+
+    const savedComment = normalizeRequestComment(payload.comment, bounty.id);
+    setComments((current) => [savedComment, ...current.filter((comment) => comment.id !== savedComment.id)]);
+    return savedComment;
+  };
+
+  return { comments, loading, error, addComment };
+}
+
+async function copyTextToClipboard(value: string) {
+  if (navigator.clipboard?.writeText) {
+    await navigator.clipboard.writeText(value);
+    return;
+  }
+
+  const textArea = document.createElement("textarea");
+  textArea.value = value;
+  textArea.setAttribute("readonly", "true");
+  textArea.style.position = "fixed";
+  textArea.style.opacity = "0";
+  document.body.appendChild(textArea);
+  textArea.select();
+
+  try {
+    document.execCommand("copy");
+  } finally {
+    document.body.removeChild(textArea);
+  }
 }
 
 async function getCurrentSupabaseUser() {
@@ -4909,6 +5255,55 @@ function BountyDetailPage({
   onPosterProfile: () => void;
   onSubmit: () => void;
 }) {
+  const requestComments = useRequestComments(bounty);
+  const commentVisitor = useMemo(() => getRequestCommentVisitor(), []);
+  const [commentBody, setCommentBody] = useState("");
+  const [commentLink, setCommentLink] = useState("");
+  const [commentStatus, setCommentStatus] = useState<"idle" | "posting" | "posted" | "error">("idle");
+  const [commentError, setCommentError] = useState("");
+  const [linkCopied, setLinkCopied] = useState(false);
+  const visibleComments = requestComments.comments.slice(0, 24);
+
+  const handleCopyRequestLink = async () => {
+    const requestUrl = new URL(getBountyPath(bounty.id, bounty.name), window.location.origin).toString();
+
+    try {
+      await copyTextToClipboard(requestUrl);
+      setLinkCopied(true);
+      setCommentError("");
+      trackAcquisitionEvent("request_link_copied", {
+        bounty_id: bounty.id,
+        category: bounty.category,
+      });
+      window.setTimeout(() => setLinkCopied(false), 1800);
+    } catch {
+      setLinkCopied(false);
+      setCommentStatus("error");
+      setCommentError("Could not copy the request link.");
+    }
+  };
+
+  const handleCommentSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    setCommentStatus("posting");
+    setCommentError("");
+
+    try {
+      const savedComment = await requestComments.addComment(commentBody, commentLink);
+      setCommentBody("");
+      setCommentLink("");
+      setCommentStatus("posted");
+      trackAcquisitionEvent("request_comment_posted", {
+        bounty_id: bounty.id,
+        category: bounty.category,
+        has_source_link: Boolean(savedComment.source_url),
+      });
+    } catch (error) {
+      setCommentStatus("error");
+      setCommentError(error instanceof Error ? error.message : "Could not post this comment.");
+    }
+  };
+
   return (
     <main className="route-page" aria-labelledby="detail-title">
       <button className="back-button page-back" type="button" onClick={onBrowse}>
@@ -4941,6 +5336,99 @@ function BountyDetailPage({
             </a>
           </div>
         </article>
+      </section>
+      <section className="request-comments-panel" aria-labelledby="request-comments-title">
+        <div className="request-comments-head">
+          <div>
+            <span className="request-comments-kicker">
+              <MessageSquare size={15} /> Public thread
+            </span>
+            <h2 id="request-comments-title">Comments and source clues</h2>
+            <p>Post a clue, ask a detail question, or leave a public source link.</p>
+          </div>
+          <button className="section-link section-button comment-share-button" type="button" onClick={() => void handleCopyRequestLink()}>
+            <LinkIcon size={16} /> {linkCopied ? "Copied" : "Copy request link"}
+          </button>
+        </div>
+
+        <div className="comment-composer-card">
+          <span className={`comment-avatar tone-${commentVisitor.avatarTone}`} aria-hidden="true">
+            {getAliasInitials(commentVisitor.alias)}
+          </span>
+          <form className="comment-composer" onSubmit={handleCommentSubmit}>
+            <div className="comment-identity-row">
+              <strong>{commentVisitor.alias}</strong>
+              <span>public helper</span>
+            </div>
+            <label className="comment-textarea-label" htmlFor="request-comment-body">
+              Comment
+              <textarea
+                id="request-comment-body"
+                value={commentBody}
+                maxLength={requestCommentMaxLength}
+                placeholder="Found a possible match, seller clue, size question, or search lead..."
+                onChange={(event) => {
+                  setCommentBody(event.target.value);
+                  setCommentStatus("idle");
+                  setCommentError("");
+                }}
+              />
+            </label>
+            <label className="comment-link-label" htmlFor="request-comment-link">
+              <LinkIcon size={16} />
+              <input
+                id="request-comment-link"
+                value={commentLink}
+                placeholder="Optional source link"
+                onChange={(event) => {
+                  setCommentLink(event.target.value);
+                  setCommentStatus("idle");
+                  setCommentError("");
+                }}
+              />
+            </label>
+            <div className="comment-composer-footer">
+              <span>{requestCommentMaxLength - commentBody.length} characters left</span>
+              <button className="primary-button" type="submit" disabled={commentStatus === "posting" || !commentBody.trim()}>
+                {commentStatus === "posting" ? "Posting" : "Post comment"} <Send size={17} />
+              </button>
+            </div>
+            {commentStatus === "posted" ? <p className="comment-status success">Comment posted.</p> : null}
+            {commentStatus === "error" && commentError ? <p className="comment-status error">{commentError}</p> : null}
+          </form>
+        </div>
+
+        <div className="request-comment-list" aria-live="polite">
+          {requestComments.loading ? <p className="comment-load-state">Loading comments...</p> : null}
+          {requestComments.error ? <p className="comment-load-state">{requestComments.error}</p> : null}
+          {visibleComments.length ? (
+            visibleComments.map((comment) => (
+              <article className="request-comment-row" key={comment.id}>
+                <span className={`comment-avatar tone-${comment.helper_avatar_tone}`} aria-hidden="true">
+                  {getAliasInitials(comment.helper_alias)}
+                </span>
+                <div className="request-comment-body">
+                  <div className="request-comment-meta">
+                    <strong>{comment.helper_alias}</strong>
+                    <span>{getRelativeTimeLabel(comment.created_at)}</span>
+                  </div>
+                  <p>{comment.body}</p>
+                  {comment.source_url ? (
+                    <a className="comment-source-link" href={comment.source_url} target="_blank" rel="noreferrer">
+                      <ExternalLink size={14} /> {getCommentSourceHost(comment.source_url)}
+                    </a>
+                  ) : null}
+                </div>
+              </article>
+            ))
+          ) : !requestComments.loading ? (
+            <div className="request-comment-empty">
+              <MessageSquare size={22} />
+              <strong>No public comments yet.</strong>
+              <span>Be first with a useful clue or question.</span>
+            </div>
+          ) : null}
+        </div>
       </section>
     </main>
   );

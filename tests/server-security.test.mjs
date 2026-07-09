@@ -112,14 +112,20 @@ test("payment metadata preserves DataFast visitor attribution", async () => {
   const {
     getAnalyticsContextFromPaymentMetadata,
     getPaymentAnalyticsMetadata,
+    getPublicRequestCommentIdentity,
     getRazorpayPaymentNotes,
+    isUuid,
+    normalizePublicCommentSourceUrl,
     sanitizeCheckoutAnalyticsContext,
+    sanitizePublicCommentBody,
   } = await loadSecurityHelpers({});
   const analytics = sanitizeCheckoutAnalyticsContext({
     datafast_visitor_id: " dfv_test_123 ",
     ga_client_id: "ga-client",
     latest_source: "google",
   });
+  const commentIdentity = getPublicRequestCommentIdentity("visitor-seed-123");
+  const sameCommentIdentity = getPublicRequestCommentIdentity("visitor-seed-123");
 
   const metadata = getPaymentAnalyticsMetadata(analytics);
   const restored = getAnalyticsContextFromPaymentMetadata(metadata);
@@ -135,6 +141,14 @@ test("payment metadata preserves DataFast visitor attribution", async () => {
   assert.equal(restored.datafast_visitor_id, "dfv_test_123");
   assert.equal(razorpayNotes.datafast_visitor_id, "dfv_test_123");
   assert.ok(Object.keys(razorpayNotes).length <= 15);
+  assert.equal(commentIdentity.alias, sameCommentIdentity.alias);
+  assert.equal(commentIdentity.seedHash.length, 64);
+  assert.match(commentIdentity.alias, /^[a-z]+ [a-z]+$/);
+  assert.equal(sanitizePublicCommentBody(" clue   with   spaces \n\n\n and lines "), "clue with spaces \n\n and lines");
+  assert.equal(normalizePublicCommentSourceUrl("example.com/item?utm_source=x&color=red#details"), "https://example.com/item?color=red");
+  assert.equal(normalizePublicCommentSourceUrl("javascript:alert(1)"), "");
+  assert.equal(isUuid("550e8400-e29b-41d4-a716-446655440000"), true);
+  assert.equal(isUuid("not-a-request"), false);
 });
 
 test("DataFast Payment API receives confirmed payment revenue", async () => {
@@ -175,6 +189,44 @@ test("DataFast Payment API receives confirmed payment revenue", async () => {
     currency: "USD",
     transaction_id: "razorpay:pay_test_123",
     datafast_visitor_id: "dfv_test_123",
+  });
+});
+
+test("public request comments reject invalid request ids before Supabase lookup", async () => {
+  const { handleRequest } = await loadServer({
+    PUBLIC_APP_URL: "https://pleasefindmethis.com",
+  });
+  const req = fakeRequest({ host: "pleasefindmethis.com" });
+  const res = fakeResponse();
+
+  req.method = "GET";
+  req.url = "/api/requests/not-a-request/comments";
+
+  await handleRequest(req, res);
+
+  assert.equal(res.statusCode, 400);
+  assert.deepEqual(JSON.parse(res.body), {
+    error: "A valid request id is required.",
+  });
+});
+
+test("public request comments fail closed without Supabase admin configuration", async () => {
+  const { handleRequest } = await loadServer({
+    PUBLIC_APP_URL: "https://pleasefindmethis.com",
+    SUPABASE_SERVICE_ROLE_KEY: "",
+    SUPABASE_URL: "",
+  });
+  const req = fakeRequest({ host: "pleasefindmethis.com" });
+  const res = fakeResponse();
+
+  req.method = "GET";
+  req.url = "/api/requests/11111111-1111-4111-8111-111111111111/comments";
+
+  await handleRequest(req, res);
+
+  assert.equal(res.statusCode, 503);
+  assert.deepEqual(JSON.parse(res.body), {
+    error: "Request comments are unavailable.",
   });
 });
 
