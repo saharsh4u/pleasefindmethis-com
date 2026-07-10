@@ -1477,6 +1477,41 @@ function getRelativeTimeLabel(value?: string | null) {
   return "Recently";
 }
 
+function getCommentTimestampLabel(value?: string | null) {
+  if (!value) {
+    return "Recently";
+  }
+
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) {
+    return "Recently";
+  }
+
+  const now = new Date();
+  const isSameDay = (left: Date, right: Date) =>
+    left.getFullYear() === right.getFullYear() &&
+    left.getMonth() === right.getMonth() &&
+    left.getDate() === right.getDate();
+  const time = new Intl.DateTimeFormat(undefined, { hour: "numeric", minute: "2-digit" }).format(date);
+
+  if (isSameDay(date, now)) {
+    return `Today at ${time}`;
+  }
+
+  const yesterday = new Date(now);
+  yesterday.setDate(now.getDate() - 1);
+  if (isSameDay(date, yesterday)) {
+    return `Yesterday at ${time}`;
+  }
+
+  const dateLabel = new Intl.DateTimeFormat(undefined, {
+    month: "short",
+    day: "numeric",
+    ...(date.getFullYear() === now.getFullYear() ? {} : { year: "numeric" as const }),
+  }).format(date);
+  return `${dateLabel} at ${time}`;
+}
+
 function getStatusLabel(status: string, paymentStatus?: string) {
   if (status === "disputed" || paymentStatus === "disputed") {
     return "In review";
@@ -5888,7 +5923,27 @@ function BountyDetailPage({
   const [commentStatus, setCommentStatus] = useState<"idle" | "posting" | "posted" | "error">("idle");
   const [commentError, setCommentError] = useState("");
   const [shareCopied, setShareCopied] = useState(false);
-  const visibleComments = requestComments.comments.slice(0, 24);
+  const [commentFilter, setCommentFilter] = useState<"all" | "sources">("all");
+  const [commentSearch, setCommentSearch] = useState("");
+  const sourceCommentCount = useMemo(
+    () => requestComments.comments.filter((comment) => Boolean(comment.source_url)).length,
+    [requestComments.comments],
+  );
+  const visibleComments = useMemo(() => {
+    const normalizedSearch = commentSearch.trim().toLowerCase();
+
+    return requestComments.comments
+      .filter((comment) => commentFilter === "all" || Boolean(comment.source_url))
+      .filter((comment) => {
+        if (!normalizedSearch) {
+          return true;
+        }
+
+        return `${comment.helper_alias} ${comment.body} ${getCommentSourceHost(comment.source_url)}`
+          .toLowerCase()
+          .includes(normalizedSearch);
+      });
+  }, [commentFilter, commentSearch, requestComments.comments]);
   const brief = bounty.brief ?? getRequestBriefFields(bounty.description);
   const isExample = !bounty.live;
 
@@ -5941,6 +5996,8 @@ function BountyDetailPage({
       const savedComment = await requestComments.addComment(commentBody, commentLink);
       setCommentBody("");
       setCommentLink("");
+      setCommentFilter("all");
+      setCommentSearch("");
       setCommentStatus("posted");
       trackAcquisitionEvent("request_comment_posted", {
         bounty_id: bounty.id,
@@ -5994,69 +6051,122 @@ function BountyDetailPage({
         </article>
       </section>
 
-      <section className="request-comments-panel" aria-labelledby="request-comments-title">
+      <section className="request-comments-panel comments-ledger-section" aria-labelledby="request-comments-title">
         <div className="request-comments-head">
           <div>
-            <span className="request-comments-kicker"><MessageSquare size={15} /> Public thread</span>
             <h2 id="request-comments-title">Comments and source clues</h2>
-            <p>Post a clue, ask a detail question, or leave a public source link. No account needed.</p>
-            {isExample ? <span className="example-thread-note">Example mode: comments stay on this device.</span> : null}
+            <p>Public clues and source links from people who recognize the item. No account needed.</p>
+            {isExample ? <span className="example-thread-note">Example mode: sample comments are illustrative; posts are not published.</span> : null}
           </div>
           <button className="section-link section-button comment-share-button" type="button" onClick={() => void handleShareRequest()}>
             <LinkIcon size={16} /> {shareCopied ? "Copied" : "Copy or share request"}
           </button>
         </div>
 
-        <div className="comment-composer-card">
-          <span className={`comment-avatar tone-${commentVisitor.avatarTone}`} aria-hidden="true">{getAliasInitials(commentVisitor.alias)}</span>
-          <form className="comment-composer" onSubmit={handleCommentSubmit}>
-            <div className="comment-identity-row"><strong>{commentVisitor.alias}</strong><span>private helper alias</span></div>
-            <label className="comment-textarea-label" htmlFor="request-comment-body">
-              Your clue
-              <textarea
-                id="request-comment-body"
-                value={commentBody}
-                maxLength={requestCommentMaxLength}
-                placeholder="Found a possible match, seller clue, detail question, or search lead…"
-                onChange={(event) => { setCommentBody(event.target.value); setCommentStatus("idle"); setCommentError(""); }}
-              />
-            </label>
-            <label className="comment-link-label" htmlFor="request-comment-link">
-              <LinkIcon size={16} />
-              <input
-                id="request-comment-link"
-                aria-label="Optional source link"
-                value={commentLink}
-                placeholder="Optional source link"
-                onChange={(event) => { setCommentLink(event.target.value); setCommentStatus("idle"); setCommentError(""); }}
-              />
-            </label>
-            <div className="comment-composer-footer">
-              <span>{requestCommentMaxLength - commentBody.length} characters left</span>
-              <button className="primary-button" type="submit" disabled={commentStatus === "posting" || commentBody.trim().length < 2}>
-                {commentStatus === "posting" ? "Posting…" : "Post clue"} <Send size={17} />
+        <div className="comments-ledger">
+          <div className="comments-ledger-toolbar">
+            <div className="comment-filter-tabs" role="group" aria-label="Filter public clues">
+              <button
+                className={commentFilter === "all" ? "is-active" : ""}
+                type="button"
+                aria-pressed={commentFilter === "all"}
+                onClick={() => setCommentFilter("all")}
+              >
+                All clues <span>{requestComments.comments.length}</span>
+              </button>
+              <button
+                className={commentFilter === "sources" ? "is-active" : ""}
+                type="button"
+                aria-pressed={commentFilter === "sources"}
+                onClick={() => setCommentFilter("sources")}
+              >
+                With sources <span>{sourceCommentCount}</span>
               </button>
             </div>
-            {commentStatus === "posted" ? <p className="comment-status success">Clue posted. Thank you for moving the search forward.</p> : null}
-            {commentStatus === "error" && commentError ? <p className="comment-status error">{commentError}</p> : null}
-          </form>
-        </div>
+            <label className="comments-search" htmlFor="request-comment-search">
+              <Search size={15} aria-hidden="true" />
+              <input
+                id="request-comment-search"
+                type="search"
+                aria-label="Search public clues"
+                value={commentSearch}
+                placeholder="Search clues"
+                onChange={(event) => setCommentSearch(event.target.value)}
+              />
+            </label>
+          </div>
 
-        <div className="request-comment-list" aria-live="polite">
-          {requestComments.loading ? <p className="comment-load-state">Loading comments...</p> : null}
-          {requestComments.error ? <p className="comment-load-state">{requestComments.error}</p> : null}
-          {visibleComments.length ? visibleComments.map((comment) => (
-            <article className="request-comment-row" key={comment.id}>
-              <span className={`comment-avatar tone-${comment.helper_avatar_tone}`} aria-hidden="true">{getAliasInitials(comment.helper_alias)}</span>
-              <div className="request-comment-body">
-                <div className="request-comment-meta"><strong>{comment.helper_alias}</strong><span>{getRelativeTimeLabel(comment.created_at)}</span></div>
-                <p>{comment.body}</p>
-                {comment.source_url ? <a className="comment-source-link" href={comment.source_url} target="_blank" rel="noreferrer"><ExternalLink size={14} /> {getCommentSourceHost(comment.source_url)}</a> : null}
+          <div className="comment-composer-card">
+            <span className={`comment-avatar tone-${commentVisitor.avatarTone}`} aria-hidden="true">{getAliasInitials(commentVisitor.alias)}</span>
+            <form className="comment-composer" onSubmit={handleCommentSubmit}>
+              <div className="comment-identity-row"><strong>{commentVisitor.alias}</strong><span>public helper alias · no account needed</span></div>
+              <label className="comment-textarea-label" htmlFor="request-comment-body">
+                Your clue
+                <textarea
+                  id="request-comment-body"
+                  value={commentBody}
+                  maxLength={requestCommentMaxLength}
+                  placeholder="Recognize it? Add a detail, seller, search lead, or question…"
+                  onChange={(event) => { setCommentBody(event.target.value); setCommentStatus("idle"); setCommentError(""); }}
+                />
+              </label>
+              <div className="comment-composer-footer">
+                <label className="comment-link-label" htmlFor="request-comment-link">
+                  <LinkIcon size={16} aria-hidden="true" />
+                  <input
+                    id="request-comment-link"
+                    aria-label="Optional source link"
+                    value={commentLink}
+                    placeholder="Optional source link"
+                    onChange={(event) => { setCommentLink(event.target.value); setCommentStatus("idle"); setCommentError(""); }}
+                  />
+                </label>
+                <span>{requestCommentMaxLength - commentBody.length} left</span>
+                <button className="primary-button" type="submit" disabled={commentStatus === "posting" || commentBody.trim().length < 2}>
+                  {commentStatus === "posting" ? "Posting…" : "Post clue"} <Send size={16} />
+                </button>
               </div>
-            </article>
-          )) : !requestComments.loading ? (
-            <div className="request-comment-empty"><MessageSquare size={22} /><strong>No clues yet.</strong><span>Be the first person to move this search forward.</span></div>
-          ) : null}
+              {commentStatus === "posted" ? <p className="comment-status success">Clue posted. Thank you for moving the search forward.</p> : null}
+              {commentStatus === "error" && commentError ? <p className="comment-status error">{commentError}</p> : null}
+            </form>
+          </div>
+
+          <div className="comments-ledger-columns" aria-hidden="true">
+            <span>Helper &amp; clue</span>
+            <span>Source</span>
+            <span>Posted</span>
+          </div>
+
+          <div className="request-comment-list" aria-live="polite">
+            {requestComments.loading ? <p className="comment-load-state">Loading comments...</p> : null}
+            {requestComments.error ? <p className="comment-load-state">{requestComments.error}</p> : null}
+            {visibleComments.length ? visibleComments.map((comment) => (
+              <article className="request-comment-row" key={comment.id}>
+                <div className="comment-helper-cell">
+                  <span className={`comment-avatar tone-${comment.helper_avatar_tone}`} aria-hidden="true">{getAliasInitials(comment.helper_alias)}</span>
+                  <div>
+                    <strong>{comment.helper_alias}</strong>
+                    <p>{comment.body}</p>
+                  </div>
+                </div>
+                <div className="comment-source-cell">
+                  {comment.source_url ? (
+                    <a className="comment-source-link" href={comment.source_url} target="_blank" rel="noreferrer">
+                      <ExternalLink size={15} /> {getCommentSourceHost(comment.source_url)}
+                    </a>
+                  ) : (
+                    <span><LinkIcon size={15} /> Clue only</span>
+                  )}
+                </div>
+                <time className="comment-posted-cell" dateTime={comment.created_at}>{getCommentTimestampLabel(comment.created_at)}</time>
+              </article>
+            )) : !requestComments.loading && !requestComments.error ? (
+              <div className="request-comment-empty">
+                <strong>{commentSearch ? "No matching clues" : commentFilter === "sources" ? "No source links yet" : "No clues yet"}</strong>
+                <span>{commentSearch ? "Try a different name, phrase, or source." : commentFilter === "sources" ? "Switch to all clues or add the first source." : "Be the first person to move this search forward."}</span>
+              </div>
+            ) : null}
+          </div>
         </div>
       </section>
 
