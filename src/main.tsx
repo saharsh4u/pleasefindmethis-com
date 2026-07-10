@@ -408,7 +408,7 @@ const defaultSocialDescription =
 const organizationLogo = `${siteOrigin}/magnifying-glass.png`;
 const defaultSeoImage = `${siteOrigin}/og/pleasefindmethis-vintage-tee-fullscreen-v3.png`;
 const neutralRequestImage = `data:image/svg+xml,${encodeURIComponent(
-  '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 900"><rect width="1200" height="900" fill="#eef4ff"/><rect x="382" y="255" width="436" height="334" rx="20" fill="#fff" stroke="#aebbd4" stroke-width="8"/><circle cx="515" cy="365" r="46" fill="#dbe7ff"/><path d="m420 535 145-132 92 78 74-58 69 112" fill="none" stroke="#0b46d4" stroke-width="18" stroke-linecap="round" stroke-linejoin="round"/><path d="M538 662h124" stroke="#ff5b0b" stroke-width="18" stroke-linecap="round"/></svg>',
+  '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 900"><rect width="1200" height="900" fill="#e9f4ee"/><rect x="382" y="255" width="436" height="334" rx="20" fill="#fff" stroke="#a9c8b6" stroke-width="8"/><circle cx="515" cy="365" r="46" fill="#d7ebdf"/><path d="m420 535 145-132 92 78 74-58 69 112" fill="none" stroke="#0b6d3b" stroke-width="18" stroke-linecap="round" stroke-linejoin="round"/><path d="M538 662h124" stroke="#d69225" stroke-width="18" stroke-linecap="round"/></svg>',
 )}`;
 const requestSingular = "request";
 const requestPlural = "requests";
@@ -4639,13 +4639,133 @@ function LandingPage({
   showingExamples: boolean;
   signedIn: boolean;
 }) {
-  const featuredRequests = (bounties.length ? bounties : bountyListings).slice(0, 4);
-  const heroRequest = featuredRequests[0] ?? bountyListings[0];
+  const [heroSearch, setHeroSearch] = useState("");
+  const [heroPlaceholder, setHeroPlaceholder] = useState(heroPlaceholderExamples[0]);
+  const displayedBounties = useMemo(() => (bounties.length ? bounties : bountyListings), [bounties]);
+  const railBounties = useMemo(() => {
+    const doubled = [...displayedBounties, ...displayedBounties];
+    return doubled.slice(0, Math.min(8, doubled.length));
+  }, [displayedBounties]);
+  const tickerBounties = useMemo(() => [...railBounties, ...railBounties], [railBounties]);
+
+  useEffect(() => {
+    const reduceMotionQuery = window.matchMedia("(prefers-reduced-motion: reduce)");
+
+    if (reduceMotionQuery.matches) {
+      setHeroPlaceholder(heroPlaceholderExamples[0]);
+      return undefined;
+    }
+
+    let phraseIndex = 0;
+    let characterIndex = 0;
+    let deleting = false;
+    let timeoutId = 0;
+
+    const tick = () => {
+      const currentPhrase = heroPlaceholderExamples[phraseIndex];
+      characterIndex = deleting
+        ? Math.max(0, characterIndex - 1)
+        : Math.min(currentPhrase.length, characterIndex + 1);
+      setHeroPlaceholder(currentPhrase.slice(0, characterIndex));
+
+      if (!deleting && characterIndex === currentPhrase.length) {
+        deleting = true;
+        timeoutId = window.setTimeout(tick, 3600);
+        return;
+      }
+
+      if (deleting && characterIndex === 0) {
+        deleting = false;
+        phraseIndex = (phraseIndex + 1) % heroPlaceholderExamples.length;
+        timeoutId = window.setTimeout(tick, 420);
+        return;
+      }
+
+      timeoutId = window.setTimeout(tick, deleting ? 34 : 72);
+    };
+
+    setHeroPlaceholder("");
+    timeoutId = window.setTimeout(tick, 240);
+    return () => window.clearTimeout(timeoutId);
+  }, []);
+
+  const submitHeroSearch = (event: React.FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    const normalizedQuery = heroSearch.trim().toLowerCase();
+
+    if (!normalizedQuery) {
+      onBrowse();
+      return;
+    }
+
+    const match = displayedBounties.find((bounty) =>
+      `${bounty.name} ${bounty.detail} ${bounty.category}`.toLowerCase().includes(normalizedQuery),
+    );
+
+    if (match) {
+      onDetail(match.id);
+      return;
+    }
+
+    onBrowse();
+  };
 
   return (
-    <main id="top" className="landing-page viral-landing">
-      <header className="viral-header">
-        <div className="viral-header-inner">
+    <main id="top" className="landing-page">
+      {tickerBounties.length ? (
+        <>
+          <aside className="mobile-find-ticker mobile-find-ticker-top" aria-hidden="true">
+            <div className="mobile-find-ticker-track mobile-find-ticker-track-left">
+              {tickerBounties.map((bounty, index) => (
+                <article className="mobile-find-ticker-card" key={`mobile-rail-top-${bounty.id}-${index}`}>
+                  <img src={bounty.image} alt="" />
+                  <span><strong>{bounty.name}</strong><small>{showingExamples ? "Example request" : bounty.location}</small></span>
+                </article>
+              ))}
+            </div>
+          </aside>
+          <aside className="mobile-find-ticker mobile-find-ticker-bottom" aria-hidden="true">
+            <div className="mobile-find-ticker-track mobile-find-ticker-track-right">
+              {tickerBounties.map((bounty, index) => (
+                <article className="mobile-find-ticker-card" key={`mobile-rail-bottom-${bounty.id}-${index}`}>
+                  <img src={bounty.image} alt="" />
+                  <span><strong>{bounty.name}</strong><small>{showingExamples ? "Example request" : `${bounty.submissions} clues`}</small></span>
+                </article>
+              ))}
+            </div>
+          </aside>
+        </>
+      ) : null}
+
+      <section className="hero-section">
+        {railBounties.length ? (
+          <>
+            <aside className="side-find-rail" aria-hidden="true">
+              <div className="side-find-track side-find-track-down">
+                {railBounties.map((bounty, index) => (
+                  <article className="side-find-card" key={`landing-rail-top-${bounty.id}-${index}`}>
+                    <strong>{bounty.name}</strong>
+                    <p>{showingExamples ? "Example request" : bounty.location}</p>
+                    <img className="side-find-image" src={bounty.image} alt="" />
+                  </article>
+                ))}
+              </div>
+            </aside>
+            <aside className="side-find-rail side-find-rail-right side-find-rail-bottom" aria-hidden="true">
+              <div className="side-find-track side-find-track-up">
+                {railBounties.map((bounty, index) => (
+                  <article className="side-find-card" key={`landing-rail-bottom-${bounty.id}-${index}`}>
+                    <strong>{bounty.name}</strong>
+                    <p>{showingExamples ? "Example request" : bounty.category}</p>
+                    <img className="side-find-image" src={bounty.image} alt="" />
+                  </article>
+                ))}
+              </div>
+            </aside>
+          </>
+        ) : null}
+
+        <div className="canvas-nav">
           <a
             className="brand brand-button"
             href={routeHref("landing")}
@@ -4663,9 +4783,11 @@ function LandingPage({
           </a>
           <nav className="desktop-nav" aria-label="Primary navigation">
             <a href={routeHref("browse")} onClick={(event) => handleRoutedAnchorClick(event, onBrowse)}>
-              Open requests
+              Browse requests
             </a>
-            <a href="#how-it-works">How it works</a>
+            <a href={routeHref("post-describe")} onClick={(event) => handleRoutedAnchorClick(event, () => onPost("header_nav"))}>
+              Post request
+            </a>
           </nav>
           <div className="canvas-actions">
             {signedIn ? (
@@ -4683,7 +4805,6 @@ function LandingPage({
                 Log in
               </a>
             )}
-            <button className="viral-header-cta" type="button" onClick={() => onPost("header_primary")}>Post a request</button>
             <button
               className="icon-button mobile-menu-button"
               type="button"
@@ -4697,10 +4818,11 @@ function LandingPage({
           {menuOpen ? (
             <nav className="mobile-nav" aria-label="Mobile navigation">
               <a href={routeHref("browse")} onClick={(event) => handleRoutedAnchorClick(event, onBrowse)}>
-                Open requests
+                Browse requests
               </a>
-              <a href="#how-it-works" onClick={() => setMenuOpen(false)}>How it works</a>
-              <button type="button" onClick={() => onPost("mobile_menu")}>Post a request</button>
+              <a href={routeHref("post-describe")} onClick={(event) => handleRoutedAnchorClick(event, () => onPost("mobile_menu"))}>
+                Post request
+              </a>
               {signedIn ? (
                 <>
                   <a href={routeHref("poster-dashboard")} onClick={(event) => handleRoutedAnchorClick(event, onAccount)}>
@@ -4718,98 +4840,42 @@ function LandingPage({
             </nav>
           ) : null}
         </div>
-      </header>
 
-      <section className="viral-hero">
-        <div className="viral-hero-copy">
-          <h1>Someone out there knows where it is.</h1>
-          <p>Post a photo of the exact thing you’re looking for. Share the request. Anyone can leave a clue—no signup needed.</p>
-          <div className="viral-hero-actions">
-            <button type="button" onClick={() => onPost("hero_primary")}>Start a free search</button>
-            <button type="button" onClick={onBrowse}>Help find something</button>
+        <div className="hero-copy">
+          <p className="hero-site-tag">{siteName}</p>
+          <h1>Where can I buy this exact item now?</h1>
+          <p className="mobile-hero-title" aria-hidden="true">Where can I buy this exact item now?</p>
+          <form className="hero-search-form" onSubmit={submitHeroSearch}>
+            <Search size={20} aria-hidden="true" />
+            <input value={heroSearch} aria-label="Search requests" onChange={(event) => setHeroSearch(event.target.value)} placeholder={heroPlaceholder} />
+            <button type="submit">Search requests</button>
+          </form>
+          <div className="mobile-hero-actions" aria-label="Hero actions">
+            <button className="primary-button mobile-post-button hero-plus-button" type="button" onClick={() => onPost("hero_mobile")}>
+              <span aria-hidden="true">+</span> Post a request
+            </button>
+            <a className="mobile-browse-button" href={routeHref("browse-all")} onClick={(event) => handleRoutedAnchorClick(event, onBrowseAll)}>
+              Browse open requests <ArrowRight size={14} />
+            </a>
           </div>
-          <ul className="viral-trust-line">
-            <li><LockKeyhole size={17} /> Free to post</li>
-            <li><Users size={17} /> Public by default</li>
-            <li><ShieldCheck size={17} /> You verify every lead</li>
-          </ul>
+        </div>
+
+        <div className="hero-lower">
+          <p className="hero-subline">Add photos. Share the request. Collect clues.</p>
+          <button className="primary-button hero-cta" type="button" onClick={() => onPost("hero_primary")}>Post a request</button>
           {acquisitionStarterPrompt ? (
             <div className="starter-link-panel">
               <span><strong>{acquisitionStarterPrompt.label}</strong>{acquisitionStarterPrompt.title}</span>
-              <button className="starter-link-button" type="button" onClick={() => onPost("starter_link")}>Start this request <ArrowRight size={16} /></button>
+              <button className="starter-link-button" type="button" onClick={() => onPost("starter_link")}>
+                Start this request <ArrowRight size={16} />
+              </button>
             </div>
           ) : null}
-        </div>
-
-        <article className="viral-request-preview">
-          <header>
-            <h2>{heroRequest.name}</h2>
-            <span className="hunt-corner-tab" aria-hidden="true" />
-          </header>
-          <div className="viral-request-preview-body">
-            <img src={heroRequest.image} alt={`${heroRequest.name} reference`} />
-            <div>
-              <h3>{heroRequest.description}</h3>
-              <span>Must match:</span>
-              <ul>{heroRequest.mustHaves.slice(0, 4).map((item) => <li key={item}><CheckCircle2 size={15} /> {item}</li>)}</ul>
-              <div className="viral-clue-preview">
-                <MessageSquare size={18} />
-                <span><strong>Public clue page</strong>Anyone can leave a clue or source link without signing up.</span>
-              </div>
-            </div>
-          </div>
-          <footer>
-            <strong>{showingExamples ? "Example request" : `${heroRequest.submissions} clue${heroRequest.submissions === 1 ? "" : "s"}`}</strong>
-            <button type="button" onClick={() => onDetail(heroRequest.id)}>View request <ArrowRight size={16} /></button>
-          </footer>
-          <span className="viral-thread-line" aria-hidden="true" />
-        </article>
-      </section>
-
-      <section className="viral-open-section" aria-labelledby="open-searches-title">
-        <div className="viral-section-head">
-          <h2 id="open-searches-title">{showingExamples ? "See what a strong search looks like." : "Open searches need another pair of eyes."}</h2>
-          <a href={routeHref("browse-all")} onClick={(event) => handleRoutedAnchorClick(event, onBrowseAll)}>View all open requests <ArrowRight size={17} /></a>
-        </div>
-        <div className="viral-request-rail">
-          {featuredRequests.map((bounty, index) => (
-            <article className={`viral-request-card viral-request-card-${(index % 4) + 1}`} key={bounty.id}>
-              <span className="hunt-corner-tab" aria-hidden="true" />
-              <h3>{bounty.name}</h3>
-              <img src={bounty.image} alt={`${bounty.name} reference`} loading="lazy" decoding="async" />
-              <div><strong>{showingExamples ? "Example search" : `${bounty.submissions} clues`}</strong><span>{bounty.category}</span></div>
-              <button type="button" onClick={() => onDetail(bounty.id)}>I know something</button>
-            </article>
-          ))}
+          <p className="trust-line"><LockKeyhole size={18} /> Free to post. No hidden fees.</p>
         </div>
       </section>
 
-      <section id="how-it-works" className="viral-how-section" aria-labelledby="how-title">
-        <h2 id="how-title">Turn one photo into a search party.</h2>
-        <div className="viral-steps">
-          <article><span>01</span><i><Camera size={30} /></i><h3>Post the exact item</h3><p>Add a photo and the details that must match.</p></article>
-          <article><span>02</span><i><Users size={30} /></i><h3>Share the search</h3><p>Send one link to friends, groups, or communities.</p></article>
-          <article><span>03</span><i><MessageSquare size={30} /></i><h3>Collect useful clues</h3><p>Anyone can reply. You decide which lead is right.</p></article>
-          <span className="viral-step-thread" aria-hidden="true" />
-        </div>
-      </section>
-
-      <section className="viral-final-cta">
-        <div><h2>Still looking?<br />Put more eyes on it.</h2><p>Your first search is free.</p></div>
-        <div><button type="button" onClick={() => onPost("landing_final")}>Start a free search</button><button type="button" onClick={onBrowse}>Browse open requests <ArrowRight size={17} /></button></div>
-      </section>
-
-      <footer className="viral-footer">
-        <a className="brand brand-button" href={routeHref("landing")} onClick={(event) => handleRoutedAnchorClick(event, () => window.scrollTo({ top: 0, behavior: "smooth" }))}>
-          <span className="brand-mark" aria-hidden="true"><img className="brand-mark-image" src="/magnifying-glass.png" alt="" /></span>{siteName}
-        </a>
-        <nav aria-label="Footer navigation">
-          <a href="#how-it-works">How it works</a>
-          <a href={routeHref("terms")} onClick={(event) => handleRoutedAnchorClick(event, () => onNavigate("terms"))}>Safety</a>
-          <a href={routeHref("terms")} onClick={(event) => handleRoutedAnchorClick(event, () => onNavigate("terms"))}>Terms</a>
-          <a href={routeHref("privacy")} onClick={(event) => handleRoutedAnchorClick(event, () => onNavigate("privacy"))}>Privacy</a>
-        </nav>
-      </footer>
+      <SiteFooter navigate={onNavigate} />
     </main>
   );
 }
@@ -5038,138 +5104,99 @@ function PostDescribePage({
   };
 
   return (
-    <main className="route-page hunt-composer-page" aria-labelledby="describe-title">
-      <header className="hunt-composer-intro">
-        <h1 id="describe-title">Show us the thing you can’t find.</h1>
-        <p>A clear photo and three good clues give the internet something useful to work with.</p>
-      </header>
+    <main className="route-page post-wizard-page legacy-request-composer" aria-labelledby="describe-title">
+      <section className="two-column-page">
+        <form className="form-panel post-flow-panel" onSubmit={continueWithDetails}>
+          <div className="post-flow-intro">
+            <h1 id="describe-title">What are you trying to find?</h1>
+            <p>Give people enough detail to recognize the exact item and rule out close matches.</p>
+          </div>
 
-      <form className="hunt-composer-layout" onSubmit={continueWithDetails}>
-        <section className="hunt-photo-column" aria-labelledby="photo-upload-title">
-          <h2 id="photo-upload-title" className="sr-only">Request photos</h2>
-          <div className="hunt-upload-shell">
-            <label className="hunt-photo-dropzone">
-              <input className="sr-only-file-input" type="file" accept="image/*" multiple onChange={handleReferenceImageSelection} />
-              <span className="hunt-upload-icon" aria-hidden="true">
-                <Upload size={28} />
-              </span>
-              <strong>{photosPreparing ? "Preparing photos…" : "Drop photos here or choose files"}</strong>
-              <small>Up to 4 photos · compressed for the sign-in handoff</small>
-            </label>
+          <label className="legacy-title-field">
+            Item or description
+            <textarea
+              aria-label="What are you trying to find?"
+              value={draft.itemName}
+              rows={3}
+              maxLength={120}
+              placeholder="Help me find this exact item"
+              onChange={(event) => onDraftChange({ itemName: event.target.value })}
+            />
+          </label>
+
+          <div className="post-question-card">
+            <span className="post-question-label"><Upload size={18} /> Add photo references</span>
+            <div className="photo-source-grid">
+              <label className="photo-source-card">
+                <input className="sr-only-file-input" type="file" accept="image/*" multiple onChange={handleReferenceImageSelection} />
+                <div className="photo-source-icon"><ImagePlus size={25} /></div>
+                <div><strong>{photosPreparing ? "Preparing photos…" : "From gallery"}</strong><small>Choose up to four images</small></div>
+              </label>
+              <label className="photo-source-card">
+                <input className="sr-only-file-input" type="file" accept="image/*" capture="environment" onChange={handleReferenceImageSelection} />
+                <div className="photo-source-icon"><Camera size={25} /></div>
+                <div><strong>From camera</strong><small>Take a new reference photo</small></div>
+              </label>
+            </div>
             {referenceImageFiles.length ? (
-              <div className="hunt-thumbnail-rail" aria-label="Selected photos">
+              <div className="upload-preview-grid" aria-label="Selected photos">
                 {referenceImageFiles.map((imageDraft, index) => (
-                  <figure key={`${imageDraft.name}-${imageDraft.file.lastModified}-${index}`} className="hunt-thumbnail">
+                  <figure className="upload-preview-card" key={`${imageDraft.name}-${imageDraft.file.lastModified}-${index}`}>
                     <img src={imageDraft.dataUrl} alt={`Request photo ${index + 1}`} />
-                    <button type="button" onClick={() => removeReferenceImage(index)} aria-label={`Remove photo ${index + 1}`}>
-                      <X size={14} />
-                    </button>
+                    <figcaption>
+                      <span>{imageDraft.name}</span>
+                      <button
+                        className="section-link section-button"
+                        type="button"
+                        aria-label={`Remove photo ${index + 1}`}
+                        onClick={() => removeReferenceImage(index)}
+                      >
+                        Remove
+                      </button>
+                    </figcaption>
                   </figure>
                 ))}
               </div>
             ) : null}
+            {photoPreparationError || referenceImagePersistenceError ? (
+              <p className="hunt-photo-error" role="alert">{photoPreparationError || referenceImagePersistenceError}</p>
+            ) : referenceImageFiles.length ? (
+              <p className="hunt-photo-saved" role="status"><CheckCircle2 size={15} /> Photos are saved for the sign-in handoff.</p>
+            ) : null}
           </div>
-          {photoPreparationError || referenceImagePersistenceError ? (
-            <p className="hunt-photo-error" role="alert">{photoPreparationError || referenceImagePersistenceError}</p>
-          ) : referenceImageFiles.length ? (
-            <p className="hunt-photo-saved" role="status"><CheckCircle2 size={15} /> Photos are ready for the sign-in handoff.</p>
-          ) : null}
 
-          <div className="hunt-preview-head">
-            <div>
-              <strong>Preview</strong>
-              <span>This is how your request will look to others.</span>
+          <div className="post-question-card legacy-request-details">
+            <span className="post-question-label"><FileText size={18} /> Details that help people recognize it</span>
+            <div className="legacy-request-field-grid">
+              <label>
+                Category
+                <select value={draft.category} onChange={(event) => onDraftChange({ category: event.target.value as RequestCategory })}>
+                  {requestCategories.map((category) => <option key={category.value} value={category.value}>{category.label}</option>)}
+                </select>
+              </label>
+              <label>
+                What must match?
+                <textarea value={briefFields.mustMatch} rows={3} placeholder="Pattern, brand, size, label, model number…" onChange={(event) => updateBriefField("mustMatch", event.target.value)} />
+                <small>Required. List the non-negotiable details.</small>
+              </label>
+              <label>
+                Where have you already looked?
+                <textarea value={briefFields.alreadyTried} rows={3} placeholder="Google Lens, eBay, local shops…" onChange={(event) => updateBriefField("alreadyTried", event.target.value)} />
+              </label>
+              <label>
+                Budget, region, or condition limits
+                <textarea value={briefFields.buyingLimits} rows={3} placeholder="Ships to India, under $150, used is fine…" onChange={(event) => updateBriefField("buyingLimits", event.target.value)} />
+              </label>
             </div>
-            <span>Public hunt card</span>
           </div>
-          <article className="hunt-card-preview">
-            {referenceImageFiles[0] ? (
-              <img src={referenceImageFiles[0].dataUrl} alt="Request preview" />
-            ) : (
-              <span className="hunt-card-placeholder" aria-hidden="true">
-                <Camera size={28} />
-              </span>
-            )}
-            <div>
-              <strong>{draft.itemName.trim() || "Your exact item"}</strong>
-              <p>{previewMustHaves.join(" · ")}</p>
-            </div>
-            <span className="hunt-corner-tab" aria-hidden="true" />
-          </article>
-        </section>
 
-        <section className="hunt-fields-column" aria-label="Request details">
-          <label className="hunt-field">
-            <span>What are you looking for?</span>
-            <input
-              value={draft.itemName}
-              maxLength={120}
-              placeholder="Pink rose childhood blanket"
-              onChange={(event) => onDraftChange({ itemName: event.target.value })}
-            />
-            <small>Be specific so others instantly know what to look for.</small>
-          </label>
-
-          <label className="hunt-field">
-            <span>Category</span>
-            <select value={draft.category} onChange={(event) => onDraftChange({ category: event.target.value as RequestCategory })}>
-              {requestCategories.map((category) => (
-                <option key={category.value} value={category.value}>{category.label}</option>
-              ))}
-            </select>
-            <small>Pick the closest match to reach people with the right context.</small>
-          </label>
-
-          <label className="hunt-field">
-            <span>What must match?</span>
-            <textarea
-              value={briefFields.mustMatch}
-              rows={3}
-              placeholder="Pattern, brand, size, label, model number…"
-              onChange={(event) => updateBriefField("mustMatch", event.target.value)}
-            />
-            <small>List the non-negotiable details.</small>
-          </label>
-
-          <label className="hunt-field">
-            <span>Where have you already looked?</span>
-            <textarea
-              value={briefFields.alreadyTried}
-              rows={3}
-              placeholder="Google Lens, eBay, local shops…"
-              onChange={(event) => updateBriefField("alreadyTried", event.target.value)}
-            />
-            <small>Share what you’ve tried so helpers can go further.</small>
-          </label>
-
-          <label className="hunt-field">
-            <span>Budget, region, or condition limits</span>
-            <textarea
-              value={briefFields.buyingLimits}
-              rows={3}
-              placeholder="Ships to India, under $150, used is fine…"
-              onChange={(event) => updateBriefField("buyingLimits", event.target.value)}
-            />
-            <small>Add any limits to focus the search.</small>
-          </label>
-
-          <div className="hunt-publish-row">
+          <div className="legacy-composer-actions">
             <p><LockKeyhole size={15} /> Your draft stays private until you publish.</p>
-            <button className="primary-button" type="submit" disabled={!canContinue}>
-              Continue to publish <ArrowRight size={17} />
-            </button>
-            <div>
-              <button className="hunt-save-button" type="button" onClick={saveDraft}>{draftSaved ? "Draft saved" : "Save and come back later"}</button>
-              <span>Next: sign in and publish free</span>
-            </div>
+            <button className="primary-button" type="submit" disabled={!canContinue}>Continue to publish <ArrowRight size={17} /></button>
+            <button className="section-link section-button" type="button" onClick={saveDraft}>{draftSaved ? "Draft saved" : "Save and come back later"}</button>
+            <small>Next: sign in and publish free.</small>
           </div>
-        </section>
-      </form>
-
-      <section className="hunt-quality-row" aria-label="Strong request checklist">
-        <div><Camera size={20} /><span><strong>Photo is recognizable</strong><small>Clear photos help others spot the exact match.</small></span></div>
-        <div><FileText size={20} /><span><strong>Must-match details are specific</strong><small>Name the pattern, model, size, or label.</small></span></div>
-        <div><MapPin size={20} /><span><strong>Buying limits are clear</strong><small>Share your region, budget, or condition limits.</small></span></div>
+        </form>
       </section>
     </main>
   );
@@ -5927,128 +5954,115 @@ function BountyDetailPage({
   };
 
   return (
-    <main className="route-page public-request-page" aria-labelledby="detail-title">
+    <main className="route-page legacy-public-request-page" aria-labelledby="detail-title">
       <button className="back-button page-back" type="button" onClick={onBrowse}>
-        <ArrowLeft size={17} /> Open requests
+        <ArrowLeft size={17} /> Browse requests
       </button>
-      <section className="public-request-layout">
-        <article className="request-story-column">
-          <div className="request-image-frame">
-            <img src={bounty.image} alt={bounty.name} decoding="async" />
-            <span className="hunt-corner-tab" aria-hidden="true" />
+      <section className="detail-layout" style={{ gridTemplateColumns: "minmax(0, 1fr)" }}>
+        <article className="detail-main">
+          <img className="detail-image" src={bounty.image} alt={bounty.name} decoding="async" />
+          <div className="detail-copy">
+            <div className="status-strip">
+              <span>{isExample ? "Example request" : bounty.status}</span>
+              <span>{bounty.category}</span>
+              <span>{bounty.posted}</span>
+            </div>
+            <h1 id="detail-title">{bounty.name}</h1>
+            <p>{bounty.description}</p>
+            <h2>Must match</h2>
+            <ul className="check-list detail-list">
+              {bounty.mustHaves.map((item) => <li key={item}><CheckCircle2 size={18} /> {item}</li>)}
+            </ul>
+            {brief.alreadyTried || brief.buyingLimits ? (
+              <dl className="legacy-brief-notes">
+                {brief.alreadyTried ? <div><dt>Already searched</dt><dd>{brief.alreadyTried}</dd></div> : null}
+                {brief.buyingLimits ? <div><dt>Buying limits</dt><dd>{brief.buyingLimits}</dd></div> : null}
+              </dl>
+            ) : null}
+            <div className="legacy-detail-actions">
+              <button className="primary-button wide-button" type="button" onClick={() => document.getElementById("request-comment-body")?.focus()}>
+                Leave a public clue <MessageSquare size={18} />
+              </button>
+              <button className="section-link section-button" type="button" onClick={() => void handleShareRequest()}>
+                <Share2 size={16} /> {shareCopied ? "Link copied" : "Share this request"}
+              </button>
+              <button className="section-link section-button" type="button" onClick={onSubmit}>
+                Share a private source <ArrowRight size={16} />
+              </button>
+            </div>
           </div>
-          <div className="request-status-line">
-            <span>{isExample ? "Example" : bounty.status}</span><i aria-hidden="true" />
-            <span>{bounty.category}</span><i aria-hidden="true" />
-            <span>{bounty.posted}</span>
-          </div>
-          <h1 id="detail-title">{bounty.name}</h1>
-          <p className="request-story-copy">{bounty.description}</p>
-          <h2>Must match</h2>
-          <ul className="request-match-list">
-            {bounty.mustHaves.map((item) => <li key={item}><CheckCircle2 size={18} /> {item}</li>)}
-          </ul>
-          {brief.alreadyTried || brief.buyingLimits ? (
-            <dl className="request-brief-notes">
-              {brief.alreadyTried ? <div><dt>Already searched</dt><dd>{brief.alreadyTried}</dd></div> : null}
-              {brief.buyingLimits ? <div><dt>Buying limits</dt><dd>{brief.buyingLimits}</dd></div> : null}
-            </dl>
-          ) : null}
         </article>
+      </section>
 
-        <aside className="request-clue-panel" aria-labelledby="clue-panel-title">
-          <h2 id="clue-panel-title">Do you recognize this?</h2>
-          <p>Leave a clue or a link. No account needed.</p>
-          {isExample ? <span className="example-thread-note">Preview mode: comments here stay on this device.</span> : null}
-          <form onSubmit={handleCommentSubmit}>
-            <label htmlFor="request-comment-body">Your clue</label>
-            <div className="request-clue-textarea">
+      <section className="request-comments-panel" aria-labelledby="request-comments-title">
+        <div className="request-comments-head">
+          <div>
+            <span className="request-comments-kicker"><MessageSquare size={15} /> Public thread</span>
+            <h2 id="request-comments-title">Comments and source clues</h2>
+            <p>Post a clue, ask a detail question, or leave a public source link. No account needed.</p>
+            {isExample ? <span className="example-thread-note">Example mode: comments stay on this device.</span> : null}
+          </div>
+          <button className="section-link section-button comment-share-button" type="button" onClick={() => void handleShareRequest()}>
+            <LinkIcon size={16} /> {shareCopied ? "Copied" : "Copy or share request"}
+          </button>
+        </div>
+
+        <div className="comment-composer-card">
+          <span className={`comment-avatar tone-${commentVisitor.avatarTone}`} aria-hidden="true">{getAliasInitials(commentVisitor.alias)}</span>
+          <form className="comment-composer" onSubmit={handleCommentSubmit}>
+            <div className="comment-identity-row"><strong>{commentVisitor.alias}</strong><span>private helper alias</span></div>
+            <label className="comment-textarea-label" htmlFor="request-comment-body">
+              Your clue
               <textarea
                 id="request-comment-body"
                 value={commentBody}
                 maxLength={requestCommentMaxLength}
-                placeholder="I remember this from…"
-                onChange={(event) => {
-                  setCommentBody(event.target.value);
-                  setCommentStatus("idle");
-                  setCommentError("");
-                }}
+                placeholder="Found a possible match, seller clue, detail question, or search lead…"
+                onChange={(event) => { setCommentBody(event.target.value); setCommentStatus("idle"); setCommentError(""); }}
               />
-              <span>{commentBody.length}/{requestCommentMaxLength}</span>
+            </label>
+            <label className="comment-link-label" htmlFor="request-comment-link">
+              <LinkIcon size={16} />
+              <input
+                id="request-comment-link"
+                aria-label="Optional source link"
+                value={commentLink}
+                placeholder="Optional source link"
+                onChange={(event) => { setCommentLink(event.target.value); setCommentStatus("idle"); setCommentError(""); }}
+              />
+            </label>
+            <div className="comment-composer-footer">
+              <span>{requestCommentMaxLength - commentBody.length} characters left</span>
+              <button className="primary-button" type="submit" disabled={commentStatus === "posting" || commentBody.trim().length < 2}>
+                {commentStatus === "posting" ? "Posting…" : "Post clue"} <Send size={17} />
+              </button>
             </div>
-            <label htmlFor="request-comment-link">Optional link to seller or source</label>
-            <input
-              id="request-comment-link"
-              value={commentLink}
-              placeholder="https://…"
-              onChange={(event) => {
-                setCommentLink(event.target.value);
-                setCommentStatus("idle");
-                setCommentError("");
-              }}
-            />
-            <button className="request-clue-submit" type="submit" disabled={commentStatus === "posting" || commentBody.trim().length < 2}>
-              {commentStatus === "posting" ? "Posting…" : "Leave a clue"}
-            </button>
-            <small className="request-alias-note"><LockKeyhole size={14} /> You’ll appear as {commentVisitor.alias}, a private helper alias.</small>
             {commentStatus === "posted" ? <p className="comment-status success">Clue posted. Thank you for moving the search forward.</p> : null}
             {commentStatus === "error" && commentError ? <p className="comment-status error">{commentError}</p> : null}
           </form>
-          <button className="request-private-source" type="button" onClick={onSubmit}>Share a private source instead <ArrowRight size={15} /></button>
-          <div className="request-share-block">
-            <button type="button" onClick={() => void handleShareRequest()}><Share2 size={18} /> {shareCopied ? "Link copied" : "Ask someone who might know"}</button>
-            <span>One good forward can reach the right person.</span>
-          </div>
-        </aside>
-      </section>
-
-      <section className="request-thread-section" aria-labelledby="request-comments-title">
-        <div className="request-thread-head">
-          <h2 id="request-comments-title">The search so far</h2>
-          <span>{visibleComments.length} clue{visibleComments.length === 1 ? "" : "s"}</span>
         </div>
 
         <div className="request-comment-list" aria-live="polite">
           {requestComments.loading ? <p className="comment-load-state">Loading comments...</p> : null}
           {requestComments.error ? <p className="comment-load-state">{requestComments.error}</p> : null}
-          {visibleComments.length ? (
-            visibleComments.map((comment) => (
-              <article className="request-comment-row" key={comment.id}>
-                <span className={`comment-avatar tone-${comment.helper_avatar_tone}`} aria-hidden="true">
-                  {getAliasInitials(comment.helper_alias)}
-                </span>
-                <div className="request-comment-body">
-                  <div className="request-comment-meta">
-                    <strong>{comment.helper_alias}</strong>
-                    <span>{getRelativeTimeLabel(comment.created_at)}</span>
-                  </div>
-                  <p>{comment.body}</p>
-                  {comment.source_url ? (
-                    <a className="comment-source-link" href={comment.source_url} target="_blank" rel="noreferrer">
-                      <ExternalLink size={14} /> {getCommentSourceHost(comment.source_url)}
-                    </a>
-                  ) : null}
-                </div>
-              </article>
-            ))
-          ) : !requestComments.loading ? (
-            <div className="request-comment-empty">
-              <MessageSquare size={22} />
-              <strong>No clues yet.</strong>
-              <span>Be the first person to move this search forward.</span>
-            </div>
+          {visibleComments.length ? visibleComments.map((comment) => (
+            <article className="request-comment-row" key={comment.id}>
+              <span className={`comment-avatar tone-${comment.helper_avatar_tone}`} aria-hidden="true">{getAliasInitials(comment.helper_alias)}</span>
+              <div className="request-comment-body">
+                <div className="request-comment-meta"><strong>{comment.helper_alias}</strong><span>{getRelativeTimeLabel(comment.created_at)}</span></div>
+                <p>{comment.body}</p>
+                {comment.source_url ? <a className="comment-source-link" href={comment.source_url} target="_blank" rel="noreferrer"><ExternalLink size={14} /> {getCommentSourceHost(comment.source_url)}</a> : null}
+              </div>
+            </article>
+          )) : !requestComments.loading ? (
+            <div className="request-comment-empty"><MessageSquare size={22} /><strong>No clues yet.</strong><span>Be the first person to move this search forward.</span></div>
           ) : null}
-        </div>
-        <div className="request-thread-share">
-          <div><Share2 size={20} /><span><strong>Know someone with a sharp memory?</strong><small>The right person might recognize this instantly.</small></span></div>
-          <button type="button" onClick={() => void handleShareRequest()}>Share this search <Share2 size={16} /></button>
         </div>
       </section>
 
-      <section className="request-recipient-cta">
-        <h2>Looking for something too?<br />Start a free search.</h2>
-        <button type="button" onClick={onStartSearch}>Start a free search</button>
-        <a href="#top" onClick={(event) => { event.preventDefault(); onBrowse(); }}>See how it works <ArrowRight size={16} /></a>
+      <section className="legacy-recipient-callout">
+        <div><strong>Looking for something too?</strong><span>Start a free public request and send one link to people who may know.</span></div>
+        <button className="primary-button" type="button" onClick={onStartSearch}>Start a free search <ArrowRight size={16} /></button>
       </section>
     </main>
   );

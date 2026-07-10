@@ -12021,3 +12021,434 @@ small {
     justify-content: center;
   }
 }
+
+/* Previous-design compatibility layer.
+   New workflow states inherit the original forest-green, white-canvas system. */
+:root {
+  --hunt-blue: var(--green);
+  --hunt-blue-dark: var(--green-dark);
+  --hunt-orange: var(--orange);
+  --hunt-sky: var(--green-soft);
+  --hunt-lilac: #eef8fa;
+  --hunt-ink: var(--text);
+  --hunt-copy: var(--muted);
+  --hunt-line: var(--line);
+  --hunt-green: var(--green);
+}
+
+.app-header-post {
+  min-height: 2.65rem;
+  padding: 0.66rem 1rem;
+  border-color: #0d0f0e;
+  border-radius: 999px;
+  background: #0d0f0e;
+  color: #fff;
+  box-shadow: 0 10px 20px rgba(12, 15, 13, 0.14);
+  font-size: 0.8rem;
+  font-weight: 850;
+}
+
+.app-header-post:hover {
+  border-color: var(--green);
+  background: var(--green);
+}
+
+.hunt-corner-tab,
+.viral-thread-line,
+.viral-step-thread,
+.share-preview-card::before,
+.share-preview-card::after {
+  display: none;
+}
+
+.legacy-request-composer .two-column-page {
+  grid-template-columns: minmax(0, 42.5rem);
+  justify-content: start;
+}
+
+.legacy-request-composer .post-flow-panel {
+  gap: 1rem;
+  width: 100%;
+}
+
+.legacy-request-composer .post-flow-intro {
+  margin-bottom: 0.1rem;
+}
+
+.legacy-request-composer .post-flow-intro h1 {
+  max-width: 12ch;
+  font-size: clamp(3rem, 4.5vw, 3.55rem);
+  line-height: 1.02;
+}
+
+.legacy-request-composer .legacy-title-field textarea {
+  min-height: 9rem;
+}
+
+.legacy-request-composer .post-question-card {
+  gap: 0.85rem;
+  padding: clamp(1rem, 2vw, 1.25rem);
+  border-color: var(--line);
+  background: #fff;
+  box-shadow: var(--soft-shadow);
+}
+
+.legacy-request-composer .post-question-label {
+  border-color: rgba(42, 164, 188, 0.25);
+  background: #f7fbfa;
+  color: var(--cyan);
+}
+
+.legacy-request-composer .photo-source-card {
+  min-height: 8.8rem;
+  border-color: var(--line);
+  background: #f7faf8;
+  box-shadow: none;
+}
+
+.legacy-request-composer .photo-source-card:hover,
+.legacy-request-composer .photo-source-card:focus-within {
+  border-color: rgba(11, 109, 59, 0.32);
+  box-shadow: 0 14px 32px rgba(11, 109, 59, 0.1);
+}
+
+.legacy-request-composer .photo-source-icon {
+  border-color: rgba(11, 109, 59, 0.28);
+  background: var(--green-soft);
+  color: var(--green);
+}
+
+.legacy-request-field-grid {
+  display: grid;
+  gap: 0.9rem;
+}
+
+.legacy-request-field-grid label {
+  display: grid;
+  gap: 0.4rem;
+}
+
+.legacy-request-field-grid small {
+  color: var(--muted);
+  font-size: 0.78rem;
+  font-weight: 650;
+}
+
+.legacy-composer-actions {
+  display: grid;
+  gap: 0.7rem;
+}
+
+.legacy-composer-actions > p {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  margin: 0;
+  color: var(--muted);
+  font-size: 0.8rem;
+  font-weight: 680;
+}
+
+.legacy-composer-actions > p svg {
+  color: var(--green);
+}
+
+.legacy-composer-actions .primary-button {
+  width: 100%;
+  min-height: 2.8rem;
+}
+
+.legacy-composer-actions .section-link {
+  justify-self: center;
+}
+
+.legacy-composer-actions > small {
+  color: var(--muted);
+  font-size: 0.76rem;
+  text-align: center;
+}
+
+.legacy-public-request-page .detail-layout {
+  grid-template-columns: minmax(0, 1fr);
+}
+
+.legacy-public-request-page .legacy-detail-actions {
+  display: grid;
+  gap: 0.65rem;
+  margin-top: 0.2rem;
+}
+
+.legacy-public-request-page .legacy-detail-actions .primary-button {
+  width: 100%;
+}
+
+.legacy-public-request-page .legacy-detail-actions .section-button {
+  justify-content: center;
+}
+
+.legacy-brief-notes {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.7rem;
+  margin: 0.2rem 0 0;
+}
+
+.legacy-brief-notes > div {
+  min-width: 0;
+  padding: 0.8rem;
+  border: 1px solid rgba(11, 109, 59, 0.16);
+  border-radius: 8px;
+  background: var(--green-soft);
+}
+
+.legacy-brief-notes dt {
+  color: var(--green-dark);
+  font-size: 0.74rem;
+  font-weight: 850;
+  text-transform: uppercase;
+}
+
+.legacy-brief-notes dd {
+  margin: 0.3rem 0 0;
+  color: #303633;
+  font-size: 0.88rem;
+  font-weight: 620;
+  line-height: 1.45;
+  white-space: pre-line;
+}
+
+.legacy-recipient-callout {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  margin-top: clamp(1.2rem, 3vw, 2rem);
+  padding: clamp(1rem, 2vw, 1.25rem);
+  border: 1px solid rgba(11, 109, 59, 0.2);
+  border-radius: 8px;
+  background: var(--green-soft);
+}
+
+.legacy-recipient-callout > div {
+  display: grid;
+  gap: 0.2rem;
+}
+
+.legacy-recipient-callout strong {
+  font-size: 1rem;
+  font-weight: 880;
+}
+
+.legacy-recipient-callout span {
+  color: #46514a;
+  font-size: 0.86rem;
+  font-weight: 630;
+}
+
+.share-page {
+  width: 100%;
+  max-width: none;
+  padding: clamp(2.2rem, 4vw, 3.2rem) max(1rem, calc((100vw - 1120px) / 2)) clamp(3rem, 6vw, 5rem);
+}
+
+.share-page-intro {
+  margin-bottom: clamp(1.4rem, 3vw, 2rem);
+}
+
+.share-page-intro h1,
+.share-page-empty h1 {
+  max-width: 13ch;
+  font-size: clamp(2.8rem, 4.5vw, 3.55rem);
+  line-height: 1.02;
+  letter-spacing: 0;
+}
+
+.share-page-intro p,
+.share-page-empty > p {
+  max-width: 42rem;
+  color: var(--muted);
+  font-size: 1rem;
+  font-weight: 630;
+}
+
+.share-page-grid {
+  grid-template-columns: minmax(0, 1.15fr) minmax(21rem, 0.85fr);
+  gap: clamp(1rem, 3vw, 2rem);
+  align-items: stretch;
+}
+
+.share-preview-card,
+.share-actions-panel {
+  border-color: var(--line);
+  border-radius: 8px;
+  box-shadow: var(--soft-shadow);
+}
+
+.share-preview-body {
+  min-height: 20rem;
+  padding: 1rem;
+}
+
+.share-preview-body img {
+  min-height: 18rem;
+  border-radius: 8px;
+}
+
+.share-preview-link button {
+  color: var(--green);
+}
+
+.share-actions-panel {
+  align-content: center;
+  gap: 0.85rem;
+  padding: clamp(1.2rem, 2.5vw, 1.7rem);
+}
+
+.share-native-button,
+.share-copy-button,
+.share-channel-grid a,
+.share-view-button {
+  border-radius: 999px;
+}
+
+.share-native-button {
+  border-color: #0d0f0e;
+  background: #0d0f0e;
+  box-shadow: 0 12px 22px rgba(12, 15, 13, 0.16);
+}
+
+.share-native-button:hover {
+  border-color: var(--green);
+  background: var(--green);
+}
+
+.share-channel-grid a:hover,
+.share-copy-button:hover,
+.share-view-button:hover {
+  border-color: var(--green);
+  color: var(--green);
+}
+
+.share-progress {
+  gap: 1.1rem;
+  margin-top: 1.5rem;
+  padding: 1rem;
+  border: 1px solid rgba(11, 109, 59, 0.18);
+  border-radius: 8px;
+  background: #fbfdfc;
+}
+
+.share-progress .is-complete > span {
+  border-color: var(--green);
+  background: var(--green);
+}
+
+.share-progress .is-current > span {
+  border-color: var(--green);
+  color: var(--green);
+}
+
+.share-progress-meter span {
+  background: var(--green);
+}
+
+.share-page-footer {
+  margin-top: 1.4rem;
+}
+
+.share-view-button {
+  border-color: var(--green);
+  color: var(--green);
+}
+
+.share-page-footer .hunt-save-button {
+  min-height: 3.25rem;
+  padding: 0.7rem 1.2rem;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: #fff;
+  color: var(--text);
+}
+
+@media (max-width: 900px) {
+  .share-page-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .share-preview-body {
+    min-height: 0;
+  }
+}
+
+@media (max-width: 760px) {
+  .app-header-post {
+    display: none;
+  }
+
+  .legacy-request-composer .two-column-page {
+    grid-template-columns: 1fr;
+  }
+
+  .legacy-request-composer .post-flow-intro h1,
+  .share-page-intro h1,
+  .share-page-empty h1 {
+    max-width: none;
+    font-size: clamp(2.2rem, 11vw, 3rem);
+  }
+
+  .legacy-brief-notes,
+  .share-progress {
+    grid-template-columns: 1fr;
+  }
+
+  .legacy-recipient-callout {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .legacy-recipient-callout .primary-button {
+    width: 100%;
+  }
+
+  .share-preview-body {
+    grid-template-columns: 1fr;
+  }
+
+  .share-preview-body img {
+    min-height: 0;
+    aspect-ratio: 4 / 3;
+  }
+
+  .share-preview-link {
+    grid-template-columns: auto minmax(0, 1fr);
+  }
+
+  .share-preview-link button {
+    grid-column: 1 / -1;
+    justify-self: start;
+  }
+
+  .share-channel-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .share-progress-meter,
+  .share-progress-note {
+    grid-column: 1;
+    margin-inline: 0;
+  }
+
+  .share-page-footer {
+    grid-template-columns: 1fr;
+  }
+
+  .share-view-button,
+  .share-page-footer .hunt-save-button {
+    width: 100%;
+    min-width: 0;
+  }
+
+  .share-page-footer strong {
+    justify-self: start;
+  }
+}
