@@ -20,6 +20,8 @@
   },
   "dependencies": {
     "@datafast/ai-crawl": "^1.0.7",
+    "@dicebear/core": "9.4.2",
+    "@dicebear/open-peeps": "9.4.2",
     "@supabase/supabase-js": "^2.108.2",
     "@vercel/analytics": "^2.0.1",
     "@vitejs/plugin-react": "^5.1.1",
@@ -29,6 +31,7 @@
     "react-dom": "^19.2.3",
     "standardwebhooks": "^1.0.0",
     "typescript": "^5.9.3",
+    "unique-names-generator": "4.7.1",
     "vite": "^7.3.0"
   },
   "devDependencies": {

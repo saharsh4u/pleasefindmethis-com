@@ -37,6 +37,10 @@ export default defineConfig(({ mode }) => {
               return "supabase";
             }
 
+            if (id.includes("/node_modules/@dicebear/")) {
+              return "comment-avatars";
+            }
+
             return "vendor";
           },
         },

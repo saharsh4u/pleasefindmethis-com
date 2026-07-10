@@ -1,7 +1,9 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { createRoot } from "react-dom/client";
+import type { Options as OpenPeepsOptions } from "@dicebear/open-peeps";
 import type { Session } from "@supabase/supabase-js";
 import { Analytics } from "@vercel/analytics/react";
+import { animals, colors, uniqueNamesGenerator } from "unique-names-generator";
 import {
   ArrowLeft,
   ArrowRight,
@@ -505,44 +507,27 @@ const findSourceOptions: Array<{ value: FindSourceType; label: string; copy: str
 
 const requestCommentVisitorStorageKey = "pleasefindmethis-comment-visitor-v1";
 const requestCommentMaxLength = 700;
-const publicHelperAdjectives = [
-  "amber",
-  "blue",
-  "brisk",
-  "cedar",
-  "copper",
-  "gold",
-  "green",
-  "ivory",
-  "jade",
-  "mint",
-  "navy",
-  "opal",
-  "pearl",
-  "silver",
-  "tan",
-  "teal",
-  "violet",
-  "warm",
+const commentAvatarFaces: NonNullable<OpenPeepsOptions["face"]> = [
+  "awe",
+  "blank",
+  "calm",
+  "cheeky",
+  "contempt",
+  "cute",
+  "driven",
+  "eyesClosed",
+  "eatingHappy",
+  "explaining",
+  "serious",
+  "smile",
+  "smileBig",
+  "suspicious",
 ];
-const publicHelperNouns = [
-  "anchovy",
-  "angelfish",
-  "cod",
-  "darter",
-  "goby",
-  "herring",
-  "minnow",
-  "parrotfish",
-  "perch",
-  "pike",
-  "ray",
-  "sardine",
-  "squid",
-  "tetra",
-  "trout",
-  "tuna",
-];
+const commentAvatarSkinColors = ["694d3d", "ae5d29", "d08b5b", "edb98a", "ffdbb4", "f1c27d", "fff0db"];
+const commentAvatarCache = new Map<string, string>();
+const commentAvatarRequestCache = new Map<string, Promise<string>>();
+let commentAvatarGeneratorPromise: Promise<(seed: string) => string> | null = null;
+let requestCommentVisitorMemorySeed = "";
 
 type RequestBriefFieldKey = "story" | "mustMatch" | "alreadyTried" | "wrongMatches" | "sourceProof" | "buyingLimits" | "extraNotes";
 type RequestBriefFields = Record<RequestBriefFieldKey, string>;
@@ -1737,23 +1722,123 @@ function hashPublicHelperSeed(seed: string) {
 }
 
 function getPublicHelperAlias(seed: string) {
-  const hash = hashPublicHelperSeed(seed);
-  const adjective = publicHelperAdjectives[hash % publicHelperAdjectives.length];
-  const noun = publicHelperNouns[Math.floor(hash / publicHelperAdjectives.length) % publicHelperNouns.length];
-  return `${adjective} ${noun}`;
+  return uniqueNamesGenerator({
+    dictionaries: [colors, animals],
+    separator: " ",
+    seed,
+  });
 }
 
 function getPublicHelperAvatarTone(seed: string) {
   return hashPublicHelperSeed(`tone:${seed}`) % 6;
 }
 
-function getAliasInitials(alias: string) {
-  return alias
+function loadCommentAvatarGenerator() {
+  if (!commentAvatarGeneratorPromise) {
+    commentAvatarGeneratorPromise = Promise.all([
+      import("@dicebear/core"),
+      import("@dicebear/open-peeps"),
+    ])
+      .then(([{ createAvatar }, openPeeps]) => (seed: string) => createAvatar(openPeeps, {
+        seed,
+        face: commentAvatarFaces,
+        skinColor: commentAvatarSkinColors,
+        maskProbability: 0,
+        accessoriesProbability: 33,
+      }).toDataUri())
+      .catch((error) => {
+        // Allow a later render to retry if the lazy avatar chunk fails transiently.
+        commentAvatarGeneratorPromise = null;
+        throw error;
+      });
+  }
+
+  return commentAvatarGeneratorPromise;
+}
+
+function getCommentAvatarDataUri(alias: string) {
+  const seed = alias.trim().toLowerCase() || "anonymous helper";
+  const cachedAvatar = commentAvatarCache.get(seed);
+
+  if (cachedAvatar) {
+    return Promise.resolve(cachedAvatar);
+  }
+
+  const pendingAvatar = commentAvatarRequestCache.get(seed);
+  if (pendingAvatar) {
+    return pendingAvatar;
+  }
+
+  const avatarRequest = loadCommentAvatarGenerator()
+    .then((generateAvatar) => {
+      const avatar = generateAvatar(seed);
+      commentAvatarCache.set(seed, avatar);
+      commentAvatarRequestCache.delete(seed);
+      return avatar;
+    })
+    .catch((error) => {
+      commentAvatarRequestCache.delete(seed);
+      throw error;
+    });
+  commentAvatarRequestCache.set(seed, avatarRequest);
+  return avatarRequest;
+}
+
+function CommentAvatar({ alias, eager = false }: { alias: string; eager?: boolean }) {
+  const normalizedAlias = alias.trim().toLowerCase() || "anonymous helper";
+  const [avatar, setAvatar] = useState(() => commentAvatarCache.get(normalizedAlias) ?? "");
+  const [failed, setFailed] = useState(false);
+  const fallbackInitials = normalizedAlias
     .split(/\s+/)
-    .map((part) => part.charAt(0))
-    .join("")
     .slice(0, 2)
+    .map((word) => word[0])
+    .join("")
     .toUpperCase();
+
+  useEffect(() => {
+    let mounted = true;
+    const cachedAvatar = commentAvatarCache.get(normalizedAlias);
+
+    if (cachedAvatar) {
+      setFailed(false);
+      setAvatar(cachedAvatar);
+      return () => {
+        mounted = false;
+      };
+    }
+
+    setFailed(false);
+    setAvatar("");
+    void getCommentAvatarDataUri(normalizedAlias)
+      .then((nextAvatar) => {
+        if (mounted) {
+          setAvatar(nextAvatar);
+        }
+      })
+      .catch(() => {
+        if (mounted) {
+          setFailed(true);
+        }
+      });
+
+    return () => {
+      mounted = false;
+    };
+  }, [normalizedAlias]);
+
+  return (
+    <span className={`comment-avatar ${avatar ? "is-loaded" : failed ? "is-failed" : "is-loading"}`} aria-hidden="true">
+      {avatar ? (
+        <img
+          src={avatar}
+          alt=""
+          loading={eager ? "eager" : "lazy"}
+          decoding="async"
+          draggable={false}
+        />
+      ) : failed ? fallbackInitials : null}
+    </span>
+  );
 }
 
 function createVisitorSeed() {
@@ -1764,11 +1849,11 @@ function createVisitorSeed() {
   return `${Date.now()}-${Math.random().toString(36).slice(2)}`;
 }
 
-function getRequestCommentVisitor() {
+function getRequestCommentVisitor(requestId: string) {
   const createVisitor = (seed = createVisitorSeed()) => ({
     seed,
-    alias: getPublicHelperAlias(seed),
-    avatarTone: getPublicHelperAvatarTone(seed),
+    alias: getPublicHelperAlias(`${seed}:${requestId || "public-request"}`),
+    avatarTone: getPublicHelperAvatarTone(`${seed}:${requestId || "public-request"}`),
   });
 
   try {
@@ -1777,14 +1862,17 @@ function getRequestCommentVisitor() {
     const storedSeed = typeof parsed?.seed === "string" ? parsed.seed.trim().slice(0, 160) : "";
 
     if (storedSeed) {
+      requestCommentVisitorMemorySeed = storedSeed;
       return createVisitor(storedSeed);
     }
 
-    const visitor = createVisitor();
+    const visitor = createVisitor(requestCommentVisitorMemorySeed || undefined);
+    requestCommentVisitorMemorySeed = visitor.seed;
     window.localStorage.setItem(requestCommentVisitorStorageKey, JSON.stringify({ seed: visitor.seed }));
     return visitor;
   } catch {
-    return createVisitor();
+    requestCommentVisitorMemorySeed ||= createVisitorSeed();
+    return createVisitor(requestCommentVisitorMemorySeed);
   }
 }
 
@@ -1943,8 +2031,11 @@ function useRequestComments(bounty: BountyListing) {
     };
   }, [bounty.id, bounty.name]);
 
-  const addComment = async (body: string, sourceUrl: string) => {
-    const visitor = getRequestCommentVisitor();
+  const addComment = async (
+    body: string,
+    sourceUrl: string,
+    visitor: ReturnType<typeof getRequestCommentVisitor>,
+  ) => {
     const normalizedBody = body.trim().slice(0, requestCommentMaxLength);
     const normalizedSourceUrl = normalizeCommentSourceUrl(sourceUrl);
 
@@ -5917,7 +6008,7 @@ function BountyDetailPage({
   onSubmit: () => void;
 }) {
   const requestComments = useRequestComments(bounty);
-  const commentVisitor = useMemo(() => getRequestCommentVisitor(), []);
+  const commentVisitor = useMemo(() => getRequestCommentVisitor(bounty.id), [bounty.id]);
   const [commentBody, setCommentBody] = useState("");
   const [commentLink, setCommentLink] = useState("");
   const [commentStatus, setCommentStatus] = useState<"idle" | "posting" | "posted" | "error">("idle");
@@ -5993,7 +6084,7 @@ function BountyDetailPage({
     setCommentError("");
 
     try {
-      const savedComment = await requestComments.addComment(commentBody, commentLink);
+      const savedComment = await requestComments.addComment(commentBody, commentLink, commentVisitor);
       setCommentBody("");
       setCommentLink("");
       setCommentFilter("all");
@@ -6054,12 +6145,12 @@ function BountyDetailPage({
       <section className="request-comments-panel comments-ledger-section" aria-labelledby="request-comments-title">
         <div className="request-comments-head">
           <div>
-            <h2 id="request-comments-title">Comments and source clues</h2>
-            <p>Public clues and source links from people who recognize the item. No account needed.</p>
-            {isExample ? <span className="example-thread-note">Example mode: sample comments are illustrative; posts are not published.</span> : null}
+            <h2 id="request-comments-title">Comments &amp; clues</h2>
+            <p>Anonymous helpers sharing leads. No account needed.</p>
+            {isExample ? <span className="example-thread-note">Example only — identities are illustrative and posts aren’t published.</span> : null}
           </div>
           <button className="section-link section-button comment-share-button" type="button" onClick={() => void handleShareRequest()}>
-            <LinkIcon size={16} /> {shareCopied ? "Copied" : "Copy or share request"}
+            <LinkIcon size={16} /> {shareCopied ? "Copied" : "Share request"}
           </button>
         </div>
 
@@ -6096,17 +6187,17 @@ function BountyDetailPage({
             </label>
           </div>
 
-          <div className="comment-composer-card">
-            <span className={`comment-avatar tone-${commentVisitor.avatarTone}`} aria-hidden="true">{getAliasInitials(commentVisitor.alias)}</span>
+          <div className={`comment-composer-card ${commentBody || commentLink || commentStatus !== "idle" ? "has-draft" : ""}`}>
+            <CommentAvatar alias={commentVisitor.alias} eager />
             <form className="comment-composer" onSubmit={handleCommentSubmit}>
-              <div className="comment-identity-row"><strong>{commentVisitor.alias}</strong><span>public helper alias · no account needed</span></div>
+              <div className="comment-identity-row"><strong>{commentVisitor.alias}</strong><span>your anonymous name</span></div>
               <label className="comment-textarea-label" htmlFor="request-comment-body">
                 Your clue
                 <textarea
                   id="request-comment-body"
                   value={commentBody}
                   maxLength={requestCommentMaxLength}
-                  placeholder="Recognize it? Add a detail, seller, search lead, or question…"
+                  placeholder="Leave a clue, seller, or source lead…"
                   onChange={(event) => { setCommentBody(event.target.value); setCommentStatus("idle"); setCommentError(""); }}
                 />
               </label>
@@ -6143,13 +6234,13 @@ function BountyDetailPage({
             {visibleComments.length ? visibleComments.map((comment) => (
               <article className="request-comment-row" key={comment.id}>
                 <div className="comment-helper-cell">
-                  <span className={`comment-avatar tone-${comment.helper_avatar_tone}`} aria-hidden="true">{getAliasInitials(comment.helper_alias)}</span>
+                  <CommentAvatar alias={comment.helper_alias} />
                   <div>
                     <strong>{comment.helper_alias}</strong>
                     <p>{comment.body}</p>
                   </div>
                 </div>
-                <div className="comment-source-cell">
+                <div className="comment-source-cell" role="group" aria-label="Source">
                   {comment.source_url ? (
                     <a className="comment-source-link" href={comment.source_url} target="_blank" rel="noreferrer">
                       <ExternalLink size={15} /> {getCommentSourceHost(comment.source_url)}
@@ -6158,7 +6249,13 @@ function BountyDetailPage({
                     <span><LinkIcon size={15} /> Clue only</span>
                   )}
                 </div>
-                <time className="comment-posted-cell" dateTime={comment.created_at}>{getCommentTimestampLabel(comment.created_at)}</time>
+                <time
+                  className="comment-posted-cell"
+                  dateTime={comment.created_at}
+                  aria-label={`Posted ${getCommentTimestampLabel(comment.created_at)}`}
+                >
+                  {getCommentTimestampLabel(comment.created_at)}
+                </time>
               </article>
             )) : !requestComments.loading && !requestComments.error ? (
               <div className="request-comment-empty">

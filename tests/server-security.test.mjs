@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import crypto from "node:crypto";
 import { readFile } from "node:fs/promises";
 import { test } from "node:test";
+import { animals, colors, uniqueNamesGenerator } from "unique-names-generator";
 
 const originalEnv = { ...process.env };
 let importCounter = 0;
@@ -127,6 +128,13 @@ test("payment metadata preserves DataFast visitor attribution", async () => {
   });
   const commentIdentity = getPublicRequestCommentIdentity("visitor-seed-123");
   const sameCommentIdentity = getPublicRequestCommentIdentity("visitor-seed-123");
+  const scopedCommentIdentity = getPublicRequestCommentIdentity("visitor-seed-123", "fingerprint-a", "request-a");
+  const samePublicIdentity = getPublicRequestCommentIdentity("visitor-seed-123", "fingerprint-b", "request-a");
+  const expectedScopedAlias = uniqueNamesGenerator({
+    dictionaries: [colors, animals],
+    separator: " ",
+    seed: "visitor-seed-123:request-a",
+  });
 
   const metadata = getPaymentAnalyticsMetadata(analytics);
   const restored = getAnalyticsContextFromPaymentMetadata(metadata);
@@ -145,6 +153,9 @@ test("payment metadata preserves DataFast visitor attribution", async () => {
   assert.equal(commentIdentity.alias, sameCommentIdentity.alias);
   assert.equal(commentIdentity.seedHash.length, 64);
   assert.match(commentIdentity.alias, /^[a-z]+ [a-z]+$/);
+  assert.equal(scopedCommentIdentity.alias, samePublicIdentity.alias);
+  assert.equal(scopedCommentIdentity.alias, expectedScopedAlias);
+  assert.notEqual(scopedCommentIdentity.seedHash, samePublicIdentity.seedHash);
   assert.equal(sanitizePublicCommentBody(" clue   with   spaces \n\n\n and lines "), "clue with spaces \n\n and lines");
   assert.equal(normalizePublicCommentSourceUrl("example.com/item?utm_source=x&color=red#details"), "https://example.com/item?color=red");
   assert.equal(normalizePublicCommentSourceUrl("javascript:alert(1)"), "");

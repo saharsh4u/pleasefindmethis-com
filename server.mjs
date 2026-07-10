@@ -6,6 +6,7 @@ import { fileURLToPath } from "node:url";
 import { createClient } from "@supabase/supabase-js";
 import { trackAICrawlerRequest } from "@datafast/ai-crawl";
 import { Webhook } from "standardwebhooks";
+import { animals, colors, uniqueNamesGenerator } from "unique-names-generator";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const root = __dirname;
@@ -42,44 +43,6 @@ const requestFingerprintSecret = parseString(
   process.env.REQUEST_FINGERPRINT_SECRET || process.env.SUPABASE_SERVICE_ROLE_KEY,
   500,
 );
-const publicHelperAdjectives = [
-  "amber",
-  "blue",
-  "brisk",
-  "cedar",
-  "copper",
-  "gold",
-  "green",
-  "ivory",
-  "jade",
-  "mint",
-  "navy",
-  "opal",
-  "pearl",
-  "silver",
-  "tan",
-  "teal",
-  "violet",
-  "warm",
-];
-const publicHelperNouns = [
-  "anchovy",
-  "angelfish",
-  "cod",
-  "darter",
-  "goby",
-  "herring",
-  "minnow",
-  "parrotfish",
-  "perch",
-  "pike",
-  "ray",
-  "sardine",
-  "squid",
-  "tetra",
-  "trout",
-  "tuna",
-];
 const attributionAnalyticsKeys = [
   "first_landing_page",
   "first_referrer_host",
@@ -1131,6 +1094,7 @@ async function createPublicRequestComment(req, requestId, body) {
   const identity = getPublicRequestCommentIdentity(
     body.visitorSeed ?? body.visitor_seed,
     requestFingerprintHash,
+    requestId,
   );
   const { data, error } = await supabaseAdmin
     .rpc("create_public_request_comment", {
@@ -1199,11 +1163,13 @@ function normalizePublicCommentSourceUrl(value) {
   }
 }
 
-function getPublicRequestCommentIdentity(value, requestFingerprintHash = "") {
+function getPublicRequestCommentIdentity(value, requestFingerprintHash = "", requestId = "") {
   const visitorSeed = parseString(value, 160);
   const fallbackSeed = requestFingerprintHash || crypto.randomUUID();
-  const aliasSeed = `${visitorSeed || fallbackSeed}:${requestFingerprintHash || "no-request-fingerprint"}`;
-  const seedHash = crypto.createHash("sha256").update(aliasSeed).digest("hex");
+  const publicScope = parseString(requestId, 80) || "public-request";
+  const aliasSeed = `${visitorSeed || fallbackSeed}:${publicScope}`;
+  const privateSeed = `${visitorSeed || fallbackSeed}:${requestFingerprintHash || "no-request-fingerprint"}:${publicScope}`;
+  const seedHash = crypto.createHash("sha256").update(privateSeed).digest("hex");
 
   return {
     alias: getPublicHelperAlias(aliasSeed),
@@ -1243,10 +1209,11 @@ function getTrustedRequestAddress(req) {
 }
 
 function getPublicHelperAlias(seed) {
-  const hash = hashPublicHelperSeed(seed);
-  const adjective = publicHelperAdjectives[hash % publicHelperAdjectives.length];
-  const noun = publicHelperNouns[Math.floor(hash / publicHelperAdjectives.length) % publicHelperNouns.length];
-  return `${adjective} ${noun}`;
+  return uniqueNamesGenerator({
+    dictionaries: [colors, animals],
+    separator: " ",
+    seed,
+  });
 }
 
 function getPublicHelperAvatarTone(seed) {
