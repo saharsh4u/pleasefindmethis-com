@@ -62,14 +62,14 @@
       content="Post the exact thing you’re looking for, share the request, and collect clues from anyone—no signup needed."
     />
     <meta property="og:url" content="https://pleasefindmethis.com/" />
-    <meta property="og:image" content="https://pleasefindmethis.com/og/pleasefindmethis-vintage-tee-fullscreen-v3.png" />
-    <meta property="og:image:secure_url" content="https://pleasefindmethis.com/og/pleasefindmethis-vintage-tee-fullscreen-v3.png" />
+    <meta property="og:image" content="https://pleasefindmethis.com/og/pleasefindmethis-request-board.png" />
+    <meta property="og:image:secure_url" content="https://pleasefindmethis.com/og/pleasefindmethis-request-board.png" />
     <meta property="og:image:type" content="image/png" />
     <meta property="og:image:width" content="1200" />
-    <meta property="og:image:height" content="675" />
+    <meta property="og:image:height" content="630" />
     <meta
       property="og:image:alt"
-      content="A public request asking for help finding a vintage T-shirt from photos and source clues."
+      content="A free public request board for hard-to-find items, reference photos, and public clues."
     />
     <meta name="twitter:card" content="summary_large_image" />
     <meta name="twitter:title" content="Someone out there knows where it is | pleasefindmethis" />
@@ -77,10 +77,10 @@
       name="twitter:description"
       content="Post the exact thing you’re looking for, share the request, and collect clues from anyone—no signup needed."
     />
-    <meta name="twitter:image" content="https://pleasefindmethis.com/og/pleasefindmethis-vintage-tee-fullscreen-v3.png" />
+    <meta name="twitter:image" content="https://pleasefindmethis.com/og/pleasefindmethis-request-board.png" />
     <meta
       name="twitter:image:alt"
-      content="A public request asking for help finding a vintage T-shirt from photos and source clues."
+      content="A free public request board for hard-to-find items, reference photos, and public clues."
     />
     <link rel="canonical" href="https://pleasefindmethis.com/" />
     <link rel="icon" type="image/png" href="/magnifying-glass.png" />
@@ -115,23 +115,18 @@
             }
           },
           {
-            "@type": "Service",
-            "@id": "https://pleasefindmethis.com/#service",
+            "@type": "WebApplication",
+            "@id": "https://pleasefindmethis.com/#app",
             "name": "Hard-to-find item request board",
             "alternateName": "pleasefindmethis.com",
-            "serviceType": "Free public request-board web app",
+            "applicationCategory": "LifestyleApplication",
+            "operatingSystem": "Web",
             "url": "https://pleasefindmethis.com/",
-            "provider": {
+            "publisher": {
               "@id": "https://pleasefindmethis.com/#organization"
             },
-            "areaServed": "Worldwide",
-            "description": "pleasefindmethis.com lets people publish free public requests for hard-to-find items and lets helpers share source suggestions, links, clues, and safety notes.",
-            "offers": {
-              "@type": "AggregateOffer",
-              "priceCurrency": "USD",
-              "lowPrice": 0,
-              "description": "Public requests are free."
-            },
+            "isAccessibleForFree": true,
+            "description": "pleasefindmethis.com lets people publish free public requests for hard-to-find items and lets anyone add public links, clues, and safety notes.",
             "termsOfService": "https://pleasefindmethis.com/terms"
           },
           {
@@ -147,9 +142,9 @@
               "@id": "https://pleasefindmethis.com/#organization"
             },
             "mainEntity": {
-              "@id": "https://pleasefindmethis.com/#service"
+              "@id": "https://pleasefindmethis.com/#app"
             },
-            "dateModified": "2026-07-09",
+            "dateModified": "2026-07-10",
             "inLanguage": "en"
           }
         ]
@@ -176,16 +171,16 @@
           Post a photo of the exact thing you’re looking for. Share the request. Anyone can leave a clue—no signup needed.
         </p>
         <p>
-          Pleasefindmethis hosts source requests, lead context, and review history. Purchases still happen with the third-party source.
+          Pleasefindmethis hosts free public requests and public clues. Purchases still happen directly with the third-party seller.
         </p>
         <p>
-          Helpers share public links, seller paths, and proof. Requesters verify safety before buying.
+          Anyone can share a public link, seller path, clue, or safety note. Requesters verify third-party sellers before buying.
         </p>
         <p>
           Use the request board for exact sentimental replacements, discontinued goods, rare camera gear, watches, repair parts,
           sold-out fashion, collectibles, and other items where the right clue may be outside public search results.
         </p>
-        <p>Last updated July 5, 2026.</p>
+        <p>Last updated July 10, 2026.</p>
         <nav aria-label="Site links">
           <a href="/browse">Browse open find requests</a>
           <a href="/browse/all">Browse all request boards</a>
@@ -193,7 +188,7 @@
           <a href="/requests/">Request category hubs</a>
           <a href="/post/describe">Post a request</a>
           <a href="/terms">Request terms</a>
-          <a href="/refunds">Refunds</a>
+          <a href="/privacy">Privacy</a>
           <a href="mailto:support@pleasefindmethis.com">Get help</a>
         </nav>
       </main>

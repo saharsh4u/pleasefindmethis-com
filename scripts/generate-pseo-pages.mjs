@@ -7,14 +7,12 @@ const publicDir = path.join(root, "public");
 const siteUrl = "https://pleasefindmethis.com";
 const siteName = "pleasefindmethis.com";
 const titleBrand = "pleasefindmethis";
-const lastmod = "2026-07-07";
+const lastmod = "2026-07-10";
 
 const appSitemapPages = [
   { loc: "/", changefreq: "daily", priority: "1.0" },
   { loc: "/browse", changefreq: "daily", priority: "0.9" },
   { loc: "/browse/all", changefreq: "daily", priority: "0.8" },
-  { loc: "/profile", changefreq: "monthly", priority: "0.6" },
-  { loc: "/refunds", changefreq: "monthly", priority: "0.5" },
   { loc: "/terms", changefreq: "monthly", priority: "0.4" },
   { loc: "/privacy", changefreq: "monthly", priority: "0.4" },
 ];
@@ -39,15 +37,15 @@ const guidePages = [
     ctaLabel: "Post a help-me-find request",
     intents: ["help me find this item", "please help me find this", "help me find this exact item"],
     intro: [
-      "The strongest help-me-find requests sound simple, but they include the details helpers need before they start searching.",
+      "The strongest help-me-find requests sound simple, but they include the details other people need before they start searching.",
       "Use this workflow when you have a photo, screenshot, memory, old listing, or vague description and need the same item, not a close replacement.",
     ],
     steps: [
-      ["Start with the plain request", "Write the sentence a helper would recognize: help me find this exact item, where can I buy this, or please help me find this."],
-      ["Add must-match details", "List the color, size, label, pattern, model, dimensions, material, compatibility, or condition details that would make a lead valid."],
+      ["Start with the plain request", "Write the sentence another person would recognize: help me find this exact item, where can I buy this, or please help me find this."],
+      ["Add must-match details", "List the color, size, label, pattern, model, dimensions, material, compatibility, or condition details that would make a clue useful."],
       ["Share what already failed", "Include Google Lens results, marketplace searches, sold listings, Reddit posts, store names, and old links you already checked."],
       ["Name the wrong matches", "Call out dupes, similar items, unavailable pages, wrong sizes, and listings that look close but do not match."],
-      ["Define a valid source", "Say whether you need a current listing, seller contact, local lead, direct handoff path, model clue, or compatibility proof."],
+      ["Define a useful source", "Say whether you need a current listing, public seller path, local shop, model clue, or compatibility evidence."],
     ],
     checklist: [
       "Exact request in plain language.",
@@ -58,7 +56,7 @@ const guidePages = [
     ],
     faqs: [
       ["What should I write if I only have a photo?", "Start with the photo, then describe scale, material, color, markings, age, purchase location, and any detail that image search might miss."],
-      ["Why list places I already searched?", "It keeps helpers from repeating obvious searches and gives them clues about which names, marketplaces, and wrong matches are already exhausted."],
+      ["Why list places I already searched?", "It keeps people from repeating obvious searches and shows which names, marketplaces, and wrong matches are already exhausted."],
       ["What does a good source suggestion include?", "A good suggestion includes the source path, proof it matches the request, price or terms, location, condition notes, and any caveats before you buy."],
     ],
   },
@@ -66,15 +64,15 @@ const guidePages = [
     slug: "where-can-i-buy-this",
     title: "Where Can I Buy This?",
     description:
-      "Use a clearer request when image search finds lookalikes but not the source. Turn a photo, screenshot, or memory into a buying lead.",
+      "Use a clearer request when image search finds lookalikes but not the source. Turn a photo, screenshot, or memory into a useful public clue.",
     h1: "Where can I buy this exact item?",
-    eyebrow: "Buying lead guide",
+    eyebrow: "Source clue guide",
     image: "/find-requests/celestial-kitchen.jpg",
     cta: "/post/describe",
     ctaLabel: "Post a where-can-I-buy-this request",
     intents: ["where can I buy this", "where to buy this item", "find this product from photo"],
     intro: [
-      "Where can I buy this is a buying-intent question, but helpers still need constraints before a source is useful.",
+      "Where can I buy this is a buying-intent question, but people still need constraints before a source clue is useful.",
       "The fastest path is to turn the image or memory into a source brief: what must match, where it can ship, what price range works, and which lookalikes are wrong.",
     ],
     steps: [
@@ -88,20 +86,20 @@ const guidePages = [
       "Photo, screenshot, video frame, or reference link.",
       "Whether you need the original item or the same item from another seller.",
       "Budget, shipping region, size, color, and condition constraints.",
-      "Lookalikes and unavailable pages helpers should avoid.",
-      "Proof needed before you trust the buying lead.",
+      "Lookalikes and unavailable pages people should avoid.",
+      "Evidence needed before you trust a source clue.",
     ],
     faqs: [
       ["Can someone find the source from a screenshot?", "Sometimes. A useful screenshot request should include where it came from, when you saw it, visible text, creator handle if allowed, and crop details."],
       ["Should I accept a similar item?", "Only if you say so in the request. If the exact item matters, list the details that make a similar item unacceptable."],
-      ["What if the seller is local or private?", "A local or private source can still be useful when the contact path, item proof, location, terms, and safety caveats are documented."],
+      ["What if the seller is local?", "A local source can still be useful when the public contact path, item evidence, location, terms, and safety caveats are documented."],
     ],
   },
   {
     slug: "find-item-from-photo",
     title: "How To Find An Exact Item From A Photo",
     description:
-      "Turn a reference photo into search terms, verification checks, and a clear helper-ready request when image search only finds similar items.",
+      "Turn a reference photo into search terms, verification checks, and a clear public request when image search only finds similar items.",
     h1: "How to find an exact item from a photo",
     eyebrow: "Photo search guide",
     image: "/find-requests/powerpuff-cup.jpg",
@@ -127,9 +125,9 @@ const guidePages = [
       "Reject private-message offers that do not provide proof.",
     ],
     faqs: [
-      ["Why did Google Lens find similar items but not the exact one?", "Visual search matches appearance first. It can miss old product names, regional listings, sold marketplace pages, nicknames, and private collector inventory."],
+      ["Why did Google Lens find similar items but not the exact one?", "Visual search matches appearance first. It can miss old product names, regional listings, sold marketplace pages, nicknames, and collector inventory."],
       ["Can I post only a photo?", "You can, but a stronger request includes must-match details, what you already tried, location, and whether similar alternatives are acceptable."],
-      ["What should a helper submit?", "A useful source suggestion includes the listing or contact path, proof that the item matches the photo, price or terms, region, and any condition caveats."],
+      ["What should a public clue include?", "A useful public clue includes the listing or seller path, evidence that the item matches the photo, price or terms, region, and any condition caveats."],
     ],
   },
   {
@@ -156,14 +154,14 @@ const guidePages = [
       ["Escalate to a human source", "If every result is close but wrong, a collector, local seller, repair shop, or niche community may know the missing term."],
     ],
     checklist: [
-      "Save the closest wrong matches so helpers know what to avoid.",
+      "Save the closest wrong matches so people know what to avoid.",
       "State whether a close alternative is acceptable.",
       "Add old purchase location, year, or store if known.",
       "Ask for proof against the exact mismatch that keeps appearing.",
     ],
     faqs: [
       ["Should I trust a store that has the image?", "Not automatically. Search the domain with reviews and scam terms, check image reuse, and avoid sellers who only move to private payment."],
-      ["Should I offer payment for help?", "On pleasefindmethis, the request board is free. Keep the request focused on useful source suggestions and safe third-party seller checks."],
+      ["Does posting a request cost anything?", "No. Posting a public request and adding public clues on pleasefindmethis are free."],
     ],
   },
   {
@@ -179,26 +177,26 @@ const guidePages = [
     ctaLabel: "Create a discontinued item request",
     intents: ["help me find discontinued item", "where to buy discontinued product", "find sold out item"],
     intro: [
-      "The best requests are specific enough that helpers do not waste time sending the same wrong listing. You do not need perfect information, but you do need constraints.",
+      "The best requests are specific enough that people do not waste time sharing the same wrong listing. You do not need perfect information, but you do need constraints.",
       "A strong request explains what the item is, why near matches fail, where it needs to ship, and what proof would make a source acceptable.",
     ],
     steps: [
       ["Name the item in plain language", "Use the words you would say to a person first, then add brand, model, SKU, or year if known."],
       ["Separate must-haves from preferences", "Must-haves are rejection reasons. Preferences are helpful but flexible."],
       ["List failed searches", "Include marketplaces, image search tools, old product pages, and any dead listings already checked."],
-      ["Add acceptance criteria", "Say what a helper should provide: current listing, seller contact, local lead, donor unit, or compatibility proof."],
-      ["Set realistic buying constraints", "A clear budget, region, and condition range helps helpers avoid sending unusable sources."],
+      ["Add acceptance criteria", "Say what a useful public clue should include: a current listing, public seller path, local shop, donor unit, or compatibility evidence."],
+      ["Set realistic buying constraints", "A clear budget, region, and condition range helps people avoid sharing unusable sources."],
     ],
     checklist: [
       "Exact name or best description.",
       "Photos from multiple angles if available.",
       "Year, country, store, brand, model, tag, or label clues.",
       "Budget for the item itself, separate from any third-party seller costs.",
-      "What makes a submitted source valid.",
+      "What makes a public source clue useful.",
     ],
     faqs: [
-      ["What if I do not know the brand?", "Describe visible details and where you got it. A helper may identify the brand from material, tag, shape, or old marketplace titles."],
-      ["Should I say I am willing to pay?", "On pleasefindmethis.com, keep the request focused on source quality, item budget, region, condition, and seller verification."],
+      ["What if I do not know the brand?", "Describe visible details and where you got it. Someone may identify the brand from material, tag, shape, or old marketplace titles."],
+      ["What buying constraints should I include?", "Include the item budget, shipping region, acceptable condition, and the evidence you need before trusting a third-party seller."],
     ],
   },
   {
@@ -232,7 +230,7 @@ const guidePages = [
     ],
     faqs: [
       ["Why are plush toy searches hard?", "Many older plush toys have no searchable model name, and sellers often list them with vague titles like vintage bunny plush."],
-      ["Can a helper submit a collector contact instead of a store link?", "Yes, if the contact path is legitimate, documented, and matches the request rules."],
+      ["Can someone suggest a collector community instead of a store link?", "Yes, if the public path is legitimate, documented, and matches the request rules."],
     ],
   },
   {
@@ -240,9 +238,9 @@ const guidePages = [
     title: "How To Ask Someone To Help Find A Hard-To-Find Item",
     seoTitle: "Ask Someone To Help Find A Hard-To-Find Item",
     description:
-      "Write a clear free request that helps helpers share useful links, clues, seller paths, and safety notes.",
+      "Write a clear free request that helps people share useful public links, clues, seller paths, and safety notes.",
     h1: "How to ask someone to help find a hard-to-find item",
-    eyebrow: "Helper request guide",
+    eyebrow: "Public request guide",
     image: "/find-requests/childhood-blanket.jpg",
     cta: starterLinks.sentimental,
     ctaLabel: "Post a free request",
@@ -252,21 +250,21 @@ const guidePages = [
       "pleasefindmethis.com is built for free public requests and source suggestions. Any item purchase happens separately with the third-party source or seller.",
     ],
     steps: [
-      ["Define what makes a source useful", "A useful source might be a live listing, seller contact, local lead, direct handoff path, model number, or compatibility proof."],
-      ["Post the request for free", "A free request gives helpers the context they need before sharing source suggestions."],
-      ["Keep source context attached", "Helpers submit source details into the request workflow so links, proof, and notes stay connected to the original brief."],
+      ["Define what makes a clue useful", "A useful clue might be a live listing, public seller path, local shop, model number, or compatibility evidence."],
+      ["Post the request for free", "A free public request gives people the context they need before sharing clues."],
+      ["Keep context attached", "People add public links, evidence, and notes to the request so context stays connected to the original brief."],
       ["Review the match", "Treat a source as useful only when it meets the must-have details, region, condition, and price expectations."],
       ["Buy through the third party", "If the source is a marketplace or seller, complete the item purchase through that seller's permitted process."],
     ],
     checklist: [
-      "Keep the request specific enough that helpers know what would count as useful.",
+      "Keep the request specific enough that people know what would count as useful.",
       "Keep any item purchase separate from the request workflow.",
-      "Keep source details and review records on-platform.",
+      "Keep source links and safety notes on the public request.",
       "Avoid off-platform private payment pressure.",
     ],
     faqs: [
-      ["How do helpers participate?", "Helpers participate by sharing source suggestions, clues, seller paths, and safer search context."],
-      ["Can a helper own the item?", "A helper may share a direct contact path if it is allowed by the rules and includes enough detail for the requester to review safely."],
+      ["How can someone participate?", "Anyone can add a public source link, clue, seller path, or safety note to an open request."],
+      ["Can an item owner reply?", "An owner may share a public seller or listing path if it follows the rules and includes enough detail for the requester to review safely."],
     ],
   },
   {
@@ -283,7 +281,7 @@ const guidePages = [
     intents: ["hard to find item scam", "private message seller scam", "verify item source before buying"],
     intro: [
       "Hard-to-find items attract scammers because the buyer is motivated and often emotional. The safest answer is not just a link. It is a link plus proof.",
-      "Use these checks before paying a seller, trusting a private message, or accepting a lead for a rare item.",
+      "Use these checks before paying a seller, trusting a private message, or acting on a source clue for a rare item.",
     ],
     steps: [
       ["Check whether the seller proves possession", "Ask for timestamped photos, alternate angles, labels, serial numbers, or a marketplace listing with buyer protection."],
@@ -300,8 +298,8 @@ const guidePages = [
       "Do not share unnecessary personal information in DMs.",
     ],
     faqs: [
-      ["Are private messages always scams?", "No, but unsolicited private offers for hard-to-find items are risky. Treat them as untrusted until proof is public, specific, and verifiable."],
-      ["Does pleasefindmethis verify every seller?", "No. The platform records source details and review workflow, but requesters still need to evaluate third-party sellers and sources before buying."],
+      ["Are unsolicited off-platform offers always scams?", "No, but unsolicited offers for hard-to-find items are risky. Treat them as untrusted until proof is public, specific, and verifiable."],
+      ["Does pleasefindmethis verify every seller?", "No. The board only displays public clues and source URLs. Requesters still need to evaluate third-party sellers and sources before buying."],
     ],
   },
   {
@@ -336,7 +334,7 @@ const guidePages = [
     ],
     faqs: [
       ["What if the part is not sold separately?", "Search for donor units, compatible assemblies, local repair shops, and forums where someone may have a parts unit."],
-      ["Can a helper submit only a model number?", "A model number can be useful as a source clue, but the strongest submission includes where to buy or who to contact."],
+      ["Can a public clue contain only a model number?", "A model number can be useful, but the strongest clue also includes a public source or search path."],
     ],
   },
   {
@@ -369,7 +367,7 @@ const guidePages = [
       "Whether local handoff or proxy purchase is acceptable.",
     ],
     faqs: [
-      ["Can a helper submit a Japan-market source?", "Yes, if the source terms, proxy path, condition notes, and import caveats are clear enough for the requester to review."],
+      ["Can someone add a Japan-market source?", "Yes, if the source terms, proxy path, condition notes, and import caveats are clear enough for the requester to review."],
       ["What proof matters most for cameras?", "Functional proof matters: photos, shutter and meter behavior, lens condition, battery compartment, and known failure points for that model."],
     ],
   },
@@ -386,7 +384,7 @@ const guidePages = [
     ctaLabel: "Start with must-match details",
     intents: ["exact item not dupe", "similar item acceptable", "compatible replacement part"],
     intro: [
-      "Many searches fail because the requester and helper are solving different problems. A sentimental requester may need the exact one. A repair requester may only need a compatible part. A fashion requester may want the same style in a different price range.",
+      "Many searches fail because the request and the suggested source solve different problems. A sentimental request may need the exact one. A repair request may only need a compatible part. A fashion request may allow the same style in a different price range.",
       "Choose the match type before people start searching.",
     ],
     steps: [
@@ -394,18 +392,18 @@ const guidePages = [
       ["Use same model when condition can vary", "This fits cameras, watches, electronics, and collectibles where scratches or packaging may be flexible."],
       ["Use compatible replacement for repair", "This works when function matters more than matching appearance, but compatibility proof is required."],
       ["Use dupe or similar for style", "This fits fashion, decor, and lower-stakes searches where silhouette, color, and budget matter more than label."],
-      ["State rejection reasons", "Tell helpers what would make a source invalid before they spend time searching."],
+      ["State rejection reasons", "Explain what would make a source irrelevant before people spend time searching."],
     ],
     checklist: [
       "Must match exactly.",
       "Can vary.",
       "Similar allowed or not.",
       "Compatible allowed or not.",
-      "Proof required to accept a lead.",
+      "Evidence required before acting on a clue.",
     ],
     faqs: [
       ["Should I allow similar results?", "Only if you would actually buy them. Allowing similar matches can increase submissions, but it can also waste time if you need the exact item."],
-      ["Why does this matter when posting a request?", "Exact, dupe, similar, and compatible mean different things. Using the right word helps helpers avoid wrong leads."],
+      ["Why does this matter when posting a request?", "Exact, dupe, similar, and compatible mean different things. Using the right word helps people avoid wrong clues."],
     ],
   },
   {
@@ -439,7 +437,7 @@ const guidePages = [
       "Budget and deadline.",
     ],
     faqs: [
-      ["What if I find only sold listings?", "Use them as evidence. A helper can search for the same title, SKU, image, seller category, or collector term."],
+      ["What if I find only sold listings?", "Use them as evidence. Other people can search for the same title, SKU, image, seller category, or collector term."],
       ["When is a public request useful?", "When the search requires niche knowledge, local clues, or repeated monitoring and you need more people to see the exact context."],
     ],
   },
@@ -473,7 +471,7 @@ const categoryPages = [
     eyebrow: "Plush and toys",
     image: "/find-requests/bunny-plush.jpg",
     cta: starterLinks.sentimental,
-    searches: ["find discontinued plush toy", "replace lost stuffed animal", "retired plush finder"],
+    searches: ["find discontinued plush toy", "replace lost stuffed animal", "find retired plush"],
     intro:
       "Plush searches depend on tiny details: eye style, pose, fabric texture, tag color, size, stuffing shape, and the difference between releases.",
     requestDetails: ["Animal or character", "Pose and size", "Tag text or tag color", "Fabric texture", "Used condition limits"],
@@ -511,7 +509,7 @@ const categoryPages = [
     cta: starterLinks.parts,
     searches: ["find discontinued replacement part", "donor unit for repair", "compatible replacement cable"],
     intro:
-      "Repair sourcing is about compatibility. The right lead should prove that the part fits the parent model, not just that it looks similar in a photo.",
+      "Repair sourcing is about compatibility. The right clue should show that the part fits the parent model, not just that it looks similar in a photo.",
     requestDetails: ["Parent model number", "Part location and measurements", "Markings or connector details", "Donor unit acceptable or not", "Safety constraints"],
     commonFailures: ["Wrong revision", "Similar connector with different polarity", "Part not sold separately", "Seller does not know compatibility"],
     verification: ["Model number match", "Dimensions", "Voltage and polarity", "Service manual or parts diagram", "Return terms"],
@@ -1063,7 +1061,7 @@ function renderGuidePage(guide) {
           ${renderList(guide.checklist)}
         </div>
         <div class="panel">
-          <h2>How helpers make the search better</h2>
+          <h2>How public clues make the search better</h2>
           <p>Use a free public request when the item needs niche knowledge, a collector clue, repair expertise, local context, or a better search term that your own searches keep missing.</p>
         </div>
       </section>
@@ -1291,7 +1289,7 @@ function renderFooter() {
         </div>
         <nav class="nav" aria-label="Footer">
           <a href="/terms">Terms</a>
-          <a href="/refunds">Refunds</a>
+          <a href="/privacy">Privacy</a>
         </nav>
       </footer>`;
 }
@@ -1352,13 +1350,13 @@ function renderImageStrip(images, title) {
 }
 
 function guideDirectAnswer(guide) {
-  return `${guide.h1}: ${guide.intro[0]} A useful request names the exact match, the wrong matches already found, the buying constraints, and the proof a helper should provide before the source is trusted.`;
+  return `${guide.h1}: ${guide.intro[0]} A useful request names the exact match, the wrong matches already found, the buying constraints, and the evidence a public clue should include before the source is trusted.`;
 }
 
 function categoryDirectAnswer(category) {
   const details = category.requestDetails.slice(0, 3).join(", ").toLowerCase();
   const checks = category.verification.slice(0, 2).join(" and ").toLowerCase();
-  return `${category.h1} requests work best when normal search misses the exact item and a human source may know the right listing, seller, shop, donor unit, or collector lead. Include ${details}; verify leads with ${checks}.`;
+  return `${category.h1} requests work best when normal search misses the exact item and another person may know the right listing, seller, shop, donor unit, or collector clue. Include ${details}; verify clues with ${checks}.`;
 }
 
 function formatFactValue(value) {
@@ -1369,15 +1367,15 @@ function detailDescription(item) {
   const lower = item.toLowerCase();
 
   if (lower.includes("proof") || lower.includes("verification")) {
-    return "Tell helpers what evidence makes a source suggestion useful before they reply.";
+    return "Explain what evidence makes a public source clue useful before people reply.";
   }
 
   if (lower.includes("budget") || lower.includes("region") || lower.includes("country")) {
-    return "Set the buying constraints early so helpers do not submit unusable sources.";
+    return "Set the buying constraints early so people do not share unusable sources.";
   }
 
   if (lower.includes("model") || lower.includes("reference") || lower.includes("number")) {
-    return "Exact identifiers reduce wrong leads and help search across marketplaces and old pages.";
+    return "Exact identifiers reduce wrong clues and help search across marketplaces and old pages.";
   }
 
   if (lower.includes("condition") || lower.includes("size") || lower.includes("color") || lower.includes("fabric")) {
@@ -1389,10 +1387,10 @@ function detailDescription(item) {
   }
 
   if (lower.includes("accessory") || lower.includes("bundle") || lower.includes("set")) {
-    return "List missing pieces early so helpers do not submit a source that is correct but incomplete.";
+    return "List missing pieces early so people do not share a source that is correct but incomplete.";
   }
 
-  return "Describe this constraint in plain language so helpers can filter wrong leads before submission.";
+  return "Describe this constraint in plain language so people can filter wrong clues before replying.";
 }
 
 function renderSitemap() {
@@ -1496,19 +1494,20 @@ function siteEntitySchema() {
         name: siteName,
         url: siteUrl,
         description:
-          "A free public request board where requesters post exact hard-to-find item requests and helpers share source suggestions.",
+          "A free public request board where people post exact hard-to-find item requests and anyone can add public clues.",
         publisher: { "@id": organizationId },
       },
       {
-        "@type": "Service",
+        "@type": "WebApplication",
         "@id": serviceId,
         name: "Hard-to-find item request board",
-        serviceType: "Free public request-board web app",
+        applicationCategory: "LifestyleApplication",
+        operatingSystem: "Web",
         url: siteUrl,
-        provider: { "@id": organizationId },
-        areaServed: "Worldwide",
+        publisher: { "@id": organizationId },
+        isAccessibleForFree: true,
         description:
-          "Requesters create free public requests for exact items, and helpers submit source links, seller paths, local leads, clues, or safety notes.",
+          "People create free public requests for exact items, and anyone can add public source links, seller paths, clues, or safety notes.",
         termsOfService: absoluteUrl("/terms"),
       },
     ],

@@ -2,11 +2,7 @@ User-agent: *
 Allow: /
 Disallow: /auth
 Disallow: /post/
-Disallow: /submit-find
 Disallow: /poster-dashboard
-Disallow: /finder-dashboard
-Disallow: /dispute
 Disallow: /account/
-Disallow: /admin/
 
 Sitemap: https://pleasefindmethis.com/sitemap.xml

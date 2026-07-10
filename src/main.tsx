@@ -8,41 +8,29 @@ import {
   ArrowLeft,
   ArrowRight,
   BadgeCheck,
-  Banknote,
   Camera,
-  CalendarDays,
   CheckCircle2,
-  CircleHelp,
   Clock3,
   Copy,
-  CreditCard,
   ExternalLink,
   FileText,
   Filter,
-  Flag,
   ImagePlus,
   LayoutDashboard,
   Link as LinkIcon,
   LockKeyhole,
   LogOut,
-  Mail,
-  MapPin,
   Menu,
   MessageCircle,
   MessageSquare,
   PackageCheck,
-  Scale,
   Search,
   Send,
   Share2,
-  ShieldAlert,
   ShieldCheck,
-  Star,
   Store,
   TimerReset,
-  Trophy,
   Upload,
-  Users,
   WifiOff,
   X,
 } from "lucide-react";
@@ -59,28 +47,19 @@ type Page =
   | "landing"
   | "auth"
   | "post-describe"
-  | "post-reward"
-  | "post-pay"
+  | "post-publish"
   | "share-request"
   | "browse"
   | "browse-all"
-  | "bounty-detail"
-  | "submit-find"
+  | "request-detail"
   | "poster-dashboard"
-  | "finder-dashboard"
-  | "messages"
-  | "dispute"
-  | "profile"
   | "privacy"
   | "terms"
-  | "refunds"
   | "account-settings"
-  | "admin-review"
   | "not-found";
 
 type AuthMode = "signup" | "login";
 type AuthBusyAction = "email" | "google" | null;
-type AuthAccountType = "both" | "poster" | "finder";
 
 type GoogleProfile = {
   email?: string;
@@ -114,12 +93,10 @@ declare global {
   }
 }
 
-type BountyListing = {
+type RequestListing = {
   id: string;
   name: string;
   detail: string;
-  reward: string;
-  rewardValue: number;
   closes: string;
   image: string;
   category: string;
@@ -142,12 +119,9 @@ type PublicRequestCardRow = {
   item_name: string;
   category: string;
   details: string | null;
-  reward: number;
   duration_days: number;
   status: string;
-  payment_status: string;
   created_at: string;
-  paid_at: string | null;
   closes_at: string | null;
   days_remaining: number | null;
   primary_image_url: string | null;
@@ -170,129 +144,10 @@ type RequestRow = {
   item_name: string;
   category: string;
   details: string | null;
-  reward: number;
-  total_due: number;
-  finder_payout: number;
   duration_days: number;
   status: string;
-  payment_status: string;
-  payout_status: string;
-  customer_email: string | null;
   reference_images: Array<{ url?: string; name?: string }> | null;
   created_at: string;
-  paid_at: string | null;
-  payout_release_after: string | null;
-};
-
-type SourceProofFile = {
-  name: string;
-  path: string;
-  type: string | null;
-  size: number;
-};
-
-type SourceSubmissionRow = {
-  id: string;
-  request_id: string;
-  finder_id: string;
-  source_type: FindSourceType;
-  price_or_terms: string | null;
-  match_notes: string;
-  proof?: SourceProofFile[] | null;
-  status: string;
-  first_valid_rank: number | null;
-  revealed_at: string | null;
-  accepted_at: string | null;
-  rejected_at: string | null;
-  awarded_at: string | null;
-  created_at: string;
-  updated_at: string;
-};
-
-type RevealedSourceDetailRow = SourceSubmissionRow & {
-  source_url: string | null;
-  source_contact: string | null;
-  contact_email: string | null;
-  poster_id?: string;
-  revealed_log_created_at?: string;
-};
-
-type SourceReviewRow = {
-  id: string;
-  submission_id: string;
-  request_id: string;
-  reviewer_id: string;
-  decision: "accepted" | "rejected" | "sent_to_review";
-  reason_code: string | null;
-  note: string;
-  created_at: string;
-};
-
-type SourceDisputeRow = {
-  id: string;
-  submission_id: string;
-  request_id: string;
-  opened_by: string;
-  opened_by_role: "poster" | "finder";
-  reason_code: string;
-  evidence_summary: string;
-  status: string;
-  resolution_note: string;
-  created_at: string;
-  updated_at: string;
-};
-
-type FinderPayoutCaseRow = {
-  id: string;
-  submission_id: string;
-  request_id: string;
-  finder_id: string;
-  amount: number;
-  currency: string;
-  status: string;
-  release_after: string | null;
-  processor: string | null;
-  processor_transfer_id: string | null;
-  admin_note: string;
-  created_at: string;
-  updated_at: string;
-};
-
-type SourceMessageRow = {
-  id: string;
-  submission_id: string;
-  request_id: string;
-  sender_id: string;
-  body: string;
-  created_at: string;
-};
-
-type SourceDuplicateFlagRow = {
-  id: string;
-  request_id: string;
-  finder_id: string;
-  source_fingerprint: string;
-  existing_submission_id: string | null;
-  source_type: FindSourceType;
-  normalized_source: string;
-  status: string;
-  admin_note: string;
-  created_at: string;
-  updated_at: string;
-};
-
-type AdminPayoutQueuesResponse = {
-  payoutCases?: FinderPayoutCaseRow[];
-  disputes?: SourceDisputeRow[];
-  duplicateFlags?: SourceDuplicateFlagRow[];
-  admin?: {
-    email?: string;
-    configured?: boolean;
-  };
-  payoutCase?: FinderPayoutCaseRow;
-  dispute?: SourceDisputeRow;
-  duplicateFlag?: SourceDuplicateFlagRow;
-  error?: string;
 };
 
 type RequestCategory = "home" | "audio" | "camera" | "watch" | "gaming" | "parts" | "fashion";
@@ -303,7 +158,6 @@ type PostDraft = {
   itemName: string;
   category: RequestCategory;
   details: string;
-  reward: number;
   durationDays: RequestDuration;
 };
 
@@ -324,7 +178,6 @@ type StoredPostDraft = {
   itemName: string;
   category: RequestCategory;
   details: string;
-  reward: number;
   durationDays: RequestDuration;
 };
 
@@ -336,27 +189,7 @@ type PostStarterPrompt = {
   itemName: string;
   category: RequestCategory;
   details: string;
-  reward: number;
   durationDays: RequestDuration;
-};
-
-type FindSourceType = "source-link" | "private-source" | "finder-has-it";
-
-type CheckoutReturnStatus = "success" | "cancelled" | null;
-
-type CheckoutSnapshot = {
-  requestId?: string;
-  itemName: string;
-  provider: string;
-  category?: string;
-  reward: number;
-  platformFee: number;
-  protection: number;
-  platformShare: number;
-  total: number;
-  email: string;
-  durationDays?: number;
-  createdAt?: string;
 };
 
 type PublishedRequestSnapshot = {
@@ -369,24 +202,12 @@ type PublishedRequestSnapshot = {
   createdAt: string;
 };
 
-type FinderIdentityStatus = "not_started" | "review_requested" | "verified";
-
 type AccountProfile = {
   displayName: string;
   handle: string;
-  accountType: AuthAccountType;
   region: string;
   specialty: string;
-  payoutEmail: string;
-  payoutCountry: string;
-  identityStatus: FinderIdentityStatus;
   notificationEmail: string;
-};
-
-type FinderReadinessItem = {
-  label: string;
-  complete: boolean;
-  copy: string;
 };
 
 type SeoMeta = {
@@ -404,19 +225,18 @@ const siteName = "pleasefindmethis.com";
 const siteOrigin = "https://pleasefindmethis.com";
 const configuredPublicAppOrigin = normalizeClientAppOrigin(import.meta.env.VITE_PUBLIC_APP_URL) || siteOrigin;
 const defaultSeoDescription =
-  "Find this exact item with a free request. Add photos and details to get local and online source leads fast.";
+  "Create a free public search request with photos and details, then collect useful links and clues in one place.";
 const defaultSocialDescription =
   "Looking for a hard-to-find or discontinued item? Post one free request with photos and clear details first.";
 const organizationLogo = `${siteOrigin}/magnifying-glass.png`;
-const defaultSeoImage = `${siteOrigin}/og/pleasefindmethis-vintage-tee-fullscreen-v3.png`;
+const defaultSeoImage = `${siteOrigin}/og/pleasefindmethis-request-board.png`;
+const defaultSeoImageWidth = "1200";
+const defaultSeoImageHeight = "630";
+const defaultSeoImageAlt = "A free public request board with item reference photos, public source links, and clues.";
 const neutralRequestImage = `data:image/svg+xml,${encodeURIComponent(
   '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 900"><rect width="1200" height="900" fill="#e9f4ee"/><rect x="382" y="255" width="436" height="334" rx="20" fill="#fff" stroke="#a9c8b6" stroke-width="8"/><circle cx="515" cy="365" r="46" fill="#d7ebdf"/><path d="m420 535 145-132 92 78 74-58 69 112" fill="none" stroke="#0b6d3b" stroke-width="18" stroke-linecap="round" stroke-linejoin="round"/><path d="M538 662h124" stroke="#d69225" stroke-width="18" stroke-linecap="round"/></svg>',
 )}`;
-const requestSingular = "request";
-const requestPlural = "requests";
-const checkoutRequestTimeoutMs = 25000;
-const minimumReward = 0;
-const siteLastUpdated = "2026-07-07";
+const siteLastUpdated = "2026-07-10";
 
 const requestCategories: Array<{ value: RequestCategory; label: string }> = [
   { value: "home", label: "Home goods" },
@@ -432,7 +252,6 @@ const initialPostDraft: PostDraft = {
   itemName: "",
   category: "home",
   details: "",
-  reward: 0,
   durationDays: 30,
 };
 
@@ -445,8 +264,7 @@ const posterStarterPrompts: PostStarterPrompt[] = [
     itemName: "Help me find this exact sentimental item",
     category: "home",
     details:
-      "Why it matters:\nI need the same item, not a lookalike.\n\nMust match:\nIt should match the reference photo, color, size, pattern, label, and condition closely enough to buy with confidence.\n\nAlready searched:\nGoogle Lens, resale marketplaces, old listings, and image search.\n\nWrong matches to avoid:\nSimilar-looking replacements that do not match the original details.\n\nValid source should include:\nA current listing, seller contact, local lead, or direct handoff path with proof it matches the photos.",
-    reward: 0,
+      "Why it matters:\nI need the same item, not a lookalike.\n\nMust match:\nIt should match the reference photo, color, size, pattern, label, and condition closely enough to buy with confidence.\n\nAlready searched:\nGoogle Lens, resale marketplaces, old listings, and image search.\n\nWrong matches to avoid:\nSimilar-looking replacements that do not match the original details.\n\nValid source should include:\nA public listing, archived product page, catalog reference, or forum post with evidence that it matches the photos.",
     durationDays: 30,
   },
   {
@@ -457,8 +275,7 @@ const posterStarterPrompts: PostStarterPrompt[] = [
     itemName: "Help me find this exact sold-out model",
     category: "camera",
     details:
-      "Why it matters:\nI am looking for the exact model or reference.\n\nMust match:\nModel, variant, condition expectations, and any required accessories.\n\nAlready searched:\nMarketplace listings, collector forums, and saved searches.\n\nWrong matches to avoid:\nNear variants, untested listings, missing accessories, and sources without condition proof.\n\nValid source should include:\nCondition, price, seller or source, shipping region, and authenticity or compatibility details before I act on it.",
-    reward: 0,
+      "Why it matters:\nI am looking for the exact model or reference.\n\nMust match:\nModel, variant, condition expectations, and any required accessories.\n\nAlready searched:\nMarketplace listings, collector forums, and saved searches.\n\nWrong matches to avoid:\nNear variants, untested listings, missing accessories, and sources without condition proof.\n\nValid source should include:\nA public URL with condition, price, region, and authenticity or compatibility details I can verify independently.",
     durationDays: 30,
   },
   {
@@ -469,8 +286,7 @@ const posterStarterPrompts: PostStarterPrompt[] = [
     itemName: "Help me find this replacement part",
     category: "parts",
     details:
-      "Why it matters:\nI need a compatible part or donor unit.\n\nMust match:\nParent model, part markings, connector, dimensions, and fitment requirements.\n\nAlready searched:\nParts diagrams, marketplace listings, donor units, and repair forums.\n\nWrong matches to avoid:\nSimilar parts with different revisions, connectors, polarity, or unsafe fitment.\n\nValid source should include:\nModel numbers, compatibility proof, condition, source link or seller contact, and any fitment risks.",
-    reward: 0,
+      "Why it matters:\nI need a compatible part or donor unit.\n\nMust match:\nParent model, part markings, connector, dimensions, and fitment requirements.\n\nAlready searched:\nParts diagrams, marketplace listings, donor units, and repair forums.\n\nWrong matches to avoid:\nSimilar parts with different revisions, connectors, polarity, or unsafe fitment.\n\nValid source should include:\nA public source link with model numbers, compatibility proof, condition, and any fitment risks.",
     durationDays: 30,
   },
   {
@@ -482,26 +298,7 @@ const posterStarterPrompts: PostStarterPrompt[] = [
     category: "fashion",
     details:
       "Why it matters:\nI need the exact item or a source for the same style.\n\nMust match:\nBrand, size, colorway, fabric, label, hardware, and condition constraints.\n\nAlready searched:\nGoogle Lens, resale marketplaces, social posts, and sold listings.\n\nWrong matches to avoid:\nDrop-shipped lookalikes, wrong fabric, wrong colorway, and unavailable influencer links.\n\nValid source should include:\nBrand, size, colorway, condition, listing or source, and the details that prove it is not just a similar lookalike.",
-    reward: 0,
     durationDays: 30,
-  },
-];
-
-const findSourceOptions: Array<{ value: FindSourceType; label: string; copy: string }> = [
-  {
-    value: "source-link",
-    label: "I found a public listing",
-    copy: "Share a public listing the requester can open right away.",
-  },
-  {
-    value: "private-source",
-    label: "I found a private or local lead",
-    copy: "Use this when a seller or local contact is available but no public link is.",
-  },
-  {
-    value: "finder-has-it",
-    label: "I found it for them",
-    copy: "Use this when you can share a direct handoff path or clear next step.",
   },
 ];
 
@@ -541,7 +338,7 @@ type RequestBriefFieldConfig = {
 };
 
 const defaultRequestBriefSourceProof =
-  "A current listing, seller contact, local lead, or direct handoff path with proof it matches the photos.";
+  "A public listing, catalog page, archive, or forum link with evidence that it matches the photos.";
 
 const requestBriefFieldConfigs: RequestBriefFieldConfig[] = [
   {
@@ -573,7 +370,7 @@ const requestBriefFieldConfigs: RequestBriefFieldConfig[] = [
     heading: "Wrong matches to avoid",
     label: "What keeps coming up but is wrong?",
     placeholder: "Wrong color, wrong brand, wrong size, wrong connector, duplicate listing",
-    hint: "Call out exact mistakes so helpers do not repeat them.",
+    hint: "Call out exact mistakes so visitors do not repeat them.",
     rows: 3,
   },
   {
@@ -581,7 +378,7 @@ const requestBriefFieldConfigs: RequestBriefFieldConfig[] = [
     heading: "Valid source should include",
     label: "What counts as a valid source?",
     placeholder: defaultRequestBriefSourceProof,
-    hint: "Tell helpers what proof makes a lead valid.",
+    hint: "Tell visitors what evidence makes a link useful.",
     rows: 3,
   },
   {
@@ -597,7 +394,7 @@ const requestBriefFieldConfigs: RequestBriefFieldConfig[] = [
     heading: "Other notes",
     label: "Other clues",
     placeholder: "Bought around 2016 at Target, seen in a screenshot, old family photos, tag says Japan...",
-    hint: "Add dates, stores, screenshots, and context helpers can use.",
+    hint: "Add dates, stores, screenshots, and context visitors can use.",
     rows: 3,
   },
 ];
@@ -696,38 +493,25 @@ function hasUsefulRequestBrief(fields: RequestBriefFields) {
 }
 
 const protectedPages = new Set<Page>([
-  "post-pay",
+  "post-publish",
   "share-request",
-  "submit-find",
   "poster-dashboard",
-  "finder-dashboard",
-  "messages",
-  "dispute",
   "account-settings",
-  "admin-review",
 ]);
 
 const pageLabels: Record<Page, string> = {
   landing: "Landing page",
   auth: "Sign up / Log in",
   "post-describe": "Post Request - Describe",
-  "post-reward": "Post Request - Duration",
-  "post-pay": "Post Request - Publish",
+  "post-publish": "Post Request - Publish",
   "share-request": "Share request",
   browse: "Browse requests",
   "browse-all": "Browse all",
-  "bounty-detail": "Request detail",
-  "submit-find": "Submit a source",
-  "poster-dashboard": "Poster dashboard",
-  "finder-dashboard": "Helper dashboard",
-  messages: "Messages",
-  dispute: "Dispute",
-  profile: "Finder profile",
+  "request-detail": "Request detail",
+  "poster-dashboard": "Request workspace",
   privacy: "Privacy Policy",
   terms: "Terms",
-  refunds: "Refunds",
   "account-settings": "Account settings",
-  "admin-review": "Admin review",
   "not-found": "Not found",
 };
 
@@ -738,50 +522,30 @@ const routeMap: Record<string, Page> = {
   auth: "auth",
   post: "post-describe",
   "post/describe": "post-describe",
-  "post/visibility": "post-reward",
-  "post/duration": "post-reward",
-  "post/publish": "post-pay",
-  "post/offer": "post-reward",
-  "post/reward": "post-reward",
-  "post/pay": "post-pay",
+  "post/publish": "post-publish",
   "post/share": "share-request",
   browse: "browse",
   "browse/all": "browse-all",
-  "bounty/detail": "bounty-detail",
-  "submit-find": "submit-find",
+  "request/detail": "request-detail",
   "poster-dashboard": "poster-dashboard",
-  "finder-dashboard": "finder-dashboard",
-  messages: "messages",
-  dispute: "dispute",
-  profile: "profile",
   privacy: "privacy",
   terms: "terms",
-  refunds: "refunds",
   "account/settings": "account-settings",
-  "admin/review": "admin-review",
 };
 
 const pageRoutes: Record<Page, string> = {
   landing: "/",
   auth: "auth",
   "post-describe": "post/describe",
-  "post-reward": "post/duration",
-  "post-pay": "post/publish",
+  "post-publish": "post/publish",
   "share-request": "post/share",
   browse: "browse",
   "browse-all": "browse/all",
-  "bounty-detail": "bounty/detail",
-  "submit-find": "submit-find",
+  "request-detail": "request/detail",
   "poster-dashboard": "poster-dashboard",
-  "finder-dashboard": "finder-dashboard",
-  messages: "messages",
-  dispute: "dispute",
-  profile: "profile",
   privacy: "privacy",
   terms: "terms",
-  refunds: "refunds",
   "account-settings": "account/settings",
-  "admin-review": "admin/review",
   "not-found": "not-found",
 };
 
@@ -789,33 +553,15 @@ const indexablePages = new Set<Page>([
   "landing",
   "browse",
   "browse-all",
-  "bounty-detail",
-  "profile",
+  "request-detail",
   "privacy",
   "terms",
-  "refunds",
 ]);
 
-const routesUsingPublicRequestFeed = new Set<Page>(["landing", "browse", "browse-all", "bounty-detail"]);
-const routesUsingCurrency = new Set<Page>([
-  "landing",
-  "browse",
-  "browse-all",
-  "bounty-detail",
-  "post-reward",
-  "post-pay",
-  "submit-find",
-  "poster-dashboard",
-  "finder-dashboard",
-  "profile",
-]);
+const routesUsingPublicRequestFeed = new Set<Page>(["landing", "browse", "browse-all", "request-detail"]);
 
 function routeUsesPublicRequestFeed(page: Page) {
   return routesUsingPublicRequestFeed.has(page);
-}
-
-function routeUsesCurrency(page: Page) {
-  return routesUsingCurrency.has(page);
 }
 
 const pageSeoCopy: Record<Page, { title: string; description: string; socialDescription?: string }> = {
@@ -826,19 +572,15 @@ const pageSeoCopy: Record<Page, { title: string; description: string; socialDesc
   },
   auth: {
     title: "Sign In | pleasefindmethis",
-    description: "Sign in to post requests and review source leads.",
+    description: "Sign in to publish and organize public search requests.",
   },
   "post-describe": {
     title: "Post a Find Request | pleasefindmethis",
     description: "Describe what you need and what makes a lead valid.",
   },
-  "post-reward": {
-    title: "Choose Request Duration | pleasefindmethis",
-    description: "Set how long your request stays open.",
-  },
-  "post-pay": {
+  "post-publish": {
     title: "Publish a Free Request | pleasefindmethis",
-    description: "Publish the request and open it for source leads.",
+    description: "Publish a free public request for links and clues.",
   },
   "share-request": {
     title: "Share Your Search | pleasefindmethis",
@@ -852,53 +594,25 @@ const pageSeoCopy: Record<Page, { title: string; description: string; socialDesc
     title: "Browse All Find Requests | pleasefindmethis",
     description: "Search open requests by item, category, or location.",
   },
-  "bounty-detail": {
+  "request-detail": {
     title: "Find Request Details | pleasefindmethis",
-    description: "Review request details and available source leads.",
-  },
-  "submit-find": {
-    title: "Share a Source Suggestion | pleasefindmethis",
-    description: "Submit one clear lead for this request.",
+    description: "Review request details and public links and clues.",
   },
   "poster-dashboard": {
-    title: "Poster Dashboard | pleasefindmethis",
-    description: "Review leads and active requests.",
-  },
-  "finder-dashboard": {
-    title: "Helper Dashboard | pleasefindmethis",
-    description: "Help with open requests and submit leads.",
-  },
-  messages: {
-    title: "Messages | pleasefindmethis",
-    description: "Track source updates and follow-ups.",
-  },
-  dispute: {
-    title: "Open a Source Dispute | pleasefindmethis",
-    description: "Report a source lead that does not match.",
-  },
-  profile: {
-    title: "Helper Trust Profile Example | pleasefindmethis",
-    description: "View helper profile and trust status.",
+    title: "Request Workspace | pleasefindmethis",
+    description: "Open, share, and organize your item-search requests.",
   },
   privacy: {
     title: "Privacy Policy | pleasefindmethis",
-    description: "How account, request, and message data is used.",
+    description: "How account, request, photo, and public clue data is used.",
   },
   terms: {
     title: "Terms of Service | pleasefindmethis",
-    description: "Rules for posting and source safety.",
-  },
-  refunds: {
-    title: "Refund and Cancellation Policy | pleasefindmethis",
-    description: "How request removals and cancellations are handled.",
+    description: "Rules for publishing requests, public clues, and external links.",
   },
   "account-settings": {
     title: "Account Settings | pleasefindmethis",
     description: "Manage account access and alerts.",
-  },
-  "admin-review": {
-    title: "Admin Review Queue | pleasefindmethis",
-    description: "Admin queue for reviews and disputes.",
   },
   "not-found": {
     title: "Page Not Found | pleasefindmethis",
@@ -910,523 +624,26 @@ const signedInStorageKey = "pleasefindmethis-signed-in";
 const pendingRouteStorageKey = "pleasefindmethis-pending-route";
 const authProviderStorageKey = "pleasefindmethis-auth-provider";
 const authEmailStorageKey = "pleasefindmethis-auth-email";
-const checkoutSnapshotStorageKey = "pleasefindmethis-last-checkout";
 const postDraftStorageKey = "pleasefindmethis-post-draft";
 const postReferenceImagesStorageKey = "pleasefindmethis-post-reference-images";
 const publishedRequestStorageKey = "pleasefindmethis-published-request";
 const accountProfileStorageKey = "pleasefindmethis-account-profile";
 const requestReferenceImagesBucket = "request-reference-images";
-const sourceSubmissionProofBucket = "source-submission-proof";
 const maxPersistedReferenceImages = 4;
 const maxPersistedReferenceImageDataUrlLength = 450_000;
 const maxPersistedReferenceImagesTotalLength = maxPersistedReferenceImages * maxPersistedReferenceImageDataUrlLength;
 const googleClientId = import.meta.env.VITE_GOOGLE_CLIENT_ID;
 const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const uuidPattern = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
-type CurrencySource = "locale" | "timezone" | "geolocation" | "fallback";
-
-type CurrencyPreference = {
-  currency: string;
-  locale: string;
-  region: string;
-  rateFromUsd: number;
-  source: CurrencySource;
-  ratesUpdatedAt?: string;
-};
-
-type ExchangeRateCache = {
-  fetchedAt: number;
-  rates: Record<string, number>;
-  updatedAt?: string;
-};
-
-type CoordinateRegion = {
-  region: string;
-  south: number;
-  west: number;
-  north: number;
-  east: number;
-};
-
-const defaultCurrencyPreference: CurrencyPreference = {
-  currency: "USD",
-  locale: "en-US",
-  region: "US",
-  rateFromUsd: 1,
-  source: "fallback",
-};
-const CurrencyContext = React.createContext<CurrencyPreference>(defaultCurrencyPreference);
-const exchangeRateCacheKey = "pleasefindmethis-usd-exchange-rates";
-const exchangeRateCacheTtlMs = 12 * 60 * 60 * 1000;
-const exchangeRateApiUrl = "https://open.er-api.com/v6/latest/USD";
-const fallbackUsdExchangeRates: Record<string, number> = {
-  USD: 1,
-  AED: 3.67,
-  ARS: 1480,
-  AUD: 1.45,
-  BDT: 123,
-  BGN: 1.71,
-  BHD: 0.38,
-  BRL: 5.18,
-  CAD: 1.42,
-  CHF: 0.8,
-  CLP: 940,
-  CNY: 7.16,
-  COP: 4050,
-  CZK: 21.4,
-  DKK: 6.53,
-  EGP: 49,
-  EUR: 0.88,
-  GBP: 0.76,
-  HKD: 7.75,
-  HUF: 345,
-  IDR: 16400,
-  ILS: 3.3,
-  INR: 94.7,
-  JPY: 143,
-  KES: 129,
-  KRW: 1360,
-  KWD: 0.31,
-  LKR: 302,
-  MAD: 9.1,
-  MXN: 18.3,
-  MYR: 4.13,
-  NGN: 1530,
-  NOK: 10.1,
-  NPR: 151,
-  NZD: 1.58,
-  OMR: 0.38,
-  PEN: 3.55,
-  PHP: 56.5,
-  PKR: 284,
-  PLN: 3.74,
-  QAR: 3.64,
-  RON: 4.45,
-  SAR: 3.75,
-  SEK: 9.57,
-  SGD: 1.29,
-  THB: 32.4,
-  TRY: 39.8,
-  TWD: 29.2,
-  UAH: 41.8,
-  VND: 26100,
-  ZAR: 17.7,
-};
-const regionCurrencyMap: Record<string, string> = {
-  AD: "EUR",
-  AE: "AED",
-  AR: "ARS",
-  AT: "EUR",
-  AU: "AUD",
-  BE: "EUR",
-  BG: "BGN",
-  BH: "BHD",
-  BR: "BRL",
-  CA: "CAD",
-  CH: "CHF",
-  CL: "CLP",
-  CN: "CNY",
-  CO: "COP",
-  CY: "EUR",
-  CZ: "CZK",
-  DE: "EUR",
-  DK: "DKK",
-  EE: "EUR",
-  EG: "EGP",
-  ES: "EUR",
-  FI: "EUR",
-  FR: "EUR",
-  GB: "GBP",
-  GR: "EUR",
-  HK: "HKD",
-  HR: "EUR",
-  HU: "HUF",
-  ID: "IDR",
-  IE: "EUR",
-  IL: "ILS",
-  IN: "INR",
-  IT: "EUR",
-  JP: "JPY",
-  KE: "KES",
-  KR: "KRW",
-  KW: "KWD",
-  LK: "LKR",
-  LT: "EUR",
-  LU: "EUR",
-  LV: "EUR",
-  MA: "MAD",
-  MC: "EUR",
-  MT: "EUR",
-  MX: "MXN",
-  MY: "MYR",
-  NG: "NGN",
-  NL: "EUR",
-  NO: "NOK",
-  NP: "NPR",
-  NZ: "NZD",
-  OM: "OMR",
-  PE: "PEN",
-  PH: "PHP",
-  PK: "PKR",
-  PL: "PLN",
-  PT: "EUR",
-  QA: "QAR",
-  RO: "RON",
-  SA: "SAR",
-  SE: "SEK",
-  SG: "SGD",
-  SI: "EUR",
-  SK: "EUR",
-  TH: "THB",
-  TR: "TRY",
-  TW: "TWD",
-  UA: "UAH",
-  US: "USD",
-  VN: "VND",
-  ZA: "ZAR",
-};
-const timeZoneRegionMap: Record<string, string> = {
-  "America/Anchorage": "US",
-  "America/Chicago": "US",
-  "America/Denver": "US",
-  "America/Los_Angeles": "US",
-  "America/New_York": "US",
-  "America/Phoenix": "US",
-  "America/Toronto": "CA",
-  "America/Vancouver": "CA",
-  "Asia/Calcutta": "IN",
-  "Asia/Dubai": "AE",
-  "Asia/Hong_Kong": "HK",
-  "Asia/Kolkata": "IN",
-  "Asia/Seoul": "KR",
-  "Asia/Shanghai": "CN",
-  "Asia/Singapore": "SG",
-  "Asia/Tokyo": "JP",
-  "Australia/Sydney": "AU",
-  "Europe/Amsterdam": "NL",
-  "Europe/Berlin": "DE",
-  "Europe/Dublin": "IE",
-  "Europe/London": "GB",
-  "Europe/Madrid": "ES",
-  "Europe/Paris": "FR",
-  "Europe/Rome": "IT",
-  "Europe/Stockholm": "SE",
-  "Europe/Zurich": "CH",
-  "Pacific/Auckland": "NZ",
-  "Pacific/Honolulu": "US",
-};
-const coordinateRegions: CoordinateRegion[] = [
-  { region: "US", south: 24, west: -125, north: 50, east: -66 },
-  { region: "US", south: 51, west: -170, north: 72, east: -130 },
-  { region: "US", south: 18, west: -161, north: 23, east: -154 },
-  { region: "CA", south: 42, west: -141, north: 84, east: -52 },
-  { region: "GB", south: 49, west: -9, north: 61, east: 2 },
-  { region: "IE", south: 51, west: -11, north: 56, east: -5 },
-  { region: "IN", south: 6, west: 68, north: 37, east: 98 },
-  { region: "AU", south: -44, west: 112, north: -10, east: 154 },
-  { region: "NZ", south: -48, west: 166, north: -34, east: 179 },
-  { region: "JP", south: 24, west: 122, north: 46, east: 146 },
-  { region: "SG", south: 1.1, west: 103.6, north: 1.6, east: 104.1 },
-  { region: "HK", south: 22.1, west: 113.8, north: 22.6, east: 114.5 },
-  { region: "AE", south: 22.6, west: 51.4, north: 26.3, east: 56.4 },
-  { region: "FR", south: 41, west: -5.5, north: 51.5, east: 9.8 },
-  { region: "DE", south: 47, west: 5.8, north: 55.2, east: 15.1 },
-  { region: "IT", south: 35.4, west: 6.6, north: 47.2, east: 18.6 },
-  { region: "ES", south: 36, west: -9.5, north: 43.9, east: 4.4 },
-  { region: "BR", south: -34, west: -74, north: 6, east: -34 },
-  { region: "MX", south: 14, west: -118, north: 33, east: -86 },
-  { region: "ZA", south: -35, west: 16, north: -22, east: 33 },
+const heroHeadlineExamples = [
+  "Help me find this.",
+  "Please help me find this.",
+  "Where can I buy this?",
+  "Anyone know where this is?",
 ];
-const heroPlaceholderExamples = [
-  "where can i buy this exact item?",
-  "help me find this exact item",
-  "where is the original source for this?",
-  "where can I buy this discontinued item",
-  "where can i get this exact watch",
-  "how to buy this exact item from a photo",
-  "where can i find this camera part",
-];
-
-function getBrowserLocales() {
-  const languages = typeof navigator !== "undefined" && Array.isArray(navigator.languages) ? navigator.languages : [];
-  const primaryLanguage = typeof navigator !== "undefined" ? navigator.language : "";
-  return [...languages, primaryLanguage].filter((locale, index, locales): locale is string => Boolean(locale) && locales.indexOf(locale) === index);
-}
-
-function getRegionFromLocale(locale: string) {
-  const parts = locale.replace(/_/g, "-").split("-");
-
-  for (const part of parts.slice(1)) {
-    if (/^[A-Za-z]{2}$/.test(part) || /^\d{3}$/.test(part)) {
-      return part.toUpperCase();
-    }
-  }
-
-  return "";
-}
-
-function getLocaleForRegion(region: string) {
-  const browserLocales = getBrowserLocales();
-  const matchingLocale = browserLocales.find((locale) => getRegionFromLocale(locale) === region);
-
-  if (matchingLocale) {
-    return matchingLocale;
-  }
-
-  const language = browserLocales[0]?.split("-")[0] || "en";
-  return `${language}-${region}`;
-}
-
-function getRegionFromTimeZone() {
-  try {
-    const timeZone = Intl.DateTimeFormat().resolvedOptions().timeZone;
-    return timeZoneRegionMap[timeZone] ?? "";
-  } catch {
-    return "";
-  }
-}
-
-function getCurrencyForRegion(region: string) {
-  return regionCurrencyMap[region] ?? "USD";
-}
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value);
-}
-
-function createCurrencyPreference(region: string, source: CurrencySource): CurrencyPreference {
-  const currency = getCurrencyForRegion(region);
-  return {
-    currency,
-    locale: region ? getLocaleForRegion(region) : defaultCurrencyPreference.locale,
-    region: region || defaultCurrencyPreference.region,
-    rateFromUsd: fallbackUsdExchangeRates[currency] ?? 1,
-    source,
-  };
-}
-
-function resolveInitialCurrencyPreference() {
-  const timeZoneRegion = getRegionFromTimeZone();
-
-  if (timeZoneRegion) {
-    return createCurrencyPreference(timeZoneRegion, "timezone");
-  }
-
-  const localeRegion = getBrowserLocales().map(getRegionFromLocale).find((region) => Boolean(region && regionCurrencyMap[region]));
-
-  if (localeRegion) {
-    return createCurrencyPreference(localeRegion, "locale");
-  }
-
-  return defaultCurrencyPreference;
-}
-
-function normalizeLongitude(longitude: number) {
-  return ((((longitude + 180) % 360) + 360) % 360) - 180;
-}
-
-function getRegionFromCoordinates(latitude: number, longitude: number) {
-  const normalizedLongitude = normalizeLongitude(longitude);
-  const match = coordinateRegions.find(
-    (bounds) =>
-      latitude >= bounds.south &&
-      latitude <= bounds.north &&
-      normalizedLongitude >= bounds.west &&
-      normalizedLongitude <= bounds.east,
-  );
-
-  return match?.region ?? "";
-}
-
-function readCachedExchangeRates(): ExchangeRateCache | null {
-  try {
-    const cached = window.localStorage.getItem(exchangeRateCacheKey);
-
-    if (!cached) {
-      return null;
-    }
-
-    const parsed = JSON.parse(cached) as Partial<ExchangeRateCache>;
-
-    if (
-      typeof parsed.fetchedAt === "number" &&
-      isRecord(parsed.rates) &&
-      Object.values(parsed.rates).every((rate) => typeof rate === "number" && Number.isFinite(rate))
-    ) {
-      return {
-        fetchedAt: parsed.fetchedAt,
-        rates: parsed.rates as Record<string, number>,
-        ...(typeof parsed.updatedAt === "string" ? { updatedAt: parsed.updatedAt } : {}),
-      };
-    }
-  } catch {
-    // Ignore blocked storage or corrupted exchange-rate cache.
-  }
-
-  return null;
-}
-
-function writeCachedExchangeRates(cache: ExchangeRateCache) {
-  try {
-    window.localStorage.setItem(exchangeRateCacheKey, JSON.stringify(cache));
-  } catch {
-    // Currency formatting can still use fallback rates when storage is blocked.
-  }
-}
-
-async function loadUsdExchangeRates(): Promise<ExchangeRateCache | null> {
-  const cached = readCachedExchangeRates();
-
-  if (cached && Date.now() - cached.fetchedAt < exchangeRateCacheTtlMs) {
-    return cached;
-  }
-
-  try {
-    const response = await fetch(exchangeRateApiUrl, { cache: "no-store" });
-
-    if (!response.ok) {
-      return cached;
-    }
-
-    const payload = (await response.json()) as unknown;
-
-    if (!isRecord(payload) || payload.result !== "success" || !isRecord(payload.rates)) {
-      return cached;
-    }
-
-    const rates = Object.fromEntries(
-      Object.entries(payload.rates).filter((entry): entry is [string, number] => typeof entry[1] === "number" && Number.isFinite(entry[1])),
-    );
-    const nextCache: ExchangeRateCache = {
-      fetchedAt: Date.now(),
-      rates,
-      ...(typeof payload.time_last_update_utc === "string" ? { updatedAt: payload.time_last_update_utc } : {}),
-    };
-
-    writeCachedExchangeRates(nextCache);
-    return nextCache;
-  } catch {
-    return cached;
-  }
-}
-
-function useViewerCurrencyPreference(enabled = true) {
-  const [preference, setPreference] = useState<CurrencyPreference>(() => resolveInitialCurrencyPreference());
-
-  useEffect(() => {
-    if (!enabled) {
-      return undefined;
-    }
-
-    let cancelled = false;
-
-    loadUsdExchangeRates().then((cache) => {
-      const liveRate = cache?.rates[preference.currency];
-
-      if (cancelled || typeof liveRate !== "number" || !Number.isFinite(liveRate)) {
-        return;
-      }
-
-      setPreference((current) =>
-        current.currency === preference.currency
-          ? {
-              ...current,
-              rateFromUsd: liveRate,
-              ratesUpdatedAt: cache?.updatedAt,
-            }
-          : current,
-      );
-    });
-
-    return () => {
-      cancelled = true;
-    };
-  }, [enabled, preference.currency]);
-
-  useEffect(() => {
-    if (!enabled) {
-      return undefined;
-    }
-
-    if (!navigator.geolocation || !window.isSecureContext) {
-      return undefined;
-    }
-
-    let cancelled = false;
-
-    const refineFromPosition = (position: GeolocationPosition) => {
-      if (cancelled) {
-        return;
-      }
-
-      const region = getRegionFromCoordinates(position.coords.latitude, position.coords.longitude);
-
-      if (!region || !regionCurrencyMap[region]) {
-        return;
-      }
-
-      setPreference((current) => {
-        const nextPreference = createCurrencyPreference(region, "geolocation");
-        return current.region === nextPreference.region ? current : nextPreference;
-      });
-    };
-
-    const requestPosition = () => {
-      navigator.geolocation.getCurrentPosition(refineFromPosition, () => undefined, {
-        enableHighAccuracy: false,
-        maximumAge: 24 * 60 * 60 * 1000,
-        timeout: 4500,
-      });
-    };
-
-    if (navigator.permissions?.query) {
-      navigator.permissions
-        .query({ name: "geolocation" as PermissionName })
-        .then((permissionStatus) => {
-          if (!cancelled && permissionStatus.state === "granted") {
-            requestPosition();
-          }
-        })
-        .catch(() => undefined);
-    }
-
-    return () => {
-      cancelled = true;
-    };
-  }, [enabled]);
-
-  return preference;
-}
-
-function useCurrencyPreference() {
-  return React.useContext(CurrencyContext);
-}
-
-function formatUsdMoney(usdAmount: number, preference: CurrencyPreference, options: { compact?: boolean } = {}) {
-  const safeUsdAmount = Number.isFinite(usdAmount) ? usdAmount : 0;
-  const rate = Number.isFinite(preference.rateFromUsd) && preference.rateFromUsd > 0 ? preference.rateFromUsd : 1;
-  const convertedAmount = safeUsdAmount * rate;
-  const formatOptions: Intl.NumberFormatOptions = {
-    style: "currency",
-    currency: preference.currency,
-    maximumFractionDigits: options.compact ? 1 : 0,
-    minimumFractionDigits: 0,
-  };
-
-  if (options.compact) {
-    formatOptions.notation = "compact";
-    formatOptions.compactDisplay = "short";
-  }
-
-  try {
-    return new Intl.NumberFormat(preference.locale, formatOptions).format(convertedAmount);
-  } catch {
-    return new Intl.NumberFormat(defaultCurrencyPreference.locale, {
-      style: "currency",
-      currency: defaultCurrencyPreference.currency,
-      maximumFractionDigits: 0,
-    }).format(safeUsdAmount);
-  }
 }
 
 function isUuid(value: string) {
@@ -1497,21 +714,13 @@ function getCommentTimestampLabel(value?: string | null) {
   return `${dateLabel} at ${time}`;
 }
 
-function getStatusLabel(status: string, paymentStatus?: string) {
-  if (status === "disputed" || paymentStatus === "disputed") {
-    return "In review";
-  }
-
-  if (status === "open" || paymentStatus === "free") {
+function getStatusLabel(status: string) {
+  if (status === "open") {
     return "Open";
   }
 
-  if (status === "paid" || paymentStatus === "paid") {
-    return "Open";
-  }
-
-  if (status === "refunded") {
-    return "Refunded";
+  if (status === "archived") {
+    return "Archived";
   }
 
   return status.replace(/_/g, " ").replace(/^\w/, (letter) => letter.toUpperCase());
@@ -1545,7 +754,7 @@ function getMustHaves(details?: string | null) {
 
   return parts.length
     ? parts
-    : ["Exact match preferred", "Clear source or contact path", "Availability should be current", "Proof helps review faster"];
+    : ["Exact match preferred", "Clear public source URL", "Availability should be current", "Evidence helps visitors verify the match"];
 }
 
 function getRequestDescription(itemName: string, details?: string | null) {
@@ -1553,20 +762,17 @@ function getRequestDescription(itemName: string, details?: string | null) {
   return brief.story || `Looking for ${itemName || "this exact item"}. Share a clue if you recognize it.`;
 }
 
-function publicRequestRowToBounty(row: PublicRequestCardRow): BountyListing {
-  const details = row.details?.trim() || "Helpers can share a public listing, shop contact path, source clue, or legal availability note.";
-  const requestTypeText = row.payment_status === "free" ? "Free request" : "Featured request";
+function publicRequestRowToListing(row: PublicRequestCardRow): RequestListing {
+  const details = row.details?.trim() || "Visitors can share a public listing, source clue, or safety note.";
 
   return {
     id: row.id,
     name: row.item_name || "Hard-to-find item",
-    detail: requestTypeText,
-    reward: requestTypeText,
-    rewardValue: row.reward || 0,
+    detail: "Public request",
     closes: getClosesLabel(row.days_remaining),
     image: row.primary_image_url || neutralRequestImage,
     category: row.category || "General",
-    status: getStatusLabel(row.status, row.payment_status),
+    status: getStatusLabel(row.status),
     location: "Open to source suggestions",
     poster: "Requester",
     posted: getRelativeTimeLabel(row.created_at),
@@ -1574,41 +780,37 @@ function publicRequestRowToBounty(row: PublicRequestCardRow): BountyListing {
     description: getRequestDescription(row.item_name, details),
     mustHaves: getMustHaves(details),
     brief: getRequestBriefFields(details),
-    timeline: ["Free request posted", `${row.submission_count ?? 0} source suggestion${row.submission_count === 1 ? "" : "s"}`, "Helpers can share useful leads"],
+    timeline: ["Public request posted", `${row.submission_count ?? 0} public clue${row.submission_count === 1 ? "" : "s"}`, "Visitors can add useful links"],
     live: true,
     createdAt: row.created_at,
     closesAt: row.closes_at ?? undefined,
   };
 }
 
-function requestRowToBounty(row: RequestRow, submissionCount = 0): BountyListing {
+function requestRowToListing(row: RequestRow, submissionCount = 0): RequestListing {
   const createdAt = row.created_at;
-  const paidAt = row.paid_at;
-  const requestTypeText = row.payment_status === "free" ? "Free request" : "Open request";
 
   return {
     id: row.id,
     name: row.item_name || "Hard-to-find item",
-    detail: requestTypeText,
-    reward: requestTypeText,
-    rewardValue: row.reward || 0,
+    detail: "Public request",
     closes: `${row.duration_days} days`,
     image: getReferenceImage(row.reference_images),
     category: row.category || "General",
-    status: getStatusLabel(row.status, row.payment_status),
+    status: getStatusLabel(row.status),
     location: "Open to source suggestions",
     poster: "You",
-    posted: getRelativeTimeLabel(paidAt ?? createdAt),
+    posted: getRelativeTimeLabel(createdAt),
     submissions: submissionCount,
     description: getRequestDescription(row.item_name, row.details),
     mustHaves: getMustHaves(row.details),
     brief: getRequestBriefFields(row.details ?? ""),
     timeline: [
-      row.payment_status === "free" ? "Free request posted" : "Request is open",
-      `${submissionCount} source suggestion${submissionCount === 1 ? "" : "s"}`,
-      "Awaiting useful links or clues",
+      "Public request posted",
+      `${submissionCount} public clue${submissionCount === 1 ? "" : "s"}`,
+      "Awaiting useful links",
     ],
-    live: row.payment_status === "free" || row.payment_status === "paid",
+    live: row.status === "open",
     createdAt,
   };
 }
@@ -1621,16 +823,16 @@ function requestRowToPublishedSnapshot(row: RequestRow): PublishedRequestSnapsho
     details: row.details?.trim() || `Looking for: ${row.item_name || "this exact item"}`,
     image: getReferenceImage(row.reference_images),
     durationDays: isRequestDuration(row.duration_days) ? row.duration_days : 30,
-    createdAt: row.paid_at || row.created_at || new Date().toISOString(),
+    createdAt: row.created_at || new Date().toISOString(),
   };
 }
 
-function mergeBounties(primary: BountyListing[], fallback: BountyListing[]) {
+function mergeRequestListings(primary: RequestListing[], fallback: RequestListing[]) {
   return primary.length ? primary : fallback;
 }
 
 function usePublicRequestListings(enabled = true, requestId = "") {
-  const [listings, setListings] = useState<BountyListing[]>([]);
+  const [listings, setListings] = useState<RequestListing[]>([]);
   const [loading, setLoading] = useState(enabled);
   const [error, setError] = useState("");
   const [requestNotFound, setRequestNotFound] = useState(false);
@@ -1683,7 +885,7 @@ function usePublicRequestListings(enabled = true, requestId = "") {
           throw new Error(payload.error || "Live request feed is not ready yet.");
         }
 
-        setListings(payload.requests.map(publicRequestRowToBounty));
+        setListings(payload.requests.map(publicRequestRowToListing));
         setRequestNotFound(isUuid(requestId) && payload.requests.length === 0);
         setResolvedRequestId(isUuid(requestId) ? requestId : "");
       } catch {
@@ -1936,52 +1138,52 @@ function normalizeRequestComment(row: Partial<PublicRequestCommentRow>, requestI
   };
 }
 
-function getFallbackRequestComments(bounty: BountyListing): PublicRequestCommentRow[] {
-  if (isUuid(bounty.id)) {
+function getFallbackRequestComments(request: RequestListing): PublicRequestCommentRow[] {
+  if (isUuid(request.id)) {
     return [];
   }
 
-  const firstSeed = `${bounty.id}:listing-check`;
-  const secondSeed = `${bounty.id}:detail-question`;
+  const firstSeed = `${request.id}:listing-check`;
+  const secondSeed = `${request.id}:detail-question`;
 
   return [
     normalizeRequestComment(
       {
-        id: `demo-${bounty.id}-listing-check`,
-        request_id: bounty.id,
-        body: `I checked a few resale listings for ${bounty.name}. Most are close, but the details still need a better match.`,
+        id: `demo-${request.id}-listing-check`,
+        request_id: request.id,
+        body: `I checked a few resale listings for ${request.name}. Most are close, but the details still need a better match.`,
         source_url: null,
         helper_alias: getPublicHelperAlias(firstSeed),
         helper_avatar_tone: getPublicHelperAvatarTone(firstSeed),
         created_at: new Date(Date.now() - 38 * 60 * 1000).toISOString(),
       },
-      bounty.id,
+      request.id,
     ),
     normalizeRequestComment(
       {
-        id: `demo-${bounty.id}-detail-question`,
-        request_id: bounty.id,
+        id: `demo-${request.id}-detail-question`,
+        request_id: request.id,
         body: "Do you know the rough year or store where this came from? That clue can narrow the search fast.",
         source_url: null,
         helper_alias: getPublicHelperAlias(secondSeed),
         helper_avatar_tone: getPublicHelperAvatarTone(secondSeed),
         created_at: new Date(Date.now() - 4 * 60 * 60 * 1000).toISOString(),
       },
-      bounty.id,
+      request.id,
     ),
   ];
 }
 
-function useRequestComments(bounty: BountyListing) {
+function useRequestComments(request: RequestListing) {
   const [comments, setComments] = useState<PublicRequestCommentRow[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
 
   useEffect(() => {
     let mounted = true;
-    const fallbackComments = getFallbackRequestComments(bounty);
+    const fallbackComments = getFallbackRequestComments(request);
 
-    if (!isUuid(bounty.id)) {
+    if (!isUuid(request.id)) {
       setComments(fallbackComments);
       setLoading(false);
       setError("");
@@ -1993,7 +1195,7 @@ function useRequestComments(bounty: BountyListing) {
       setError("");
 
       try {
-        const params = new URLSearchParams({ resource: "comments", request_id: bounty.id });
+        const params = new URLSearchParams({ resource: "comments", request_id: request.id });
         const response = await fetch(`/api/requests/public?${params.toString()}`, {
           headers: {
             Accept: "application/json",
@@ -2009,7 +1211,7 @@ function useRequestComments(bounty: BountyListing) {
           throw new Error(payload.error || "Comments are not ready yet.");
         }
 
-        setComments(payload.comments.map((comment) => normalizeRequestComment(comment, bounty.id)));
+        setComments(payload.comments.map((comment) => normalizeRequestComment(comment, request.id)));
       } catch {
         if (!mounted) {
           return;
@@ -2029,7 +1231,7 @@ function useRequestComments(bounty: BountyListing) {
     return () => {
       mounted = false;
     };
-  }, [bounty.id, bounty.name]);
+  }, [request.id, request.name]);
 
   const addComment = async (
     body: string,
@@ -2047,25 +1249,25 @@ function useRequestComments(bounty: BountyListing) {
       throw new Error("Add a valid http or https source link.");
     }
 
-    if (!isUuid(bounty.id)) {
+    if (!isUuid(request.id)) {
       const localComment = normalizeRequestComment(
         {
           id: `local-${createVisitorSeed()}`,
-          request_id: bounty.id,
+          request_id: request.id,
           body: normalizedBody,
           source_url: normalizedSourceUrl || null,
           helper_alias: visitor.alias,
           helper_avatar_tone: visitor.avatarTone,
           created_at: new Date().toISOString(),
         },
-        bounty.id,
+        request.id,
       );
 
       setComments((current) => [localComment, ...current]);
       return localComment;
     }
 
-    const params = new URLSearchParams({ resource: "comments", request_id: bounty.id });
+    const params = new URLSearchParams({ resource: "comments", request_id: request.id });
     const response = await fetch(`/api/requests/public?${params.toString()}`, {
       method: "POST",
       headers: {
@@ -2084,7 +1286,7 @@ function useRequestComments(bounty: BountyListing) {
       throw new Error(payload.error || "Could not post this comment.");
     }
 
-    const savedComment = normalizeRequestComment(payload.comment, bounty.id);
+    const savedComment = normalizeRequestComment(payload.comment, request.id);
     setComments((current) => [savedComment, ...current.filter((comment) => comment.id !== savedComment.id)]);
     return savedComment;
   };
@@ -2130,81 +1332,6 @@ async function getCurrentSupabaseUser() {
   return user;
 }
 
-async function getSupabaseAccessToken() {
-  if (!supabase) {
-    throw new Error("Sign in is not available right now.");
-  }
-
-  const {
-    data: { session },
-    error,
-  } = await supabase.auth.getSession();
-
-  if (error || !session?.access_token) {
-    throw error ?? new Error("Sign in again to continue.");
-  }
-
-  return session.access_token;
-}
-
-async function createSourceFingerprint(...parts: string[]) {
-  const normalized = parts.join("|").trim().toLowerCase().replace(/\s+/g, " ");
-
-  if (!normalized) {
-    return crypto.randomUUID();
-  }
-
-  if (!crypto.subtle) {
-    return btoa(normalized).replace(/[^a-z0-9]/gi, "").slice(0, 80) || crypto.randomUUID();
-  }
-
-  const digest = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(normalized));
-  return Array.from(new Uint8Array(digest))
-    .map((byte) => byte.toString(16).padStart(2, "0"))
-    .join("");
-}
-
-function getDuplicateSourceIdentity(sourceType: FindSourceType, sourceLink: string, sourceNotes: string) {
-  const rawSource = sourceType === "source-link" ? sourceLink : sourceLink || sourceNotes;
-  const normalizedSource = normalizeSourceIdentity(rawSource);
-
-  return normalizedSource || `${sourceType}:${sourceNotes.trim().toLowerCase().replace(/\s+/g, " ").slice(0, 240)}`;
-}
-
-function normalizeSourceIdentity(value: string) {
-  const trimmed = value.trim();
-
-  if (!trimmed) {
-    return "";
-  }
-
-  try {
-    const url = new URL(trimmed);
-    url.hash = "";
-
-    for (const key of [...url.searchParams.keys()]) {
-      if (/^(utm_|fbclid$|gclid$|mc_|igshid$|ref$|ref_src$)/i.test(key)) {
-        url.searchParams.delete(key);
-      }
-    }
-
-    url.hostname = url.hostname.toLowerCase();
-    url.pathname = url.pathname.replace(/\/+$/, "");
-    return url.toString().toLowerCase();
-  } catch {
-    return trimmed.toLowerCase().replace(/\s+/g, " ").slice(0, 500);
-  }
-}
-
-function isDuplicateSourceSubmissionError(error: unknown) {
-  const record = isRecord(error) ? error : {};
-  const code = typeof record.code === "string" ? record.code : "";
-  const message = typeof record.message === "string" ? record.message : "";
-  const details = typeof record.details === "string" ? record.details : "";
-
-  return code === "23505" || /source_submissions_request_fingerprint_key|duplicate key|unique/i.test(`${message} ${details}`);
-}
-
 function sanitizeFileName(name: string) {
   return name.replace(/[^a-zA-Z0-9._-]/g, "-").slice(0, 120) || "proof-file";
 }
@@ -2241,38 +1368,6 @@ async function uploadRequestReferenceFiles(userId: string, requestId: string, fi
   }
 
   return { referenceImages, uploadedPaths };
-}
-
-async function uploadSourceProofFiles(userId: string, submissionId: string, files: File[]) {
-  const proof: SourceProofFile[] = [];
-  const uploadedPaths: string[] = [];
-
-  if (!supabase || !files.length) {
-    return { proof, uploadedPaths };
-  }
-
-  for (const [index, file] of files.entries()) {
-    const filePath = `${userId}/${submissionId}/${index + 1}-${crypto.randomUUID()}-${sanitizeFileName(file.name)}`;
-    const { error } = await supabase.storage.from(sourceSubmissionProofBucket).upload(filePath, file, {
-      cacheControl: "3600",
-      contentType: file.type || undefined,
-      upsert: false,
-    });
-
-    if (error) {
-      throw error;
-    }
-
-    uploadedPaths.push(filePath);
-    proof.push({
-      name: file.name,
-      path: filePath,
-      type: file.type || null,
-      size: file.size,
-    });
-  }
-
-  return { proof, uploadedPaths };
 }
 
 function readStoredPendingRoute(): Page {
@@ -2376,13 +1471,11 @@ async function signInWithGoogleClientId(): Promise<GoogleProfile> {
   return profileResponse.json() as Promise<GoogleProfile>;
 }
 
-const bountyListings: BountyListing[] = [
+const exampleRequestListings: RequestListing[] = [
   {
     id: "childhood-rose-blanket",
     name: "Help me find this blanket",
     detail: "Free request",
-    reward: "Free",
-    rewardValue: 0,
     closes: "14 days",
     category: "Home goods",
     status: "Open",
@@ -2394,14 +1487,12 @@ const bountyListings: BountyListing[] = [
     description:
       "Help me find a replacement for this pink rose childhood blanket. It does not have to be new, but the print needs to match.",
     mustHaves: ["Pink rose print", "Same soft blanket style", "Good photo of the match", "Seller or source link"],
-    timeline: ["Free request posted", "Four people helping", "Latest source received today"],
+    timeline: ["Public request posted", "Four public clues", "Latest link added today"],
   },
   {
     id: "seiko-wired-w543",
     name: "Does anyone know this watch?",
     detail: "Free request",
-    reward: "Free",
-    rewardValue: 0,
     closes: "10 days",
     category: "Watches",
     status: "Open",
@@ -2413,14 +1504,12 @@ const bountyListings: BountyListing[] = [
     description:
       "Looking for this Seiko Wired W543-0AA0 or the closest verified match. A shop link, model number, or used listing would help.",
     mustHaves: ["Digital Seiko Wired style", "Silver bracelet", "Clear listing photos", "Working condition preferred"],
-    timeline: ["Free request posted", "Two sources received", "Model number being checked"],
+    timeline: ["Public request posted", "Two public links", "Model number being checked"],
   },
   {
     id: "yellow-stay-home-pillow",
     name: "Help me find this pillow",
     detail: "Free request",
-    reward: "Free",
-    rewardValue: 0,
     closes: "18 days",
     category: "Home goods",
     status: "Open",
@@ -2432,14 +1521,12 @@ const bountyListings: BountyListing[] = [
     description:
       "Trying to find the yellow Threshold pillow that says Let's Stay Home. A current resale link would be perfect.",
     mustHaves: ["Yellow lumbar pillow", "Let's Stay Home text", "Threshold or close match", "Seller can ship"],
-    timeline: ["Free request posted", "Three people searching", "One similar listing reviewed"],
+    timeline: ["Public request posted", "Three public clues", "One similar listing reviewed"],
   },
   {
     id: "living-and-co-cat-mug",
     name: "Find this cat mug",
     detail: "Free request",
-    reward: "Free",
-    rewardValue: 0,
     closes: "7 days",
     category: "Kitchen",
     status: "Open",
@@ -2451,14 +1538,12 @@ const bountyListings: BountyListing[] = [
     description:
       "My mum gave me this Living & Co cat mug and I want another one. Please share any shop or resale listing that still has it.",
     mustHaves: ["Living & Co mug", "Black cat line art", "Same shape if possible", "Uncracked condition"],
-    timeline: ["Free request posted", "New request", "Helpers can share links"],
+    timeline: ["Public request posted", "New request", "Visitors can share links"],
   },
   {
     id: "duck-wall-art",
     name: "Help me find this art",
     detail: "Free request",
-    reward: "Free",
-    rewardValue: 0,
     closes: "21 days",
     category: "Art & decor",
     status: "Found",
@@ -2470,14 +1555,12 @@ const bountyListings: BountyListing[] = [
     description:
       "Looking for this framed duck art because we want one for our home. Any artist name, print source, or buying link helps.",
     mustHaves: ["Same duck artwork", "Artist or print source", "Framed or unframed is fine", "Clear buying link"],
-    timeline: ["Free request posted", "Helper shared a source", "Source marked found"],
+    timeline: ["Public request posted", "Visitor shared a link", "Request marked found"],
   },
   {
     id: "walkman-wmd6c",
     name: "Sony Walkman WM-D6C",
     detail: "Working recorder, serviced",
-    reward: "Free",
-    rewardValue: 0,
     closes: "23 days",
     category: "Portable audio",
     status: "Open",
@@ -2490,17 +1573,15 @@ const bountyListings: BountyListing[] = [
     description:
       "Need a serviced WM-D6C with reliable playback and recording. Must include a recent test video.",
     mustHaves: ["Recent service preferred", "Records cleanly", "Test video", "No battery leakage"],
-    timeline: ["Free request posted", "New request", "Helpers can share sources"],
+    timeline: ["Public request posted", "New request", "Visitors can share links"],
   },
   {
     id: "canon-eos-80d-kit",
     name: "Canon EOS 80D",
     detail: "Body with clean lens",
-    reward: "Free",
-    rewardValue: 0,
     closes: "8 days",
     category: "Camera gear",
-    status: "Helper in touch",
+    status: "Open",
     location: "United States",
     poster: "Maya V.",
     posted: "5 days ago",
@@ -2510,17 +1591,15 @@ const bountyListings: BountyListing[] = [
     description:
       "Looking for a clean Canon EOS 80D body with a working lens and recent test photos.",
     mustHaves: ["EOS 80D body", "Lens glass is clean", "Shutter count disclosed", "Recent test photo required"],
-    timeline: ["Free request posted", "Helper shared two local options", "Shutter count requested"],
+    timeline: ["Public request posted", "Two public options shared", "Shutter count requested"],
   },
   {
     id: "omega-speedmaster-125",
     name: "Omega Speedmaster",
     detail: "125th anniversary",
-    reward: "Free",
-    rewardValue: 0,
     closes: "11 days",
     category: "Watches",
-    status: "Price agreed",
+    status: "Found",
     location: "United Kingdom",
     poster: "Jon P.",
     posted: "6 days ago",
@@ -2530,14 +1609,12 @@ const bountyListings: BountyListing[] = [
     description:
       "Looking for an Omega Speedmaster 125 with original bracelet and clear movement documentation.",
     mustHaves: ["Original bracelet", "Movement photos", "Service details", "No polished case preferred"],
-    timeline: ["Free request posted", "Local source found in London", "Authenticity check underway"],
+    timeline: ["Public request posted", "Public listing found in London", "Authenticity check underway"],
   },
   {
     id: "roland-juno-106",
     name: "Roland Juno-106",
     detail: "Voice board set",
-    reward: "Free",
-    rewardValue: 0,
     closes: "19 days",
     category: "Vintage audio",
     status: "Open",
@@ -2550,14 +1627,12 @@ const bountyListings: BountyListing[] = [
     description:
       "Need a tested Juno-106 voice board set for a studio restoration.",
     mustHaves: ["Tested chips", "No corrosion", "Clear board photos", "Ships insured"],
-    timeline: ["Free request posted", "Synth forums contacted", "Awaiting test clips"],
+    timeline: ["Public request posted", "Synth forum links added", "Awaiting test clips"],
   },
   {
     id: "cartier-tank-must",
     name: "Cartier Tank Must",
     detail: "Large black dial",
-    reward: "Free",
-    rewardValue: 0,
     closes: "14 days",
     category: "Watches",
     status: "Open",
@@ -2570,14 +1645,12 @@ const bountyListings: BountyListing[] = [
     description:
       "Looking for a Tank Must large black dial with box or papers preferred.",
     mustHaves: ["Large case", "Black dial", "Serial proof", "Seller or source is reachable"],
-    timeline: ["Free request posted", "Three dealers contacted", "Waiting on papers"],
+    timeline: ["Public request posted", "Three public listings added", "Waiting on papers"],
   },
   {
     id: "contax-t2-silver",
     name: "Contax T2",
     detail: "Silver point-and-shoot",
-    reward: "Free",
-    rewardValue: 0,
     closes: "16 days",
     category: "Camera gear",
     status: "Open",
@@ -2590,14 +1663,12 @@ const bountyListings: BountyListing[] = [
     description:
       "Need a working Contax T2 silver body with clean lens and reliable flash.",
     mustHaves: ["Clean Zeiss lens", "Flash works", "LCD visible", "Test roll preferred"],
-    timeline: ["Free request posted", "Two sources rejected", "New photos requested"],
+    timeline: ["Public request posted", "Two links ruled out", "New photos requested"],
   },
   {
     id: "gameboy-micro-famicom",
     name: "Game Boy Micro",
     detail: "Famicom edition",
-    reward: "Free",
-    rewardValue: 0,
     closes: "22 days",
     category: "Gaming",
     status: "Open",
@@ -2610,14 +1681,12 @@ const bountyListings: BountyListing[] = [
     description:
       "Wanted: clean Game Boy Micro Famicom edition with bright screen and good buttons.",
     mustHaves: ["Famicom faceplate", "Bright screen", "No dead pixels", "Original charger preferred"],
-    timeline: ["Free request posted", "Japan sellers contacted", "First source under review"],
+    timeline: ["Public request posted", "Japan listings reviewed", "First link under review"],
   },
   {
     id: "nakamichi-dragon-door",
     name: "Nakamichi Dragon",
     detail: "Cassette door assembly",
-    reward: "Free",
-    rewardValue: 0,
     closes: "25 days",
     category: "Vintage audio",
     status: "Open",
@@ -2630,14 +1699,12 @@ const bountyListings: BountyListing[] = [
     description:
       "Need a clean Nakamichi Dragon cassette door assembly for a repair bench.",
     mustHaves: ["Door assembly", "No cracked tabs", "Original finish", "Macro photos"],
-    timeline: ["Free request posted", "New request", "Helpers can share parts"],
+    timeline: ["Public request posted", "New request", "Visitors can share part links"],
   },
   {
     id: "polaroid-sx70-brown",
     name: "Polaroid SX-70",
     detail: "Brown leather folder",
-    reward: "Free",
-    rewardValue: 0,
     closes: "10 days",
     category: "Camera gear",
     status: "Open",
@@ -2650,14 +1717,12 @@ const bountyListings: BountyListing[] = [
     description:
       "Searching for an SX-70 brown leather model with working rollers and clean mirror.",
     mustHaves: ["Brown leather", "Clean mirror", "Rollers work", "Sample exposure"],
-    timeline: ["Free request posted", "Two sources received", "Waiting on sample photo"],
+    timeline: ["Public request posted", "Two links received", "Waiting on sample photo"],
   },
   {
     id: "ipod-classic-7th",
     name: "iPod Classic",
     detail: "160GB silver",
-    reward: "Free",
-    rewardValue: 0,
     closes: "13 days",
     category: "Portable audio",
     status: "Open",
@@ -2670,14 +1735,12 @@ const bountyListings: BountyListing[] = [
     description:
       "Looking for a clean 7th gen iPod Classic 160GB silver with healthy battery.",
     mustHaves: ["160GB model", "Silver face", "Battery holds charge", "No swollen case"],
-    timeline: ["Free request posted", "Five submissions", "Battery photos requested"],
+    timeline: ["Public request posted", "Five public clues", "Battery photos requested"],
   },
   {
     id: "canon-f1-new",
     name: "Canon New F-1",
     detail: "AE finder kit",
-    reward: "Free",
-    rewardValue: 0,
     closes: "17 days",
     category: "Camera gear",
     status: "Open",
@@ -2690,14 +1753,12 @@ const bountyListings: BountyListing[] = [
     description:
       "Need a Canon New F-1 with AE finder, working meter, and clean prism.",
     mustHaves: ["AE finder", "Meter works", "Clean prism", "No shutter capping"],
-    timeline: ["Free request posted", "Collector groups contacted", "Awaiting meter video"],
+    timeline: ["Public request posted", "Collector-group links added", "Awaiting meter video"],
   },
   {
     id: "minidisc-mz-rh1",
     name: "Sony MZ-RH1",
     detail: "Hi-MD recorder",
-    reward: "Free",
-    rewardValue: 0,
     closes: "21 days",
     category: "Portable audio",
     status: "Open",
@@ -2710,14 +1771,12 @@ const bountyListings: BountyListing[] = [
     description:
       "Looking for a Sony MZ-RH1 Hi-MD recorder with working display and USB connection.",
     mustHaves: ["Display works", "USB recognized", "Battery door clean", "Includes dock if possible"],
-    timeline: ["Free request posted", "First source received", "USB proof requested"],
+    timeline: ["Public request posted", "First public link received", "USB proof requested"],
   },
   {
     id: "dreamcast-seaman-mic",
     name: "Dreamcast Seaman",
     detail: "Mic bundle, complete",
-    reward: "Free",
-    rewardValue: 0,
     closes: "18 days",
     category: "Gaming",
     status: "Open",
@@ -2730,14 +1789,12 @@ const bountyListings: BountyListing[] = [
     description:
       "Need the Dreamcast Seaman game with microphone bundle and complete inserts.",
     mustHaves: ["Mic included", "Disc tested", "Manual present", "Case art clean"],
-    timeline: ["Free request posted", "Two local stores checked", "One complete copy under review"],
+    timeline: ["Public request posted", "Two store pages checked", "One complete copy under review"],
   },
   {
     id: "technics-sl1200-dustcover",
     name: "Technics SL-1200",
     detail: "Original dust cover",
-    reward: "Free",
-    rewardValue: 0,
     closes: "24 days",
     category: "Vintage audio",
     status: "Open",
@@ -2750,14 +1807,12 @@ const bountyListings: BountyListing[] = [
     description:
       "Searching for an original SL-1200 dust cover without hinge cracks.",
     mustHaves: ["Original cover", "No hinge cracks", "Clear acrylic", "Ships protected"],
-    timeline: ["Free request posted", "DJ repair shops contacted", "Waiting on photos"],
+    timeline: ["Public request posted", "Repair-shop pages checked", "Waiting on photos"],
   },
   {
     id: "pentax-67-wood-grip",
     name: "Pentax 67",
     detail: "Wood grip",
-    reward: "Free",
-    rewardValue: 0,
     closes: "12 days",
     category: "Camera gear",
     status: "Open",
@@ -2770,14 +1825,12 @@ const bountyListings: BountyListing[] = [
     description:
       "Need a Pentax 67 wood grip in clean condition for a field kit.",
     mustHaves: ["Original wood grip", "Mount screw intact", "No split wood", "Clear side photos"],
-    timeline: ["Free request posted", "Three sources received", "Best source missing screw"],
+    timeline: ["Public request posted", "Three public links received", "Best match missing screw"],
   },
   {
     id: "n64-funtastic-ice-blue",
     name: "Nintendo 64",
     detail: "Ice blue Funtastic",
-    reward: "Free",
-    rewardValue: 0,
     closes: "27 days",
     category: "Gaming",
     status: "Open",
@@ -2790,14 +1843,12 @@ const bountyListings: BountyListing[] = [
     description:
       "Wanted: ice blue Funtastic Nintendo 64 with matching controller.",
     mustHaves: ["Ice blue shell", "Matching controller", "No yellowed plastic", "Video output proof"],
-    timeline: ["Free request posted", "Four sellers found", "Controller match pending"],
+    timeline: ["Public request posted", "Four listings found", "Controller match pending"],
   },
   {
     id: "bose-aviation-a20",
     name: "Bose A20",
     detail: "Bluetooth aviation headset",
-    reward: "Free",
-    rewardValue: 0,
     closes: "20 days",
     category: "Portable audio",
     status: "Open",
@@ -2810,14 +1861,12 @@ const bountyListings: BountyListing[] = [
     description:
       "Looking for a Bose A20 Bluetooth aviation headset in clean working condition.",
     mustHaves: ["Bluetooth model", "Clean ear cups", "ANR works", "Case preferred"],
-    timeline: ["Free request posted", "Pilot group posted", "Two sources being checked"],
+    timeline: ["Public request posted", "Pilot forum link added", "Two links being checked"],
   },
   {
     id: "hasselblad-a12-back",
     name: "Hasselblad A12",
     detail: "Chrome film back",
-    reward: "Free",
-    rewardValue: 0,
     closes: "15 days",
     category: "Camera gear",
     status: "Open",
@@ -2830,14 +1879,12 @@ const bountyListings: BountyListing[] = [
     description:
       "Need a chrome Hasselblad A12 film back with matching insert and fresh seals.",
     mustHaves: ["Matching insert", "Chrome finish", "Light seals clean", "Frame spacing proof"],
-    timeline: ["Free request posted", "Five backs located", "Best one awaiting test roll"],
+    timeline: ["Public request posted", "Five public options located", "Best one awaiting test roll"],
   },
   {
     id: "akg-k1000",
     name: "AKG K1000",
     detail: "Ear speaker set",
-    reward: "Free",
-    rewardValue: 0,
     closes: "26 days",
     category: "Portable audio",
     status: "Open",
@@ -2850,14 +1897,12 @@ const bountyListings: BountyListing[] = [
     description:
       "Searching for AKG K1000 ear speakers with balanced drivers and original cable.",
     mustHaves: ["Balanced channels", "Original cable", "No driver buzz", "Pad condition photos"],
-    timeline: ["Free request posted", "Audiophile forum posted", "One source needs channel test"],
+    timeline: ["Public request posted", "Audiophile forum link added", "One option needs channel test"],
   },
   {
     id: "neo-geo-pocket-color",
     name: "Neo Geo Pocket",
     detail: "Color anthracite",
-    reward: "Free",
-    rewardValue: 0,
     closes: "30 days",
     category: "Gaming",
     status: "Open",
@@ -2870,14 +1915,12 @@ const bountyListings: BountyListing[] = [
     description:
       "Looking for a clean anthracite Neo Geo Pocket Color with responsive stick.",
     mustHaves: ["Anthracite shell", "Responsive stick", "No screen burn", "Battery terminals clean"],
-    timeline: ["Free request posted", "New request", "Helpers can share handhelds"],
+    timeline: ["Public request posted", "New request", "Visitors can share handheld links"],
   },
   {
     id: "aiwa-hs-px1000",
     name: "Aiwa HS-PX1000",
     detail: "Cassette player",
-    reward: "Free",
-    rewardValue: 0,
     closes: "28 days",
     category: "Portable audio",
     status: "Open",
@@ -2890,14 +1933,12 @@ const bountyListings: BountyListing[] = [
     description:
       "Need an Aiwa HS-PX1000 cassette player with clean playback and intact controls.",
     mustHaves: ["Playback works", "Controls intact", "No corrosion", "Demo audio clip"],
-    timeline: ["Free request posted", "One collector contacted", "Awaiting demo clip"],
+    timeline: ["Public request posted", "One collector page found", "Awaiting demo clip"],
   },
   {
     id: "voigtlander-40mm-nokton",
     name: "Voigtlander Nokton",
     detail: "40mm f/1.2 VM",
-    reward: "Free",
-    rewardValue: 0,
     closes: "9 days",
     category: "Camera gear",
     status: "Open",
@@ -2910,7 +1951,7 @@ const bountyListings: BountyListing[] = [
     description:
       "Searching for a Voigtlander 40mm f/1.2 VM lens with smooth focus and clean glass.",
     mustHaves: ["VM mount", "Clean glass", "Smooth focus", "Caps included"],
-    timeline: ["Free request posted", "Two listings reviewed", "Best source awaiting glass photos"],
+    timeline: ["Public request posted", "Two listings reviewed", "Best match awaiting glass photos"],
   },
 ];
 
@@ -2961,9 +2002,9 @@ function getShareSubject(itemName: string) {
   return normalized || itemName.trim() || "this exact item";
 }
 
-function getBountyPath(bountyId: string, bountyName = "") {
-  const slug = slugify(bountyName);
-  return `/requests/${encodeURIComponent(bountyId)}${slug ? `/${slug}` : ""}`;
+function getRequestPath(requestId: string, requestName = "") {
+  const slug = slugify(requestName);
+  return `/requests/${encodeURIComponent(requestId)}${slug ? `/${slug}` : ""}`;
 }
 
 function getCanonicalUrl(path: string) {
@@ -2995,30 +2036,22 @@ function getCurrentRawRoute() {
   return getLegacyHashRoute() || parseRoutePath(window.location.pathname);
 }
 
-function getBountyIdFromRawRoute(rawRoute: string) {
+function getRequestIdFromRawRoute(rawRoute: string) {
   const match = rawRoute.match(/^requests\/([^/?#]+)(?:\/[^?#]+)?$/);
   return match ? decodeURIComponent(match[1]) : "";
 }
 
-function getBountyIdFromCurrentRoute() {
-  return getBountyIdFromRawRoute(getCurrentRawRoute());
+function getRequestIdFromCurrentRoute() {
+  return getRequestIdFromRawRoute(getCurrentRawRoute());
 }
 
 function parseRoute(): Page {
   const raw = getCurrentRawRoute();
-  if (getBountyIdFromRawRoute(raw)) {
-    return "bounty-detail";
+  if (getRequestIdFromRawRoute(raw)) {
+    return "request-detail";
   }
 
   return routeMap[raw] ?? "not-found";
-}
-
-function parseCheckoutReturnStatus(): CheckoutReturnStatus {
-  const searchStatus = new URLSearchParams(window.location.search).get("checkout");
-  const hashQuery = window.location.hash.split("?")[1] ?? "";
-  const hashStatus = new URLSearchParams(hashQuery).get("checkout");
-  const status = searchStatus ?? hashStatus;
-  return status === "success" || status === "cancelled" ? status : null;
 }
 
 function getCurrentSearchParams() {
@@ -3091,7 +2124,6 @@ function getAcquisitionStarterFromUrl() {
       itemName: itemName || prompt.itemName,
       category: prompt.category,
       details: context ? `${prompt.details}\n\nContext: ${context}` : prompt.details,
-      reward: prompt.reward,
       durationDays: prompt.durationDays,
     } satisfies PostDraft,
   };
@@ -3110,7 +2142,6 @@ function postDraftToStoredDraft(draft: PostDraft): StoredPostDraft {
     itemName: draft.itemName,
     category: draft.category,
     details: draft.details,
-    reward: Math.max(minimumReward, Math.round(Number.isFinite(draft.reward) ? draft.reward : initialPostDraft.reward)),
     durationDays: draft.durationDays,
   };
 }
@@ -3131,14 +2162,12 @@ function readStoredPostDraft(): PostDraft | null {
     const itemName = typeof parsed.itemName === "string" ? parsed.itemName.slice(0, 120) : initialPostDraft.itemName;
     const details = typeof parsed.details === "string" ? parsed.details.slice(0, 5000) : "";
     const category = isRequestCategory(parsed.category) ? parsed.category : initialPostDraft.category;
-    const reward = Math.max(minimumReward, Math.round(typeof parsed.reward === "number" && Number.isFinite(parsed.reward) ? parsed.reward : initialPostDraft.reward));
     const durationDays = isRequestDuration(parsed.durationDays) ? parsed.durationDays : initialPostDraft.durationDays;
 
     return storedDraftToPostDraft({
       itemName,
       category,
       details,
-      reward,
       durationDays,
     });
   } catch {
@@ -3373,32 +2402,20 @@ function getDefaultAccountProfile(): AccountProfile {
   return {
     displayName: "",
     handle: "",
-    accountType: "both",
     region: "",
     specialty: "",
-    payoutEmail: email,
-    payoutCountry: "US",
-    identityStatus: "not_started",
     notificationEmail: email,
   };
 }
 
 function normalizeAccountProfile(profile: Partial<AccountProfile>): AccountProfile {
   const defaults = getDefaultAccountProfile();
-  const identityStatus = ["not_started", "review_requested", "verified"].includes(profile.identityStatus ?? "")
-    ? (profile.identityStatus as FinderIdentityStatus)
-    : defaults.identityStatus;
-  const accountType = ["both", "poster", "finder"].includes(profile.accountType ?? "") ? (profile.accountType as AuthAccountType) : defaults.accountType;
 
   return {
     displayName: typeof profile.displayName === "string" ? profile.displayName.slice(0, 80) : defaults.displayName,
     handle: typeof profile.handle === "string" ? profile.handle.toLowerCase().replace(/[^a-z0-9_-]/g, "").slice(0, 32) : defaults.handle,
-    accountType,
     region: typeof profile.region === "string" ? profile.region.slice(0, 80) : defaults.region,
     specialty: typeof profile.specialty === "string" ? profile.specialty.slice(0, 160) : defaults.specialty,
-    payoutEmail: typeof profile.payoutEmail === "string" ? profile.payoutEmail.slice(0, 160) : defaults.payoutEmail,
-    payoutCountry: typeof profile.payoutCountry === "string" ? profile.payoutCountry.toUpperCase().slice(0, 2) : defaults.payoutCountry,
-    identityStatus,
     notificationEmail: typeof profile.notificationEmail === "string" ? profile.notificationEmail.slice(0, 160) : defaults.notificationEmail,
   };
 }
@@ -3425,36 +2442,6 @@ function writeStoredAccountProfile(profile: AccountProfile) {
   }
 }
 
-function getFinderReadiness(profile: AccountProfile): { score: number; items: FinderReadinessItem[]; label: string } {
-  const items: FinderReadinessItem[] = [
-    {
-      label: "Public profile",
-      complete: Boolean(profile.displayName.trim() && profile.handle.trim() && profile.specialty.trim()),
-      copy: "Name, handle, and focus are visible before requesters open your leads.",
-    },
-    {
-      label: "Contact email",
-      complete: emailPattern.test(profile.notificationEmail.trim() || profile.payoutEmail.trim()),
-    copy: "A contact email is saved for lead follow-up.",
-  },
-    {
-      label: "Region",
-      complete: Boolean(profile.region.trim() && profile.payoutCountry.trim()),
-      copy: "Region helps set shipping, pickup, and source availability expectations.",
-    },
-    {
-      label: "Trust review",
-      complete: profile.identityStatus !== "not_started",
-      copy: "Trust status is checked before high-volume leads are enabled.",
-    },
-  ];
-  const completeCount = items.filter((item) => item.complete).length;
-  const score = Math.round((completeCount / items.length) * 100);
-  const label = score === 100 ? "Ready" : score >= 75 ? "Nearly ready" : score >= 50 ? "Needs review" : "Incomplete";
-
-  return { score, items, label };
-}
-
 function getInitialPostDraft() {
   const starter = getAcquisitionStarterFromUrl();
 
@@ -3466,9 +2453,9 @@ function getInitialPostDraft() {
   return readStoredPostDraft() ?? initialPostDraft;
 }
 
-function routeHref(page: Page, bountyId?: string, bountyName?: string) {
-  if (page === "bounty-detail" && bountyId) {
-    return getBountyPath(bountyId, bountyName);
+function routeHref(page: Page, requestId?: string, requestName?: string) {
+  if (page === "request-detail" && requestId) {
+    return getRequestPath(requestId, requestName);
   }
 
   return getRoutePath(page);
@@ -3487,7 +2474,7 @@ function trackAcquisitionEvent(name: string, properties: AnalyticsProperties = {
   try {
     trackMarketingEvent(name, properties);
   } catch {
-    // Analytics must never block the marketplace flow.
+    // Analytics must never block the request-board flow.
   }
 }
 
@@ -3495,16 +2482,16 @@ function getInitialRoute(): Page {
   return parseRoute();
 }
 
-function getSeoMeta(page: Page, activeBounty?: BountyListing): SeoMeta {
-  if (page === "bounty-detail" && activeBounty) {
-    const description = `${activeBounty.description} ${activeBounty.category} request, ${activeBounty.closes} left. Helpers can share links, clues, and source suggestions.`;
+function getSeoMeta(page: Page, activeRequest?: RequestListing): SeoMeta {
+  if (page === "request-detail" && activeRequest) {
+    const description = `${activeRequest.description} ${activeRequest.category} request, ${activeRequest.closes} left. Visitors can add public links and clues.`;
 
     return {
-      title: `${activeBounty.name} Find Request | pleasefindmethis`,
+      title: `${activeRequest.name} Find Request | pleasefindmethis`,
       description: description.slice(0, 240),
-      path: getBountyPath(activeBounty.id, activeBounty.name),
-      robots: activeBounty.live ? "index,follow" : "noindex,follow",
-      image: activeBounty.image.startsWith("data:image/") ? defaultSeoImage : toAbsoluteUrl(activeBounty.image),
+      path: getRequestPath(activeRequest.id, activeRequest.name),
+      robots: activeRequest.live ? "index,follow" : "noindex,follow",
+      image: activeRequest.image.startsWith("data:image/") ? defaultSeoImage : toAbsoluteUrl(activeRequest.image),
     };
   }
 
@@ -3542,55 +2529,46 @@ function setCanonicalLink(href: string) {
   link.href = href;
 }
 
-function createItemListSchema(bounties: BountyListing[], pagePath: string): JsonLdNode {
+function createItemListSchema(requests: RequestListing[], pagePath: string): JsonLdNode {
   return {
     "@type": "ItemList",
     "@id": `${getCanonicalUrl(pagePath)}#request-list`,
     name: "Hard-to-find item requests",
     itemListOrder: "https://schema.org/ItemListOrderDescending",
-    numberOfItems: Math.min(bounties.length, 10),
-    itemListElement: bounties.slice(0, 10).map((bounty, index) => ({
+    numberOfItems: Math.min(requests.length, 10),
+    itemListElement: requests.slice(0, 10).map((request, index) => ({
       "@type": "ListItem",
       position: index + 1,
       item: {
         "@type": "Thing",
-        name: bounty.name,
-        description: bounty.description,
-        image: bounty.image.startsWith("data:image/") ? defaultSeoImage : toAbsoluteUrl(bounty.image),
-        url: getCanonicalUrl(getBountyPath(bounty.id, bounty.name)),
-        additionalType: bounty.category,
+        name: request.name,
+        description: request.description,
+        image: request.image.startsWith("data:image/") ? defaultSeoImage : toAbsoluteUrl(request.image),
+        url: getCanonicalUrl(getRequestPath(request.id, request.name)),
+        additionalType: request.category,
       },
     })),
   };
 }
 
-function createMarketplaceServiceSchema(organizationId: string): JsonLdNode {
+function createRequestWorkspaceSchema(organizationId: string): JsonLdNode {
   return {
-    "@type": "Service",
-    "@id": `${siteOrigin}/#service`,
-    name: "Hard-to-find item request board",
+    "@type": "WebApplication",
+    "@id": `${siteOrigin}/#application`,
+    name: "pleasefindmethis item-search workspace",
     alternateName: siteName,
-    serviceType: "Free public request-board web app",
     url: siteOrigin,
-    provider: { "@id": organizationId },
-    areaServed: "Worldwide",
-    description: "Free request board for hard-to-find items with community source leads.",
-    audience: [
-      {
-        "@type": "Audience",
-        audienceType: "Requesters looking for discontinued, sold-out, rare, or sentimental items",
-      },
-      {
-        "@type": "Audience",
-        audienceType: "Helpers with niche sourcing knowledge, seller paths, or local availability context",
-      },
+    publisher: { "@id": organizationId },
+    applicationCategory: "UtilitiesApplication",
+    operatingSystem: "Any",
+    isAccessibleForFree: true,
+    description: "A self-serve web app for creating, sharing, and organizing hard-to-find item search briefs and public clues.",
+    featureList: [
+      "Structured item-search briefs",
+      "Photo references",
+      "Shareable request pages",
+      "Public source links and clues",
     ],
-    offers: {
-      "@type": "AggregateOffer",
-      priceCurrency: "USD",
-      lowPrice: 0,
-      description: "Posting is free. Add clear details, publish, and share the public request.",
-    },
     termsOfService: `${siteOrigin}/terms`,
   };
 }
@@ -3600,7 +2578,7 @@ function createLandingHowToSchema(canonicalUrl: string): JsonLdNode {
     "@type": "HowTo",
     "@id": `${canonicalUrl}#post-find-request-howto`,
     name: "How to post a free find request",
-    description: "Step-by-step: create a free request and get source leads.",
+    description: "Step-by-step: create a free public request and collect useful links and clues.",
     step: workSteps.map((step, index) => ({
       "@type": "HowToStep",
       position: index + 1,
@@ -3610,8 +2588,8 @@ function createLandingHowToSchema(canonicalUrl: string): JsonLdNode {
   };
 }
 
-function createBreadcrumbSchema(page: Page, meta: SeoMeta, activeBounty?: BountyListing): JsonLdNode {
-  const currentName = page === "bounty-detail" && activeBounty ? activeBounty.name : pageLabels[page] ?? meta.title;
+function createBreadcrumbSchema(page: Page, meta: SeoMeta, activeRequest?: RequestListing): JsonLdNode {
+  const currentName = page === "request-detail" && activeRequest ? activeRequest.name : pageLabels[page] ?? meta.title;
 
   return {
     "@type": "BreadcrumbList",
@@ -3633,7 +2611,7 @@ function createBreadcrumbSchema(page: Page, meta: SeoMeta, activeBounty?: Bounty
   };
 }
 
-function createStructuredData(page: Page, meta: SeoMeta, bounties: BountyListing[], activeBounty?: BountyListing) {
+function createStructuredData(page: Page, meta: SeoMeta, requests: RequestListing[], activeRequest?: RequestListing) {
   const canonicalUrl = getCanonicalUrl(meta.path);
   const organizationId = `${siteOrigin}/#organization`;
   const websiteId = `${siteOrigin}/#website`;
@@ -3658,7 +2636,7 @@ function createStructuredData(page: Page, meta: SeoMeta, bounties: BountyListing
     webPage.mainEntity = { "@id": `${siteOrigin}/#service` };
   }
 
-  if (page === "bounty-detail" && activeBounty) {
+  if (page === "request-detail" && activeRequest) {
     webPage.mainEntity = { "@id": `${canonicalUrl}#request` };
   }
 
@@ -3685,31 +2663,31 @@ function createStructuredData(page: Page, meta: SeoMeta, bounties: BountyListing
       description: defaultSeoDescription,
       publisher: { "@id": organizationId },
     },
-    createMarketplaceServiceSchema(organizationId),
+    createRequestWorkspaceSchema(organizationId),
     webPage,
   ];
 
   if (page === "landing" || page === "browse" || page === "browse-all") {
-    graph.push(createItemListSchema(bounties, meta.path));
+    graph.push(createItemListSchema(requests, meta.path));
   }
 
   if (page !== "landing") {
-    graph.push(createBreadcrumbSchema(page, meta, activeBounty));
+    graph.push(createBreadcrumbSchema(page, meta, activeRequest));
   }
 
   if (page === "landing") {
     graph.push(createLandingHowToSchema(canonicalUrl));
   }
 
-  if (page === "bounty-detail" && activeBounty) {
+  if (page === "request-detail" && activeRequest) {
     graph.push({
       "@type": "Thing",
       "@id": `${canonicalUrl}#request`,
       url: canonicalUrl,
-      name: activeBounty.name,
-      description: activeBounty.description,
-      image: activeBounty.image.startsWith("data:image/") ? defaultSeoImage : toAbsoluteUrl(activeBounty.image),
-      additionalType: activeBounty.category,
+      name: activeRequest.name,
+      description: activeRequest.description,
+      image: activeRequest.image.startsWith("data:image/") ? defaultSeoImage : toAbsoluteUrl(activeRequest.image),
+      additionalType: activeRequest.category,
     });
   }
 
@@ -3732,8 +2710,8 @@ function setStructuredData(data: JsonLdNode) {
   script.text = JSON.stringify(data);
 }
 
-function updateDocumentSeo(page: Page, bounties: BountyListing[], activeBounty?: BountyListing) {
-  const meta = getSeoMeta(page, activeBounty);
+function updateDocumentSeo(page: Page, requests: RequestListing[], activeRequest?: RequestListing) {
+  const meta = getSeoMeta(page, activeRequest);
   const canonicalUrl = getCanonicalUrl(meta.path);
   const socialDescription = meta.socialDescription ?? meta.description;
 
@@ -3748,111 +2726,24 @@ function updateDocumentSeo(page: Page, bounties: BountyListing[], activeBounty?:
   setMetaTag("property", "og:image", meta.image);
   setMetaTag("property", "og:image:secure_url", meta.image);
   setMetaTag("property", "og:image:type", "image/png");
-  setMetaTag("property", "og:image:width", "1200");
-  setMetaTag("property", "og:image:height", "675");
-  setMetaTag("property", "og:image:alt", "A public request asking for help finding a vintage T-shirt from photos and source clues.");
+  setMetaTag("property", "og:image:width", defaultSeoImageWidth);
+  setMetaTag("property", "og:image:height", defaultSeoImageHeight);
+  setMetaTag("property", "og:image:alt", defaultSeoImageAlt);
   setMetaTag("name", "twitter:card", "summary_large_image");
   setMetaTag("name", "twitter:title", meta.title);
   setMetaTag("name", "twitter:description", socialDescription);
   setMetaTag("name", "twitter:image", meta.image);
-  setMetaTag("name", "twitter:image:alt", "A public request asking for help finding a vintage T-shirt from photos and source clues.");
+  setMetaTag("name", "twitter:image:alt", defaultSeoImageAlt);
   setCanonicalLink(canonicalUrl);
-  setStructuredData(createStructuredData(page, meta, bounties, activeBounty));
+  setStructuredData(createStructuredData(page, meta, requests, activeRequest));
 }
 
 function getCategoryLabel(category: RequestCategory) {
   return requestCategories.find((item) => item.value === category)?.label ?? "General";
 }
 
-function readStoredCheckoutSnapshot(): CheckoutSnapshot | null {
-  const raw = window.sessionStorage.getItem(checkoutSnapshotStorageKey);
-
-  if (!raw) {
-    return null;
-  }
-
-  try {
-    const parsed = JSON.parse(raw) as Partial<CheckoutSnapshot>;
-
-    if (
-      typeof parsed.itemName === "string" &&
-      (typeof parsed.provider === "string" || parsed.provider === undefined) &&
-      typeof parsed.reward === "number" &&
-      typeof parsed.platformFee === "number" &&
-      typeof parsed.protection === "number" &&
-      typeof parsed.platformShare === "number" &&
-      typeof parsed.total === "number" &&
-      typeof parsed.email === "string"
-    ) {
-      return {
-        ...(typeof parsed.requestId === "string" ? { requestId: parsed.requestId } : {}),
-        itemName: parsed.itemName,
-        provider: parsed.provider ?? "hosted checkout",
-        ...(typeof parsed.category === "string" ? { category: parsed.category } : {}),
-        reward: parsed.reward,
-        platformFee: parsed.platformFee,
-        protection: parsed.protection,
-        platformShare: parsed.platformShare,
-        total: parsed.total,
-        email: parsed.email,
-        ...(typeof parsed.durationDays === "number" && Number.isFinite(parsed.durationDays) ? { durationDays: parsed.durationDays } : {}),
-        ...(typeof parsed.createdAt === "string" ? { createdAt: parsed.createdAt } : {}),
-      };
-    }
-  } catch {
-    // Ignore corrupted session data and fall back to a clean state.
-  }
-
-  return null;
-}
-
-function formatConfirmationCode(requestId?: string) {
-  if (!requestId) {
-    return "PFM-CONFIRMED";
-  }
-
-  return `PFM-${requestId.replace(/-/g, "").slice(0, 8).toUpperCase()}`;
-}
-
-function formatConfirmationDate(value?: string) {
-  if (!value) {
-    return "Today";
-  }
-
-  const date = new Date(value);
-
-  if (Number.isNaN(date.getTime())) {
-    return "Today";
-  }
-
-  return new Intl.DateTimeFormat(undefined, {
-    month: "short",
-    day: "numeric",
-    year: "numeric",
-  }).format(date);
-}
-
-function getCheckoutErrorMessage(error: unknown) {
-  if (error instanceof Error && error.name === "AbortError") {
-    return "Checkout took too long to start. Check your connection and try again.";
-  }
-
-  if (error instanceof Error) {
-    const message = error.message || "Could not start secure checkout.";
-
-    if (message.toLowerCase().includes("auth session missing")) {
-      return "Sign in again, then return to checkout.";
-    }
-
-    return message;
-  }
-
-  return "Could not start secure checkout. Try again in a moment.";
-}
-
 function App() {
   const [route, setRoute] = useState<Page>(() => getInitialRoute());
-  const [checkoutReturnStatus, setCheckoutReturnStatus] = useState<CheckoutReturnStatus>(() => parseCheckoutReturnStatus());
   const [menuOpen, setMenuOpen] = useState(false);
   const [signedIn, setSignedIn] = useState(() => window.sessionStorage.getItem(signedInStorageKey) === "true");
   const [pendingRoute, setPendingRoute] = useState<Page>(() => readStoredPendingRoute());
@@ -3864,18 +2755,17 @@ function App() {
   const [postReferenceImageDrafts, setPostReferenceImageDrafts] = useState<PostReferenceImageDraft[]>(() => readStoredPostReferenceImageDrafts());
   const [postReferenceImagePersistenceError, setPostReferenceImagePersistenceError] = useState("");
   const [publishedRequest, setPublishedRequest] = useState<PublishedRequestSnapshot | null>(() => readStoredPublishedRequest());
-  const [activeBountyId, setActiveBountyId] = useState(() => getBountyIdFromCurrentRoute() || bountyListings[0].id);
+  const [activeRequestId, setActiveRequestId] = useState(() => getRequestIdFromCurrentRoute() || exampleRequestListings[0].id);
   const visibleRoute = !signedIn && protectedPages.has(route) ? "auth" : route;
-  const currencyPreference = useViewerCurrencyPreference(routeUsesCurrency(visibleRoute));
   const {
-    listings: liveBounties,
+    listings: liveRequests,
     loading: publicRequestsLoading,
     error: publicRequestsError,
     requestNotFound: publicRequestNotFound,
     resolvedRequestId: resolvedPublicRequestId,
-  } = usePublicRequestListings(routeUsesPublicRequestFeed(visibleRoute), visibleRoute === "bounty-detail" ? activeBountyId : "");
-  const marketplaceBounties = useMemo(() => mergeBounties(liveBounties, bountyListings), [liveBounties]);
-  const marketplaceIsExamples = liveBounties.length === 0;
+  } = usePublicRequestListings(routeUsesPublicRequestFeed(visibleRoute), visibleRoute === "request-detail" ? activeRequestId : "");
+  const requestListings = useMemo(() => mergeRequestListings(liveRequests, exampleRequestListings), [liveRequests]);
+  const requestListingsAreExamples = liveRequests.length === 0;
   const acquisitionStarter = getAcquisitionStarterFromUrl();
 
   useEffect(() => {
@@ -3893,12 +2783,11 @@ function App() {
 
   useEffect(() => {
     const syncRoute = () => {
-      const routeBountyId = getBountyIdFromCurrentRoute();
-      if (routeBountyId) {
-        setActiveBountyId(routeBountyId);
+      const routeRequestId = getRequestIdFromCurrentRoute();
+      if (routeRequestId) {
+        setActiveRequestId(routeRequestId);
       }
       setRoute(parseRoute());
-      setCheckoutReturnStatus(parseCheckoutReturnStatus());
       setMenuOpen(false);
       window.scrollTo({ top: 0, behavior: "smooth" });
     };
@@ -3911,45 +2800,45 @@ function App() {
     };
   }, []);
 
-  const requestedDetailBounty = useMemo(() => {
-    if (visibleRoute !== "bounty-detail") {
+  const requestedDetailRequest = useMemo(() => {
+    if (visibleRoute !== "request-detail") {
       return null;
     }
 
-    if (isUuid(activeBountyId)) {
-      return liveBounties.find((bounty) => bounty.id === activeBountyId) ?? null;
+    if (isUuid(activeRequestId)) {
+      return liveRequests.find((request) => request.id === activeRequestId) ?? null;
     }
 
-    return bountyListings.find((bounty) => bounty.id === activeBountyId) ?? null;
-  }, [activeBountyId, liveBounties, visibleRoute]);
-  const activeBounty = useMemo(
-    () => requestedDetailBounty ?? marketplaceBounties.find((bounty) => bounty.id === activeBountyId) ?? marketplaceBounties[0] ?? bountyListings[0],
-    [activeBountyId, marketplaceBounties, requestedDetailBounty],
+    return exampleRequestListings.find((request) => request.id === activeRequestId) ?? null;
+  }, [activeRequestId, liveRequests, visibleRoute]);
+  const activeRequest = useMemo(
+    () => requestedDetailRequest ?? requestListings.find((request) => request.id === activeRequestId) ?? requestListings[0] ?? exampleRequestListings[0],
+    [activeRequestId, requestListings, requestedDetailRequest],
   );
   const exactRequestLoading =
-    visibleRoute === "bounty-detail" &&
-    isUuid(activeBountyId) &&
-    (publicRequestsLoading || resolvedPublicRequestId !== activeBountyId);
+    visibleRoute === "request-detail" &&
+    isUuid(activeRequestId) &&
+    (publicRequestsLoading || resolvedPublicRequestId !== activeRequestId);
   const exactRequestUnavailable =
-    visibleRoute === "bounty-detail" &&
-    isUuid(activeBountyId) &&
+    visibleRoute === "request-detail" &&
+    isUuid(activeRequestId) &&
     !exactRequestLoading &&
-    resolvedPublicRequestId === activeBountyId &&
+    resolvedPublicRequestId === activeRequestId &&
     Boolean(publicRequestsError);
-  const requestedBountyMissing =
-    visibleRoute === "bounty-detail" &&
-    ((isUuid(activeBountyId) && !exactRequestLoading && !publicRequestsError && publicRequestNotFound) ||
-      (!isUuid(activeBountyId) && !requestedDetailBounty));
+  const requestedRequestMissing =
+    visibleRoute === "request-detail" &&
+    ((isUuid(activeRequestId) && !exactRequestLoading && !publicRequestsError && publicRequestNotFound) ||
+      (!isUuid(activeRequestId) && !requestedDetailRequest));
 
   useEffect(() => {
-    updateDocumentSeo(visibleRoute, marketplaceBounties, visibleRoute === "bounty-detail" ? requestedDetailBounty ?? undefined : activeBounty);
-  }, [activeBounty, marketplaceBounties, requestedDetailBounty, visibleRoute]);
+    updateDocumentSeo(visibleRoute, requestListings, visibleRoute === "request-detail" ? requestedDetailRequest ?? undefined : activeRequest);
+  }, [activeRequest, requestListings, requestedDetailRequest, visibleRoute]);
 
   useEffect(() => {
     trackPageView({
       route: visibleRoute,
-      bounty_id: visibleRoute === "bounty-detail" ? activeBountyId : undefined,
-      category: visibleRoute === "bounty-detail" ? requestedDetailBounty?.category : undefined,
+      request_id: visibleRoute === "request-detail" ? activeRequestId : undefined,
+      category: visibleRoute === "request-detail" ? requestedDetailRequest?.category : undefined,
       signed_in: signedIn,
     });
 
@@ -3958,10 +2847,10 @@ function App() {
         signed_in: signedIn,
       });
     }
-  }, [activeBountyId, requestedDetailBounty?.category, signedIn, visibleRoute]);
+  }, [activeRequestId, requestedDetailRequest?.category, signedIn, visibleRoute]);
 
   useEffect(() => {
-    if (visibleRoute !== "bounty-detail") {
+    if (visibleRoute !== "request-detail") {
       return;
     }
 
@@ -3970,18 +2859,18 @@ function App() {
       return;
     }
 
-    const eventKey = `pleasefindmethis-shared-landing-${activeBountyId}`;
+    const eventKey = `pleasefindmethis-shared-landing-${activeRequestId}`;
     if (window.sessionStorage.getItem(eventKey)) {
       return;
     }
 
     window.sessionStorage.setItem(eventKey, "true");
     trackAcquisitionEvent("shared_request_landed", {
-      bounty_id: activeBountyId,
-      category: requestedDetailBounty?.category,
+      request_id: activeRequestId,
+      category: requestedDetailRequest?.category,
       share_channel: params.get("share_channel") ?? undefined,
     });
-  }, [activeBountyId, requestedDetailBounty?.category, visibleRoute]);
+  }, [activeRequestId, requestedDetailRequest?.category, visibleRoute]);
 
   useEffect(() => {
     const starter = getAcquisitionStarterFromUrl();
@@ -3999,20 +2888,18 @@ function App() {
     });
   }, []);
 
-  const navigate = (page: Page, routeBountyId = activeBountyId, routeBountyName = "") => {
-    const targetPath = routeHref(page, routeBountyId, routeBountyName);
+  const navigate = (page: Page, routeRequestId = activeRequestId, routeRequestName = "") => {
+    const targetPath = routeHref(page, routeRequestId, routeRequestName);
 
     setMenuOpen(false);
     if (window.location.pathname === targetPath && !window.location.search && !window.location.hash) {
       setRoute(page);
-      setCheckoutReturnStatus(null);
       window.scrollTo({ top: 0, behavior: "smooth" });
       return;
     }
 
     window.history.pushState(null, "", targetPath);
     setRoute(page);
-    setCheckoutReturnStatus(null);
     window.scrollTo({ top: 0, behavior: "smooth" });
   };
 
@@ -4029,10 +2916,10 @@ function App() {
     navigate("auth");
   };
 
-  const goToDetail = (bountyId: string) => {
-    const targetBounty = marketplaceBounties.find((bounty) => bounty.id === bountyId);
-    setActiveBountyId(bountyId);
-    navigate("bounty-detail", bountyId, targetBounty?.name ?? "");
+  const goToDetail = (requestId: string) => {
+    const targetRequest = requestListings.find((request) => request.id === requestId);
+    setActiveRequestId(requestId);
+    navigate("request-detail", requestId, targetRequest?.name ?? "");
   };
 
   const markSignedIn = (provider = "email", email?: string) => {
@@ -4058,7 +2945,7 @@ function App() {
     setAuthMessage("");
   };
 
-  const requestEmailAuthCode = async (email: string, accountType: AuthAccountType) => {
+  const requestEmailAuthCode = async (email: string) => {
     const normalizedEmail = email.trim().toLowerCase();
 
     setAuthMessage("");
@@ -4069,7 +2956,6 @@ function App() {
     }
 
     trackAcquisitionEvent(authMode === "signup" ? "signup_code_requested" : "login_code_requested", {
-      account_type: accountType,
       pending_route: pendingRoute,
     });
     window.sessionStorage.setItem(pendingRouteStorageKey, pendingRoute);
@@ -4082,7 +2968,6 @@ function App() {
           options: {
             shouldCreateUser: authMode === "signup",
             emailRedirectTo: getOAuthRedirectUrl(),
-            ...(authMode === "signup" ? { data: { account_type: accountType } } : {}),
           },
         });
 
@@ -4186,7 +3071,6 @@ function App() {
     if (shouldReturnHome) {
       window.history.replaceState(null, "", routeHref("landing"));
       setRoute("landing");
-      setCheckoutReturnStatus(null);
       window.scrollTo({ top: 0, behavior: "smooth" });
     }
 
@@ -4261,7 +3145,6 @@ function App() {
           itemName: selectedPrompt.itemName,
           category: selectedPrompt.category,
           details: selectedPrompt.details,
-          reward: selectedPrompt.reward,
           durationDays: selectedPrompt.durationDays,
         };
 
@@ -4280,7 +3163,7 @@ function App() {
     });
     if (location === "shared_request_cta") {
       trackAcquisitionEvent("referred_request_started", {
-        referral_request_id: activeBountyId,
+        referral_request_id: activeRequestId,
       });
     }
     navigate("post-describe");
@@ -4304,19 +3187,11 @@ function App() {
     }
 
     if (signedIn) {
-      navigate("post-pay");
+      navigate("post-publish");
       return;
     }
 
-    requireAuth("post-pay");
-  };
-
-  const continueFromReward = () => {
-    trackAcquisitionEvent("choose_request_window", {
-      category: getCategoryLabel(postDraft.category),
-      duration_days: postDraft.durationDays,
-    });
-    navigate("post-pay");
+    requireAuth("post-publish");
   };
 
   useEffect(() => {
@@ -4328,7 +3203,6 @@ function App() {
         window.history.replaceState(null, "", routeHref("auth"));
       }
       setRoute("auth");
-      setCheckoutReturnStatus(null);
     }
   }, [route, signedIn]);
 
@@ -4396,14 +3270,13 @@ function App() {
   };
 
   return (
-    <CurrencyContext.Provider value={currencyPreference}>
+    <>
       {visibleRoute === "landing" ? (
         <LandingPage
           menuOpen={menuOpen}
-          bounties={marketplaceBounties}
+          requests={requestListings}
           onBrowse={() => navigate("browse")}
           onBrowseAll={() => navigate("browse-all")}
-          onDetail={goToDetail}
           onLogin={() => {
             setPendingRoute("poster-dashboard");
             changeAuthMode("login");
@@ -4415,7 +3288,7 @@ function App() {
           onPost={(location) => startPostRequest(location)}
           acquisitionStarterPrompt={acquisitionStarter?.prompt ?? null}
           setMenuOpen={setMenuOpen}
-          showingExamples={marketplaceIsExamples}
+          showingExamples={requestListingsAreExamples}
           signedIn={signedIn}
         />
       ) : (
@@ -4447,19 +3320,15 @@ function App() {
               referenceImagePersistenceError={postReferenceImagePersistenceError}
             />
           ) : null}
-          {visibleRoute === "post-reward" ? (
-            <PostRewardPage draft={postDraft} onBack={() => navigate("post-describe")} onDraftChange={updatePostDraft} onNext={continueFromReward} />
-          ) : null}
-          {visibleRoute === "post-pay" ? (
-            <PostPayPage
-              checkoutReturnStatus={checkoutReturnStatus}
+          {visibleRoute === "post-publish" ? (
+            <PostPublishPage
               draft={postDraft}
               referenceImageFiles={postReferenceImageDrafts}
               onBack={() => navigate("post-describe")}
               onPublished={(snapshot) => {
                 setPublishedRequest(snapshot);
                 writeStoredPublishedRequest(snapshot);
-                setActiveBountyId(snapshot.requestId);
+                setActiveRequestId(snapshot.requestId);
                 setPostReferenceImageDrafts([]);
                 clearStoredPostReferenceImageDrafts();
                 clearStoredPostDraft();
@@ -4476,86 +3345,59 @@ function App() {
           ) : null}
           {visibleRoute === "browse" ? (
             <BrowsePage
-              bounties={marketplaceBounties}
+              requests={requestListings}
               dataError={publicRequestsError}
               dataLoading={publicRequestsLoading}
               onBrowseAll={() => navigate("browse-all")}
               onDetail={goToDetail}
               onPost={() => startPostRequest("browse_featured")}
-              showingExamples={marketplaceIsExamples}
+              showingExamples={requestListingsAreExamples}
             />
           ) : null}
           {visibleRoute === "browse-all" ? (
             <BrowseAllPage
-              bounties={marketplaceBounties}
+              requests={requestListings}
               dataError={publicRequestsError}
               dataLoading={publicRequestsLoading}
               onDetail={goToDetail}
               onPost={() => startPostRequest("browse_all")}
-              showingExamples={marketplaceIsExamples}
+              showingExamples={requestListingsAreExamples}
             />
           ) : null}
-          {visibleRoute === "bounty-detail" ? (
+          {visibleRoute === "request-detail" ? (
             exactRequestLoading ? (
               <RequestDetailStatusPage status="loading" onBrowse={() => navigate("browse")} />
             ) : exactRequestUnavailable ? (
               <RequestDetailStatusPage status="unavailable" onBrowse={() => navigate("browse")} />
-            ) : requestedBountyMissing ? (
+            ) : requestedRequestMissing ? (
               <NotFoundPage onBrowse={() => navigate("browse")} onHome={() => navigate("landing")} />
             ) : (
-              <BountyDetailPage
-                bounty={activeBounty}
+              <RequestDetailPage
+                request={activeRequest}
                 onBrowse={() => navigate("browse")}
                 onStartSearch={() => startPostRequest("shared_request_cta")}
-                onSubmit={() => requireAuth("submit-find")}
               />
             )
           ) : null}
-          {visibleRoute === "submit-find" ? (
-            <SubmitFindPage bounty={activeBounty} onBack={() => navigate("bounty-detail")} onDashboard={() => navigate("finder-dashboard")} />
-          ) : null}
           {visibleRoute === "poster-dashboard" ? (
             <PosterDashboardPage
-              checkoutReturnStatus={checkoutReturnStatus}
-              onDispute={() => navigate("dispute")}
               onOpenRequest={goToDetail}
-              onProfile={() => navigate("profile")}
               onShareRequest={(request) => {
                 const snapshot = requestRowToPublishedSnapshot(request);
                 setPublishedRequest(snapshot);
                 writeStoredPublishedRequest(snapshot);
-                setActiveBountyId(snapshot.requestId);
+                setActiveRequestId(snapshot.requestId);
                 navigate("share-request");
               }}
             />
           ) : null}
-          {visibleRoute === "finder-dashboard" ? (
-            <FinderDashboardPage
-              bounties={marketplaceBounties}
-              onBrowse={() => navigate("browse")}
-              onMessages={() => navigate("messages")}
-              onSettings={() => navigate("account-settings")}
-              onSubmit={(bountyId?: string) => {
-                if (bountyId) {
-                  setActiveBountyId(bountyId);
-                }
-                navigate("submit-find");
-              }}
-              onProfile={() => navigate("profile")}
-            />
-          ) : null}
-          {visibleRoute === "messages" ? <MessageCenterPage onDashboard={() => navigate("finder-dashboard")} /> : null}
-          {visibleRoute === "dispute" ? <DisputePage onBack={() => navigate("poster-dashboard")} /> : null}
-          {visibleRoute === "profile" ? <TrustProfilePage onBrowse={() => navigate("browse")} onFinder={() => requireAuth("finder-dashboard")} onSettings={() => requireAuth("account-settings", "login")} /> : null}
           {visibleRoute === "privacy" ? <PrivacyPage /> : null}
           {visibleRoute === "terms" ? <TermsPage /> : null}
-          {visibleRoute === "refunds" ? <RefundPolicyPage /> : null}
           {visibleRoute === "account-settings" ? <AccountSettingsPage /> : null}
-          {visibleRoute === "admin-review" ? <AdminReviewPage /> : null}
           {visibleRoute === "not-found" ? <NotFoundPage onBrowse={() => navigate("browse")} onHome={() => navigate("landing")} /> : null}
         </PageChrome>
       )}
-    </CurrencyContext.Provider>
+    </>
   );
 }
 
@@ -4584,7 +3426,6 @@ function PageChrome({
     ["Open requests", "browse", false],
     ...(signedIn ? ([
       ["Dashboard", "poster-dashboard", true],
-      ["Messages", "messages", true],
     ] as Array<[string, Page, boolean]>) : []),
   ];
   const handleNavItem = (page: Page, gated: boolean) => {
@@ -4699,22 +3540,15 @@ function PageChrome({
         ) : null}
       </header>
       {children}
-      <SiteFooter navigate={navigate} requireAuth={requireAuth} />
+      <SiteFooter navigate={navigate} />
     </div>
   );
 }
 
-function SiteFooter({
-  navigate,
-  requireAuth,
-}: {
-  navigate: (page: Page) => void;
-  requireAuth?: (page: Page, mode?: AuthMode) => void;
-}) {
+function SiteFooter({ navigate }: { navigate: (page: Page) => void }) {
   const publicLinks: Array<[string, Page]> = [
     ["Terms", "terms"],
     ["Privacy", "privacy"],
-    ["Refunds", "refunds"],
   ];
 
   return (
@@ -4729,6 +3563,7 @@ function SiteFooter({
             {label}
           </a>
         ))}
+        <a href="mailto:support@pleasefindmethis.com">Support</a>
       </nav>
     </footer>
   );
@@ -4736,12 +3571,11 @@ function SiteFooter({
 
 function LandingPage({
   acquisitionStarterPrompt,
-  bounties,
+  requests,
   menuOpen,
   onAccount,
   onBrowse,
   onBrowseAll,
-  onDetail,
   onLogin,
   onLogOut,
   onNavigate,
@@ -4751,12 +3585,11 @@ function LandingPage({
   signedIn,
 }: {
   acquisitionStarterPrompt: PostStarterPrompt | null;
-  bounties: BountyListing[];
+  requests: RequestListing[];
   menuOpen: boolean;
   onAccount: () => void;
   onBrowse: () => void;
   onBrowseAll: () => void;
-  onDetail: (bountyId: string) => void;
   onLogin: () => void;
   onLogOut: () => void;
   onNavigate: (page: Page) => void;
@@ -4765,97 +3598,74 @@ function LandingPage({
   showingExamples: boolean;
   signedIn: boolean;
 }) {
-  const [heroSearch, setHeroSearch] = useState("");
-  const [heroPlaceholder, setHeroPlaceholder] = useState(heroPlaceholderExamples[0]);
-  const displayedBounties = useMemo(() => (bounties.length ? bounties : bountyListings), [bounties]);
-  const railBounties = useMemo(() => {
-    const doubled = [...displayedBounties, ...displayedBounties];
+  const [heroHeadline, setHeroHeadline] = useState(heroHeadlineExamples[0]);
+  const displayedRequests = useMemo(() => (requests.length ? requests : exampleRequestListings), [requests]);
+  const railRequests = useMemo(() => {
+    const doubled = [...displayedRequests, ...displayedRequests];
     return doubled.slice(0, Math.min(8, doubled.length));
-  }, [displayedBounties]);
-  const tickerBounties = useMemo(() => [...railBounties, ...railBounties], [railBounties]);
+  }, [displayedRequests]);
+  const tickerRequests = useMemo(() => [...railRequests, ...railRequests], [railRequests]);
 
   useEffect(() => {
     const reduceMotionQuery = window.matchMedia("(prefers-reduced-motion: reduce)");
 
     if (reduceMotionQuery.matches) {
-      setHeroPlaceholder(heroPlaceholderExamples[0]);
+      setHeroHeadline(heroHeadlineExamples[0]);
       return undefined;
     }
 
     let phraseIndex = 0;
-    let characterIndex = 0;
-    let deleting = false;
+    let characterIndex = heroHeadlineExamples[0].length;
+    let deleting = true;
     let timeoutId = 0;
 
     const tick = () => {
-      const currentPhrase = heroPlaceholderExamples[phraseIndex];
+      const currentPhrase = heroHeadlineExamples[phraseIndex];
       characterIndex = deleting
         ? Math.max(0, characterIndex - 1)
         : Math.min(currentPhrase.length, characterIndex + 1);
-      setHeroPlaceholder(currentPhrase.slice(0, characterIndex));
+      setHeroHeadline(currentPhrase.slice(0, characterIndex));
 
       if (!deleting && characterIndex === currentPhrase.length) {
         deleting = true;
-        timeoutId = window.setTimeout(tick, 3600);
+        timeoutId = window.setTimeout(tick, 12000);
         return;
       }
 
       if (deleting && characterIndex === 0) {
         deleting = false;
-        phraseIndex = (phraseIndex + 1) % heroPlaceholderExamples.length;
-        timeoutId = window.setTimeout(tick, 420);
+        phraseIndex = (phraseIndex + 1) % heroHeadlineExamples.length;
+        timeoutId = window.setTimeout(tick, 120);
         return;
       }
 
-      timeoutId = window.setTimeout(tick, deleting ? 34 : 72);
+      timeoutId = window.setTimeout(tick, deleting ? 18 : 34);
     };
 
-    setHeroPlaceholder("");
-    timeoutId = window.setTimeout(tick, 240);
+    timeoutId = window.setTimeout(tick, 12000);
     return () => window.clearTimeout(timeoutId);
   }, []);
 
-  const submitHeroSearch = (event: React.FormEvent<HTMLFormElement>) => {
-    event.preventDefault();
-    const normalizedQuery = heroSearch.trim().toLowerCase();
-
-    if (!normalizedQuery) {
-      onBrowse();
-      return;
-    }
-
-    const match = displayedBounties.find((bounty) =>
-      `${bounty.name} ${bounty.detail} ${bounty.category}`.toLowerCase().includes(normalizedQuery),
-    );
-
-    if (match) {
-      onDetail(match.id);
-      return;
-    }
-
-    onBrowse();
-  };
-
   return (
     <main id="top" className="landing-page">
-      {tickerBounties.length ? (
+      {tickerRequests.length ? (
         <>
           <aside className="mobile-find-ticker mobile-find-ticker-top" aria-hidden="true">
             <div className="mobile-find-ticker-track mobile-find-ticker-track-left">
-              {tickerBounties.map((bounty, index) => (
-                <article className="mobile-find-ticker-card" key={`mobile-rail-top-${bounty.id}-${index}`}>
-                  <img src={bounty.image} alt="" />
-                  <span><strong>{bounty.name}</strong><small>{showingExamples ? "Example request" : bounty.location}</small></span>
+              {tickerRequests.map((request, index) => (
+                <article className="mobile-find-ticker-card" key={`mobile-rail-top-${request.id}-${index}`}>
+                  <img src={request.image} alt="" />
+                  <span><strong>{request.name}</strong><small>{showingExamples ? "Example request" : request.location}</small></span>
                 </article>
               ))}
             </div>
           </aside>
           <aside className="mobile-find-ticker mobile-find-ticker-bottom" aria-hidden="true">
             <div className="mobile-find-ticker-track mobile-find-ticker-track-right">
-              {tickerBounties.map((bounty, index) => (
-                <article className="mobile-find-ticker-card" key={`mobile-rail-bottom-${bounty.id}-${index}`}>
-                  <img src={bounty.image} alt="" />
-                  <span><strong>{bounty.name}</strong><small>{showingExamples ? "Example request" : `${bounty.submissions} clues`}</small></span>
+              {tickerRequests.map((request, index) => (
+                <article className="mobile-find-ticker-card" key={`mobile-rail-bottom-${request.id}-${index}`}>
+                  <img src={request.image} alt="" />
+                  <span><strong>{request.name}</strong><small>{showingExamples ? "Example request" : `${request.submissions} clues`}</small></span>
                 </article>
               ))}
             </div>
@@ -4864,26 +3674,26 @@ function LandingPage({
       ) : null}
 
       <section className="hero-section">
-        {railBounties.length ? (
+        {railRequests.length ? (
           <>
             <aside className="side-find-rail" aria-hidden="true">
               <div className="side-find-track side-find-track-down">
-                {railBounties.map((bounty, index) => (
-                  <article className="side-find-card" key={`landing-rail-top-${bounty.id}-${index}`}>
-                    <strong>{bounty.name}</strong>
-                    <p>{showingExamples ? "Example request" : bounty.location}</p>
-                    <img className="side-find-image" src={bounty.image} alt="" />
+                {railRequests.map((request, index) => (
+                  <article className="side-find-card" key={`landing-rail-top-${request.id}-${index}`}>
+                    <strong>{request.name}</strong>
+                    <p>{showingExamples ? "Example request" : request.location}</p>
+                    <img className="side-find-image" src={request.image} alt="" />
                   </article>
                 ))}
               </div>
             </aside>
             <aside className="side-find-rail side-find-rail-right side-find-rail-bottom" aria-hidden="true">
               <div className="side-find-track side-find-track-up">
-                {railBounties.map((bounty, index) => (
-                  <article className="side-find-card" key={`landing-rail-bottom-${bounty.id}-${index}`}>
-                    <strong>{bounty.name}</strong>
-                    <p>{showingExamples ? "Example request" : bounty.category}</p>
-                    <img className="side-find-image" src={bounty.image} alt="" />
+                {railRequests.map((request, index) => (
+                  <article className="side-find-card" key={`landing-rail-bottom-${request.id}-${index}`}>
+                    <strong>{request.name}</strong>
+                    <p>{showingExamples ? "Example request" : request.category}</p>
+                    <img className="side-find-image" src={request.image} alt="" />
                   </article>
                 ))}
               </div>
@@ -4969,13 +3779,12 @@ function LandingPage({
 
         <div className="hero-copy">
           <p className="hero-site-tag">{siteName}</p>
-          <h1>Where can I buy this exact item now?</h1>
-          <p className="mobile-hero-title" aria-hidden="true">Where can I buy this exact item now?</p>
-          <form className="hero-search-form" onSubmit={submitHeroSearch}>
-            <Search size={20} aria-hidden="true" />
-            <input value={heroSearch} aria-label="Search requests" onChange={(event) => setHeroSearch(event.target.value)} placeholder={heroPlaceholder} />
-            <button type="submit">Search requests</button>
-          </form>
+          <h1 aria-label="Help me find this.">
+            <span className="hero-headline-text" aria-hidden="true">
+              {heroHeadline}
+              <span className="hero-headline-caret" />
+            </span>
+          </h1>
           <div className="mobile-hero-actions" aria-label="Hero actions">
             <button className="primary-button mobile-post-button hero-plus-button" type="button" onClick={() => onPost("hero_mobile")}>
               <span aria-hidden="true">+</span> Post a request
@@ -4988,7 +3797,6 @@ function LandingPage({
 
         <div className="hero-lower">
           <p className="hero-subline">Add photos. Share the request. Collect clues.</p>
-          <button className="primary-button hero-cta" type="button" onClick={() => onPost("hero_primary")}>Post a request</button>
           {acquisitionStarterPrompt ? (
             <div className="starter-link-panel">
               <span><strong>{acquisitionStarterPrompt.label}</strong>{acquisitionStarterPrompt.title}</span>
@@ -5022,7 +3830,7 @@ function AuthPage({
   authMessage: string;
   emailOtpSentTo: string;
   mode: AuthMode;
-  onEmailAuthCodeRequest: (email: string, accountType: AuthAccountType) => void;
+  onEmailAuthCodeRequest: (email: string) => void;
   onEmailAuthCodeVerify: (code: string) => void;
   onEmailAuthReset: () => void;
   onGoogleAuth: () => void;
@@ -5031,7 +3839,6 @@ function AuthPage({
 }) {
   const [email, setEmail] = useState("");
   const [verificationCode, setVerificationCode] = useState("");
-  const accountType: AuthAccountType = "both";
   const authBusy = authBusyAction !== null;
   const emailBusy = authBusyAction === "email";
   const googleBusy = authBusyAction === "google";
@@ -5049,7 +3856,7 @@ function AuthPage({
       return;
     }
 
-    onEmailAuthCodeRequest(email, accountType);
+    onEmailAuthCodeRequest(email);
   };
 
   return (
@@ -5131,7 +3938,7 @@ function AuthPage({
           </form>
           {codeSent ? (
             <div className="auth-secondary-actions">
-              <button className="auth-inline-button" type="button" disabled={authBusy} onClick={() => onEmailAuthCodeRequest(emailOtpSentTo, accountType)}>
+              <button className="auth-inline-button" type="button" disabled={authBusy} onClick={() => onEmailAuthCodeRequest(emailOtpSentTo)}>
                 Resend code
               </button>
               <button className="auth-inline-button" type="button" disabled={authBusy} onClick={onEmailAuthReset}>
@@ -5167,9 +3974,7 @@ function PostDescribePage({
   const [photoPreparationError, setPhotoPreparationError] = useState("");
   const [photosPreparing, setPhotosPreparing] = useState(false);
   const maxReferenceImageFiles = maxPersistedReferenceImages;
-  const briefFields = useMemo(() => getRequestBriefFields(draft.details), [draft.details]);
-  const previewMustHaves = getMustHaves(draft.details).slice(0, 3);
-  const canContinue = !photosPreparing && !referenceImagePersistenceError && draft.itemName.trim().length >= 3 && briefFields.mustMatch.trim().length >= 3;
+  const canContinue = !photosPreparing && !referenceImagePersistenceError && draft.itemName.trim().length >= 3;
 
   const continueWithDetails = (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -5212,15 +4017,6 @@ function PostDescribePage({
 
   const removeReferenceImage = (index: number) => {
     onReferenceImageFilesChange((previous) => previous.filter((_, currentIndex) => currentIndex !== index));
-  };
-
-  const updateBriefField = (key: RequestBriefFieldKey, value: string) => {
-    onDraftChange({
-      details: formatRequestBriefDetails({
-        ...briefFields,
-        [key]: value,
-      }),
-    });
   };
 
   const saveDraft = () => {
@@ -5291,31 +4087,6 @@ function PostDescribePage({
             ) : null}
           </div>
 
-          <div className="post-question-card legacy-request-details">
-            <span className="post-question-label"><FileText size={18} /> Details that help people recognize it</span>
-            <div className="legacy-request-field-grid">
-              <label>
-                Category
-                <select value={draft.category} onChange={(event) => onDraftChange({ category: event.target.value as RequestCategory })}>
-                  {requestCategories.map((category) => <option key={category.value} value={category.value}>{category.label}</option>)}
-                </select>
-              </label>
-              <label>
-                What must match?
-                <textarea value={briefFields.mustMatch} rows={3} placeholder="Pattern, brand, size, label, model number…" onChange={(event) => updateBriefField("mustMatch", event.target.value)} />
-                <small>Required. List the non-negotiable details.</small>
-              </label>
-              <label>
-                Where have you already looked?
-                <textarea value={briefFields.alreadyTried} rows={3} placeholder="Google Lens, eBay, local shops…" onChange={(event) => updateBriefField("alreadyTried", event.target.value)} />
-              </label>
-              <label>
-                Budget, region, or condition limits
-                <textarea value={briefFields.buyingLimits} rows={3} placeholder="Ships to India, under $150, used is fine…" onChange={(event) => updateBriefField("buyingLimits", event.target.value)} />
-              </label>
-            </div>
-          </div>
-
           <div className="legacy-composer-actions">
             <p><LockKeyhole size={15} /> Your draft stays private until you publish.</p>
             <button className="primary-button" type="submit" disabled={!canContinue}>Continue to publish <ArrowRight size={17} /></button>
@@ -5328,69 +4099,12 @@ function PostDescribePage({
   );
 }
 
-function PostRewardPage({
-  draft,
-  onBack,
-  onDraftChange,
-  onNext,
-}: {
-  draft: PostDraft;
-  onBack: () => void;
-  onDraftChange: (updates: Partial<PostDraft>) => void;
-  onNext: () => void;
-}) {
-  return (
-    <main className="route-page post-wizard-page" aria-labelledby="duration-title">
-      <section className="two-column-page">
-        <div className="form-panel reward-form-panel post-flow-panel">
-          <button className="back-button" type="button" onClick={onBack}>
-            <ArrowLeft size={17} /> Describe
-          </button>
-          <div className="post-flow-intro">
-            <h1 id="duration-title">Pick how long it stays open.</h1>
-            <p>Your request stays public and searchable.</p>
-          </div>
-          <div className="post-question-card">
-            <span className="post-question-label">
-              <CalendarDays size={15} /> Request days
-            </span>
-            <h2>How long should the request stay open?</h2>
-            <div className="radio-grid" role="group" aria-label="Request duration">
-              <label className={draft.durationDays === 7 ? "duration-card selected-duration" : "duration-card"}>
-                <input type="radio" name="duration" checked={draft.durationDays === 7} onChange={() => onDraftChange({ durationDays: 7 })} />
-                <span className="duration-text">7 days</span>
-              </label>
-              <label className={draft.durationDays === 30 ? "duration-card selected-duration" : "duration-card"}>
-                <input type="radio" name="duration" checked={draft.durationDays === 30} onChange={() => onDraftChange({ durationDays: 30 })} />
-                <span className="duration-text">30 days</span>
-              </label>
-              <label className={draft.durationDays === 14 ? "duration-card selected-duration" : "duration-card"}>
-                <input type="radio" name="duration" checked={draft.durationDays === 14} onChange={() => onDraftChange({ durationDays: 14 })} />
-                <span className="duration-text">14 days</span>
-              </label>
-              <label className={draft.durationDays === 60 ? "duration-card selected-duration" : "duration-card"}>
-                <input type="radio" name="duration" checked={draft.durationDays === 60} onChange={() => onDraftChange({ durationDays: 60 })} />
-                <span className="duration-text">60 days</span>
-              </label>
-            </div>
-          </div>
-          <button className="primary-button" type="button" onClick={onNext}>
-            Next: Publish request <ArrowRight size={18} />
-          </button>
-        </div>
-      </section>
-    </main>
-  );
-}
-
-function PostPayPage({
-  checkoutReturnStatus,
+function PostPublishPage({
   draft,
   onBack,
   onPublished,
   referenceImageFiles,
 }: {
-  checkoutReturnStatus: CheckoutReturnStatus;
   draft: PostDraft;
   onBack: () => void;
   onPublished: (snapshot: PublishedRequestSnapshot) => void;
@@ -5438,6 +4152,13 @@ function PostPayPage({
     const uploadedPaths: string[] = [];
 
     try {
+      const readinessResponse = await fetch("/api/health", { headers: { Accept: "application/json" } });
+      const readinessPayload = await readinessResponse.json().catch(() => ({})) as { free_request_board_ready?: boolean };
+
+      if (!readinessResponse.ok || readinessPayload.free_request_board_ready !== true) {
+        throw new Error("Publishing is temporarily paused while the free request board is being updated. Your draft is still saved.");
+      }
+
       const requestId = crypto.randomUUID();
       const {
         data: { user },
@@ -5465,19 +4186,7 @@ function PostPayPage({
         item_name: itemName,
         category: categoryName,
         details: detailsText.slice(0, 5000),
-        currency: "USD",
-        reward: 0,
-        service_fee: 0,
-        protection_reserve: 0,
-        total_due: 0,
-        finder_payout: 0,
         duration_days: draft.durationDays,
-        status: "open",
-        payment_status: "free",
-        payout_status: "not_ready",
-        platform_fee_status: "unearned",
-        customer_email: user.email ?? null,
-        customer_name: null,
         reference_images: uploadResult.referenceImages,
       });
 
@@ -5534,17 +4243,17 @@ function PostPayPage({
   };
 
   return (
-    <main className="route-page post-wizard-page" aria-labelledby="pay-title">
-      <section className="two-column-page pay-layout">
-        <div className="form-panel payment-form-panel">
+    <main className="route-page post-wizard-page" aria-labelledby="publish-title">
+      <section className="two-column-page publish-layout">
+        <div className="form-panel publish-form-panel">
           <button className="back-button" type="button" onClick={onBack}>
             <ArrowLeft size={17} /> Details
           </button>
-          <h1 id="pay-title">Publish the request.</h1>
+          <h1 id="publish-title">Publish the request.</h1>
           <p>
-            No checkout needed. Your request is live and ready for source links.
+            Publishing is free. Your request becomes a public page where people can leave links and clues.
           </p>
-          <div className="payment-assurance-grid" aria-label="Publishing details">
+          <div className="publish-assurance-grid" aria-label="Publishing details">
             <span>
               <CheckCircle2 size={17} /> Free to post
             </span>
@@ -5552,21 +4261,21 @@ function PostPayPage({
               <Search size={17} /> Public request page
             </span>
             <span>
-              <ShieldCheck size={17} /> Ready for source leads
+              <ShieldCheck size={17} /> Public links and clues
             </span>
           </div>
-          <div className="checkout-note">
+          <div className="publish-note">
             <ExternalLink size={19} aria-hidden="true" />
             <span>
               <strong>Free request board</strong>
-              Your request page is live and open for source leads.
+              The board does not collect money, pay contributors, or arrange purchases.
             </span>
           </div>
           <button className="primary-button" type="button" disabled={publishStatus === "loading" || publishStatus === "success"} onClick={publishRequest}>
             <Send size={18} /> {publishStatus === "loading" ? "Publishing request..." : publishStatus === "error" ? "Try publishing again" : publishStatus === "success" ? "Published" : "Publish free request"}
           </button>
           {publishMessage ? (
-            <div className={publishStatus === "error" ? "dialog-error checkout-status-message" : publishStatus === "success" ? "dialog-success checkout-status-message" : "dialog-note checkout-status-message"} role="status">
+            <div className={publishStatus === "error" ? "dialog-error publish-status-message" : publishStatus === "success" ? "dialog-success publish-status-message" : "dialog-note publish-status-message"} role="status">
               <span>{publishMessage}</span>
               {publishStatus === "error" ? (
                 <button className="retry-button" type="button" onClick={publishRequest}>
@@ -5626,7 +4335,7 @@ function ShareRequestPage({
     }
 
     trackAcquisitionEvent("share_prompt_viewed", {
-      bounty_id: publishedRequest.requestId,
+      request_id: publishedRequest.requestId,
       category: publishedRequest.category,
     });
   }, [publishedRequest]);
@@ -5641,7 +4350,7 @@ function ShareRequestPage({
     );
   }
 
-  const requestPath = getBountyPath(publishedRequest.requestId, publishedRequest.itemName);
+  const requestPath = getRequestPath(publishedRequest.requestId, publishedRequest.itemName);
   const requestUrl = new URL(requestPath, window.location.origin);
   requestUrl.searchParams.set("utm_source", "product_share");
   requestUrl.searchParams.set("utm_medium", "referral");
@@ -5670,7 +4379,7 @@ function ShareRequestPage({
       return next;
     });
     trackAcquisitionEvent("request_share_started", {
-      bounty_id: publishedRequest.requestId,
+      request_id: publishedRequest.requestId,
       category: publishedRequest.category,
       share_channel: channel,
     });
@@ -5775,7 +4484,7 @@ function ShareRequestPage({
 }
 
 function BrowsePage({
-  bounties,
+  requests,
   dataError,
   dataLoading,
   onBrowseAll,
@@ -5783,19 +4492,19 @@ function BrowsePage({
   onPost,
   showingExamples,
 }: {
-  bounties: BountyListing[];
+  requests: RequestListing[];
   dataError: string;
   dataLoading: boolean;
   onBrowseAll: () => void;
-  onDetail: (bountyId: string) => void;
+  onDetail: (requestId: string) => void;
   onPost: () => void;
   showingExamples: boolean;
 }) {
-  const openRequests = useMemo(() => [...bounties].sort((left, right) => new Date(right.createdAt ?? 0).getTime() - new Date(left.createdAt ?? 0).getTime()), [bounties]);
+  const openRequests = useMemo(() => [...requests].sort((left, right) => new Date(right.createdAt ?? 0).getTime() - new Date(left.createdAt ?? 0).getTime()), [requests]);
   const featured = openRequests.slice(0, 4);
 
   return (
-    <main className="route-page bounty-gallery-page" aria-labelledby="browse-title">
+    <main className="route-page request-gallery-page" aria-labelledby="browse-title">
       <section className="gallery-hero">
         <h1 id="browse-title">{showingExamples ? "Example searches" : "Open requests"}</h1>
         <p>{showingExamples ? "See what a useful public request looks like while the live board gets started." : "Recognize something? Leave a clue or share it with someone who might."}</p>
@@ -5811,9 +4520,9 @@ function BrowsePage({
         </div>
       </section>
 
-      <section className="top-bounty-grid" aria-label="Featured requests">
-        {featured.map((bounty, index) => (
-          <BountySquareCard bounty={bounty} featured={index === 0} key={bounty.id} onDetail={onDetail} rank={index + 1} />
+      <section className="top-request-grid" aria-label="Featured requests">
+        {featured.map((request, index) => (
+          <RequestSquareCard request={request} featured={index === 0} key={request.id} onDetail={onDetail} rank={index + 1} />
         ))}
       </section>
 
@@ -5822,57 +4531,57 @@ function BrowsePage({
 }
 
 function BrowseAllPage({
-  bounties,
+  requests,
   dataError,
   dataLoading,
   onDetail,
   onPost,
   showingExamples,
 }: {
-  bounties: BountyListing[];
+  requests: RequestListing[];
   dataError: string;
   dataLoading: boolean;
-  onDetail: (bountyId: string) => void;
+  onDetail: (requestId: string) => void;
   onPost: () => void;
   showingExamples: boolean;
 }) {
   const [filter, setFilter] = useState("All");
   const [query, setQuery] = useState("");
   const [visibleCount, setVisibleCount] = useState(16);
-  const categories = useMemo(() => ["All", ...Array.from(new Set(bounties.map((bounty) => bounty.category))).sort()], [bounties]);
-  const filteredBounties = useMemo(() => {
+  const categories = useMemo(() => ["All", ...Array.from(new Set(requests.map((request) => request.category))).sort()], [requests]);
+  const filteredRequests = useMemo(() => {
     const normalizedQuery = query.trim().toLowerCase();
-    return [...bounties].sort((left, right) => new Date(right.createdAt ?? 0).getTime() - new Date(left.createdAt ?? 0).getTime()).filter((bounty) => {
-      const matchesCategory = filter === "All" || bounty.category === filter;
-      const searchable = `${bounty.name} ${bounty.detail} ${bounty.category} ${bounty.location}`.toLowerCase();
+    return [...requests].sort((left, right) => new Date(right.createdAt ?? 0).getTime() - new Date(left.createdAt ?? 0).getTime()).filter((request) => {
+      const matchesCategory = filter === "All" || request.category === filter;
+      const searchable = `${request.name} ${request.detail} ${request.category} ${request.location}`.toLowerCase();
       return matchesCategory && (!normalizedQuery || searchable.includes(normalizedQuery));
     });
-  }, [bounties, filter, query]);
+  }, [requests, filter, query]);
 
   useEffect(() => {
     setVisibleCount(16);
-  }, [bounties.length, filter, query]);
+  }, [requests.length, filter, query]);
 
   useEffect(() => {
     const loadNearBottom = () => {
       const remaining = document.documentElement.scrollHeight - window.innerHeight - window.scrollY;
       if (remaining < 520) {
-        setVisibleCount((count) => Math.min(count + 8, filteredBounties.length));
+        setVisibleCount((count) => Math.min(count + 8, filteredRequests.length));
       }
     };
 
     window.addEventListener("scroll", loadNearBottom);
     loadNearBottom();
     return () => window.removeEventListener("scroll", loadNearBottom);
-  }, [filteredBounties.length]);
+  }, [filteredRequests.length]);
 
-  const visibleBounties = filteredBounties.slice(0, visibleCount);
-  const atEnd = visibleCount >= filteredBounties.length;
-  const hasVisibleBounties = visibleBounties.length > 0;
+  const visibleRequests = filteredRequests.slice(0, visibleCount);
+  const atEnd = visibleCount >= filteredRequests.length;
+  const hasVisibleRequests = visibleRequests.length > 0;
   const emptyStateSubject = query.trim() ? `"${query.trim()}"` : filter === "All" ? "the current board" : filter;
 
   return (
-    <main className="route-page bounty-gallery-page browse-all-page" aria-labelledby="browse-all-title">
+    <main className="route-page request-gallery-page browse-all-page" aria-labelledby="browse-all-title">
       <section className="gallery-hero compact-gallery-hero">
         <div>
           <h1 id="browse-all-title">{showingExamples ? "Browse example searches" : "Browse all open requests"}</h1>
@@ -5897,10 +4606,10 @@ function BrowseAllPage({
           ))}
         </div>
       </section>
-      <section className="bounty-square-grid full-gallery-grid" aria-label="All request results">
-        {hasVisibleBounties ? (
-          visibleBounties.map((bounty) => (
-            <BountySquareCard bounty={bounty} key={bounty.id} onDetail={onDetail} variant="request" />
+      <section className="request-square-grid full-gallery-grid" aria-label="All request results">
+        {hasVisibleRequests ? (
+          visibleRequests.map((request) => (
+            <RequestSquareCard request={request} key={request.id} onDetail={onDetail} variant="request" />
           ))
         ) : (
           <div className="empty-state browse-empty-state" role="status">
@@ -5910,7 +4619,7 @@ function BrowseAllPage({
           </div>
         )}
       </section>
-      {hasVisibleBounties ? (
+      {hasVisibleRequests ? (
         <div className="browse-end-state" aria-live="polite">
           {atEnd ? (
             <span>
@@ -5927,31 +4636,32 @@ function BrowseAllPage({
   );
 }
 
-function BountySquareCard({
-  bounty,
+function RequestSquareCard({
+  request,
   compact = false,
   featured = false,
   onDetail,
   rank,
   variant = "square",
 }: {
-  bounty: BountyListing;
+  request: RequestListing;
   compact?: boolean;
   featured?: boolean;
-  onDetail: (bountyId: string) => void;
+  onDetail: (requestId: string) => void;
   rank?: number;
   variant?: "square" | "request";
 }) {
   const requestVariant = variant === "request";
-  const requestTypeLabel = bounty.live ? bounty.reward || (bounty.rewardValue > 0 ? "Featured" : "Free") : "Example";
+  const requestTypeLabel = request.live ? "Open request" : "Example";
+  const cardTone = rank ? ((rank - 1) % 5) + 1 : (hashPublicHelperSeed(request.id) % 5) + 1;
 
   return (
-    <article className={`bounty-square-card tone-${rank ? ((rank - 1) % 5) + 1 : (bounty.rewardValue % 5) + 1} ${compact ? "compact" : ""} ${featured ? "featured" : ""} ${requestVariant ? "request-card" : ""}`}>
+    <article className={`request-square-card tone-${cardTone} ${compact ? "compact" : ""} ${featured ? "featured" : ""} ${requestVariant ? "request-card" : ""}`}>
       <a
         className="square-card-hit"
-        href={getBountyPath(bounty.id, bounty.name)}
-        onClick={(event) => handleRoutedAnchorClick(event, () => onDetail(bounty.id))}
-        aria-label={`View ${bounty.name}`}
+        href={getRequestPath(request.id, request.name)}
+        onClick={(event) => handleRoutedAnchorClick(event, () => onDetail(request.id))}
+        aria-label={`View ${request.name}`}
       >
         {requestVariant ? (
           <span className="square-check" aria-hidden="true">
@@ -5959,16 +4669,16 @@ function BountySquareCard({
           </span>
         ) : (
           <>
-            <span className="square-rank">{rank ? `#${rank}` : bounty.category}</span>
+            <span className="square-rank">{rank ? `#${rank}` : request.category}</span>
             <span className="square-price">{requestTypeLabel}</span>
           </>
         )}
         <span className="square-image-wrap">
-          <img src={bounty.image} alt={`${bounty.name} reference`} loading="lazy" decoding="async" />
+          <img src={request.image} alt={`${request.name} reference`} loading="lazy" decoding="async" />
         </span>
         <span className="square-copy">
-          <strong>{bounty.name}</strong>
-          <em>{bounty.detail}</em>
+          <strong>{request.name}</strong>
+          <em>{request.detail}</em>
         </span>
         {requestVariant ? (
           <span className="square-meta request-card-meta">
@@ -5978,16 +4688,16 @@ function BountySquareCard({
             </span>
             <span>
               <small>Closes in</small>
-              <b>{bounty.closes}</b>
+              <b>{request.closes}</b>
             </span>
           </span>
         ) : (
           <span className="square-meta">
             <span>
-              <Clock3 size={14} /> {bounty.closes}
+              <Clock3 size={14} /> {request.closes}
             </span>
             <span>
-              <MessageSquare size={14} /> {bounty.submissions}
+              <MessageSquare size={14} /> {request.submissions}
             </span>
           </span>
         )}
@@ -5996,19 +4706,17 @@ function BountySquareCard({
   );
 }
 
-function BountyDetailPage({
-  bounty,
+function RequestDetailPage({
+  request,
   onBrowse,
   onStartSearch,
-  onSubmit,
 }: {
-  bounty: BountyListing;
+  request: RequestListing;
   onBrowse: () => void;
   onStartSearch: () => void;
-  onSubmit: () => void;
 }) {
-  const requestComments = useRequestComments(bounty);
-  const commentVisitor = useMemo(() => getRequestCommentVisitor(bounty.id), [bounty.id]);
+  const requestComments = useRequestComments(request);
+  const commentVisitor = useMemo(() => getRequestCommentVisitor(request.id), [request.id]);
   const [commentBody, setCommentBody] = useState("");
   const [commentLink, setCommentLink] = useState("");
   const [commentStatus, setCommentStatus] = useState<"idle" | "posting" | "posted" | "error">("idle");
@@ -6035,11 +4743,11 @@ function BountyDetailPage({
           .includes(normalizedSearch);
       });
   }, [commentFilter, commentSearch, requestComments.comments]);
-  const brief = bounty.brief ?? getRequestBriefFields(bounty.description);
-  const isExample = !bounty.live;
+  const brief = request.brief ?? getRequestBriefFields(request.description);
+  const isExample = !request.live;
 
   const getShareRequestUrl = () => {
-    const requestUrl = new URL(getBountyPath(bounty.id, bounty.name), window.location.origin);
+    const requestUrl = new URL(getRequestPath(request.id, request.name), window.location.origin);
     requestUrl.searchParams.set("utm_source", "product_share");
     requestUrl.searchParams.set("utm_medium", "referral");
     requestUrl.searchParams.set("utm_campaign", "request_help");
@@ -6048,12 +4756,12 @@ function BountyDetailPage({
 
   const handleShareRequest = async () => {
     const requestUrl = getShareRequestUrl();
-    const shareText = `Do you recognize ${getShareSubject(bounty.name)}? Leave a clue—no signup needed.`;
+    const shareText = `Do you recognize ${getShareSubject(request.name)}? Leave a clue—no signup needed.`;
 
     if (typeof navigator.share === "function") {
       try {
-        await navigator.share({ title: bounty.name, text: shareText, url: requestUrl });
-        trackAcquisitionEvent("helper_reshare", { bounty_id: bounty.id, category: bounty.category, share_channel: "native_share" });
+        await navigator.share({ title: request.name, text: shareText, url: requestUrl });
+        trackAcquisitionEvent("request_reshare", { request_id: request.id, category: request.category, share_channel: "native_share" });
         return;
       } catch (error) {
         if (error instanceof Error && error.name === "AbortError") {
@@ -6067,8 +4775,8 @@ function BountyDetailPage({
       setShareCopied(true);
       setCommentError("");
       trackAcquisitionEvent("request_link_copied", {
-        bounty_id: bounty.id,
-        category: bounty.category,
+        request_id: request.id,
+        category: request.category,
       });
       window.setTimeout(() => setShareCopied(false), 1800);
     } catch {
@@ -6091,8 +4799,8 @@ function BountyDetailPage({
       setCommentSearch("");
       setCommentStatus("posted");
       trackAcquisitionEvent("request_comment_posted", {
-        bounty_id: bounty.id,
-        category: bounty.category,
+        request_id: request.id,
+        category: request.category,
         has_source_link: Boolean(savedComment.source_url),
       });
     } catch (error) {
@@ -6108,18 +4816,18 @@ function BountyDetailPage({
       </button>
       <section className="detail-layout" style={{ gridTemplateColumns: "minmax(0, 1fr)" }}>
         <article className="detail-main">
-          <img className="detail-image" src={bounty.image} alt={bounty.name} decoding="async" />
+          <img className="detail-image" src={request.image} alt={request.name} decoding="async" />
           <div className="detail-copy">
             <div className="status-strip">
-              <span>{isExample ? "Example request" : bounty.status}</span>
-              <span>{bounty.category}</span>
-              <span>{bounty.posted}</span>
+              <span>{isExample ? "Example request" : request.status}</span>
+              <span>{request.category}</span>
+              <span>{request.posted}</span>
             </div>
-            <h1 id="detail-title">{bounty.name}</h1>
-            <p>{bounty.description}</p>
+            <h1 id="detail-title">{request.name}</h1>
+            <p>{request.description}</p>
             <h2>Must match</h2>
             <ul className="check-list detail-list">
-              {bounty.mustHaves.map((item) => <li key={item}><CheckCircle2 size={18} /> {item}</li>)}
+              {request.mustHaves.map((item) => <li key={item}><CheckCircle2 size={18} /> {item}</li>)}
             </ul>
             {brief.alreadyTried || brief.buyingLimits ? (
               <dl className="legacy-brief-notes">
@@ -6134,9 +4842,6 @@ function BountyDetailPage({
               <button className="section-link section-button" type="button" onClick={() => void handleShareRequest()}>
                 <Share2 size={16} /> {shareCopied ? "Link copied" : "Share this request"}
               </button>
-              <button className="section-link section-button" type="button" onClick={onSubmit}>
-                Share a private source <ArrowRight size={16} />
-              </button>
             </div>
           </div>
         </article>
@@ -6146,7 +4851,7 @@ function BountyDetailPage({
         <div className="request-comments-head">
           <div>
             <h2 id="request-comments-title">Comments &amp; clues</h2>
-            <p>Anonymous helpers sharing leads. No account needed.</p>
+            <p>Public suggestions from visitors. No account needed.</p>
             {isExample ? <span className="example-thread-note">Example only — identities are illustrative and posts aren’t published.</span> : null}
           </div>
           <button className="section-link section-button comment-share-button" type="button" onClick={() => void handleShareRequest()}>
@@ -6197,7 +4902,7 @@ function BountyDetailPage({
                   id="request-comment-body"
                   value={commentBody}
                   maxLength={requestCommentMaxLength}
-                  placeholder="Leave a clue, seller, or source lead…"
+                  placeholder="Leave a clue or public source link…"
                   onChange={(event) => { setCommentBody(event.target.value); setCommentStatus("idle"); setCommentError(""); }}
                 />
               </label>
@@ -6223,7 +4928,7 @@ function BountyDetailPage({
           </div>
 
           <div className="comments-ledger-columns" aria-hidden="true">
-            <span>Helper &amp; clue</span>
+            <span>Visitor &amp; clue</span>
             <span>Source</span>
             <span>Posted</span>
           </div>
@@ -6275,298 +4980,16 @@ function BountyDetailPage({
   );
 }
 
-function SubmitFindPage({
-  bounty,
-  onBack,
-  onDashboard,
-}: {
-  bounty: BountyListing;
-  onBack: () => void;
-  onDashboard: () => void;
-}) {
-  const currencyPreference = useCurrencyPreference();
-  const [submitted, setSubmitted] = useState(false);
-  const [sourceType, setSourceType] = useState<FindSourceType>("source-link");
-  const [sourceLink, setSourceLink] = useState("");
-  const [contactEmail, setContactEmail] = useState(() => window.sessionStorage.getItem("pleasefindmethis-auth-email") ?? "");
-  const [itemTerms, setItemTerms] = useState("");
-  const [notes, setNotes] = useState("");
-  const [submitError, setSubmitError] = useState("");
-  const [submitMessage, setSubmitMessage] = useState("");
-  const [submitStatus, setSubmitStatus] = useState<"idle" | "loading" | "success" | "error">("idle");
-  const [proofFiles, setProofFiles] = useState<File[]>([]);
-  const [sourceTruthConfirmed, setSourceTruthConfirmed] = useState(false);
-  const selectedSource = findSourceOptions.find((option) => option.value === sourceType) ?? findSourceOptions[0];
-  const linkRequired = sourceType === "source-link";
-
-  const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
-    event.preventDefault();
-
-    const normalizedEmail = contactEmail.trim();
-    const normalizedSource = sourceLink.trim();
-    const normalizedTerms = itemTerms.trim();
-    const normalizedNotes = notes.trim();
-    if (linkRequired && !sourceLink.trim()) {
-      setSubmitError("Add a source link, or choose private/direct if no public link exists.");
-      setSubmitted(false);
-      return;
-    }
-
-    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(normalizedEmail)) {
-      setSubmitError("Add a valid contact email so the requester can message you.");
-      setSubmitted(false);
-      return;
-    }
-
-    if (!sourceTruthConfirmed) {
-      setSubmitError("Confirm this source is real and matches the request.");
-      setSubmitted(false);
-      return;
-    }
-
-    setSubmitError("");
-    setSubmitMessage("");
-    setSubmitStatus("loading");
-
-    const uploadedPaths: string[] = [];
-
-    try {
-      if (supabase && isUuid(bounty.id)) {
-        const user = await getCurrentSupabaseUser();
-        const submissionId = crypto.randomUUID();
-        const uploadResult = await uploadSourceProofFiles(user.id, submissionId, proofFiles);
-
-        uploadedPaths.push(...uploadResult.uploadedPaths);
-
-        const duplicateSourceIdentity = getDuplicateSourceIdentity(sourceType, normalizedSource, normalizedNotes);
-        const fingerprint = await createSourceFingerprint(bounty.id, sourceType, duplicateSourceIdentity);
-        const { error } = await supabase.from("source_submissions").insert({
-          id: submissionId,
-          request_id: bounty.id,
-          finder_id: user.id,
-          source_type: sourceType,
-          source_url: sourceType === "source-link" ? normalizedSource : normalizedSource || null,
-          source_contact: sourceType === "source-link" ? null : normalizedNotes.slice(0, 500) || normalizedSource || null,
-          contact_email: normalizedEmail,
-          price_or_terms: normalizedTerms || null,
-          match_notes: normalizedNotes || "Helper submitted a source suggestion for review.",
-          proof: uploadResult.proof,
-          source_fingerprint: fingerprint,
-        });
-
-        if (error) {
-          if (isDuplicateSourceSubmissionError(error)) {
-            const duplicateFlagResult = await supabase.from("source_duplicate_flags").insert({
-              request_id: bounty.id,
-              finder_id: user.id,
-              source_fingerprint: fingerprint,
-              source_type: sourceType,
-              normalized_source: duplicateSourceIdentity.slice(0, 500),
-              status: "open",
-              admin_note: "",
-            });
-
-            if (duplicateFlagResult.error && !isDuplicateSourceSubmissionError(duplicateFlagResult.error)) {
-              console.warn("Could not record duplicate source flag", duplicateFlagResult.error);
-            }
-
-            if (uploadedPaths.length) {
-              await supabase.storage.from(sourceSubmissionProofBucket).remove(uploadedPaths);
-            }
-
-            setSubmitted(false);
-            setSubmitStatus("error");
-            setSubmitError("This source appears to match an earlier protected submission. We logged it for duplicate-priority review instead of creating a second source record.");
-            return;
-          }
-
-          throw error;
-        }
-
-        setSubmitMessage("Source suggestion saved. The requester can review the link, notes, and proof from their dashboard.");
-      } else {
-        setSubmitMessage("Demo source suggestion saved locally.");
-      }
-
-      setContactEmail(normalizedEmail);
-      setSubmitted(true);
-      setSubmitStatus("success");
-      trackAcquisitionEvent("submit_source", {
-        bounty_id: bounty.id,
-        category: bounty.category,
-        source_type: sourceType,
-        has_source_link: Boolean(normalizedSource),
-        has_price_or_terms: Boolean(normalizedTerms),
-        proof_file_count: proofFiles.length,
-      });
-    } catch (error) {
-      if (supabase && uploadedPaths.length) {
-        await supabase.storage.from(sourceSubmissionProofBucket).remove(uploadedPaths);
-      }
-
-      setSubmitted(false);
-      setSubmitStatus("error");
-      setSubmitError(error instanceof Error ? error.message : "Could not submit this source.");
-    }
-  };
-
-  return (
-    <main className="route-page" aria-labelledby="submit-title">
-      <section className="two-column-page">
-        <form className="form-panel" onSubmit={handleSubmit}>
-          <button className="back-button" type="button" onClick={onBack}>
-            <ArrowLeft size={17} /> Request detail
-          </button>
-          <h1 id="submit-title">Share a source for {bounty.name}.</h1>
-          <p>Share one clear lead with match notes for this request.</p>
-          <label>
-            How did you find it?
-            <select
-              value={sourceType}
-              onChange={(event) => {
-                setSourceType(event.target.value as FindSourceType);
-                setSubmitError("");
-                setSubmitted(false);
-              }}
-            >
-              {findSourceOptions.map((option) => (
-                <option value={option.value} key={option.value}>
-                  {option.label}
-                </option>
-              ))}
-            </select>
-          </label>
-          <p className="field-hint">{selectedSource.copy}</p>
-          <label>
-            {linkRequired ? "Source link" : "Source link (optional)"}
-              <input
-                value={sourceLink}
-              placeholder={linkRequired ? "https://example.com/item" : "Leave blank for private lead"}
-                onChange={(event) => {
-                  setSourceLink(event.target.value);
-                  setSubmitted(false);
-              }}
-            />
-          </label>
-          <label>
-            Contact email
-            <input
-              type="email"
-              value={contactEmail}
-              placeholder="you@example.com"
-              onChange={(event) => {
-                setContactEmail(event.target.value);
-                setSubmitted(false);
-              }}
-            />
-          </label>
-          <label>
-            Price or terms
-            <input
-              value={itemTerms}
-              placeholder="Price, terms, or unknown"
-              onChange={(event) => {
-                setItemTerms(event.target.value);
-                setSubmitted(false);
-              }}
-            />
-          </label>
-          <label>
-            Match notes for the requester
-            <textarea
-              value={notes}
-              placeholder="Why it matches: seller, condition, and price."
-              onChange={(event) => {
-                setNotes(event.target.value);
-                setSubmitted(false);
-              }}
-            />
-          </label>
-          <div className="upload-box">
-            <Upload size={24} />
-            <span>
-              <strong>Add context</strong>
-              {proofFiles.length
-                ? `${proofFiles.length} file${proofFiles.length === 1 ? "" : "s"} attached.`
-                : "Photos or proof are optional, but they speed verification."}
-            </span>
-            <input
-              type="file"
-              accept="image/*,application/pdf"
-              multiple
-              onChange={(event) => {
-                setProofFiles(Array.from(event.target.files ?? []).slice(0, 6));
-                setSubmitted(false);
-              }}
-            />
-          </div>
-            <label className="check-confirmation">
-              <input
-                type="checkbox"
-                checked={sourceTruthConfirmed}
-                onChange={(event) => {
-                  setSourceTruthConfirmed(event.target.checked);
-                  setSubmitted(false);
-                }}
-              />
-              <span>Yes, this lead is real and matches the request.</span>
-            </label>
-          {submitError ? (
-            <p className="dialog-error" role="alert">
-              {submitError}
-            </p>
-          ) : null}
-          <button className="primary-button" type="submit" disabled={submitStatus === "loading"}>
-            {submitStatus === "loading" ? "Saving..." : "Send source"}
-          </button>
-          {submitted ? (
-            <>
-              <div className="summary-card submission-success" role="status">
-                <CheckCircle2 size={24} />
-                <strong>Source suggestion shared</strong>
-                <span>{sourceLink.trim() ? `Source recorded: ${sourceLink.trim()}` : "No public link shared. Contact path and notes are saved."}</span>
-                <span>Contact: {contactEmail}</span>
-                {itemTerms.trim() ? <span>Terms: {itemTerms.trim()}</span> : null}
-                <span>{submitMessage || "The requester can review your suggestion from their dashboard."}</span>
-              </div>
-              <a className="section-link section-button" href={routeHref("finder-dashboard")} onClick={(event) => handleRoutedAnchorClick(event, onDashboard)}>
-                Go to helper dashboard <ArrowRight size={17} />
-              </a>
-            </>
-          ) : null}
-        </form>
-      </section>
-    </main>
-  );
-}
-
 function PosterDashboardPage({
-  checkoutReturnStatus,
-  onDispute,
   onOpenRequest,
-  onProfile,
   onShareRequest,
 }: {
-  checkoutReturnStatus: CheckoutReturnStatus;
-  onDispute: () => void;
   onOpenRequest: (requestId: string) => void;
-  onProfile: () => void;
   onShareRequest: (request: RequestRow) => void;
 }) {
-  const checkoutSnapshot = readStoredCheckoutSnapshot();
   const [requests, setRequests] = useState<RequestRow[]>([]);
-  const [submissions, setSubmissions] = useState<SourceSubmissionRow[]>([]);
-  const [revealedSources, setRevealedSources] = useState<RevealedSourceDetailRow[]>([]);
-  const [reviews, setReviews] = useState<SourceReviewRow[]>([]);
   const [loading, setLoading] = useState(Boolean(supabase));
   const [dashboardError, setDashboardError] = useState("");
-  const [actionMessage, setActionMessage] = useState("");
-  const [selectedSubmissionId, setSelectedSubmissionId] = useState("");
-  const [reviewMode, setReviewMode] = useState(false);
-  const [rejectionReason, setRejectionReason] = useState("wrong-item");
-  const [reviewNote, setReviewNote] = useState("");
-
-  const [refreshKey, setRefreshKey] = useState(0);
 
   useEffect(() => {
     if (!supabase) {
@@ -6583,68 +5006,21 @@ function PosterDashboardPage({
 
       try {
         await getCurrentSupabaseUser();
-        const { data: requestData, error: requestError } = await client
+        const { data, error } = await client
           .from("requests")
-          .select("id,user_id,item_name,category,details,reward,total_due,finder_payout,duration_days,status,payment_status,payout_status,customer_email,reference_images,created_at,paid_at,payout_release_after")
+          .select("id,user_id,item_name,category,details,duration_days,status,reference_images,created_at")
           .order("created_at", { ascending: false });
 
-        if (requestError) {
-          throw requestError;
+        if (error) {
+          throw error;
         }
 
-        const nextRequests = (requestData ?? []) as RequestRow[];
-        const requestIds = nextRequests.map((request) => request.id);
-        let nextSubmissions: SourceSubmissionRow[] = [];
-        let nextRevealedSources: RevealedSourceDetailRow[] = [];
-        let nextReviews: SourceReviewRow[] = [];
-
-        if (requestIds.length) {
-          const [submissionResult, revealedResult, reviewResult] = await Promise.all([
-            client
-              .from("source_submissions")
-              .select("id,request_id,finder_id,source_type,price_or_terms,match_notes,status,first_valid_rank,revealed_at,accepted_at,rejected_at,awarded_at,created_at,updated_at")
-              .in("request_id", requestIds)
-              .order("created_at", { ascending: true }),
-            client
-              .rpc("get_revealed_source_details")
-              .select("id,request_id,finder_id,source_type,source_url,source_contact,contact_email,price_or_terms,match_notes,proof,status,revealed_at,accepted_at,rejected_at,awarded_at,poster_id,revealed_log_created_at,created_at,updated_at")
-              .in("request_id", requestIds),
-            client
-              .from("source_reviews")
-              .select("id,submission_id,request_id,reviewer_id,decision,reason_code,note,created_at")
-              .in("request_id", requestIds)
-              .order("created_at", { ascending: false }),
-          ]);
-
-          if (submissionResult.error) {
-            throw submissionResult.error;
-          }
-
-          if (revealedResult.error) {
-            throw revealedResult.error;
-          }
-
-          if (reviewResult.error) {
-            throw reviewResult.error;
-          }
-
-          nextSubmissions = (submissionResult.data ?? []) as SourceSubmissionRow[];
-          nextRevealedSources = (revealedResult.data ?? []) as RevealedSourceDetailRow[];
-          nextReviews = (reviewResult.data ?? []) as SourceReviewRow[];
+        if (mounted) {
+          setRequests((data ?? []) as RequestRow[]);
         }
-
-        if (!mounted) {
-          return;
-        }
-
-        setRequests(nextRequests);
-        setSubmissions(nextSubmissions);
-        setRevealedSources(nextRevealedSources);
-        setReviews(nextReviews);
-        setSelectedSubmissionId((current) => (current && nextSubmissions.some((submission) => submission.id === current) ? current : nextSubmissions[0]?.id ?? ""));
       } catch (error) {
         if (mounted) {
-          setDashboardError(error instanceof Error ? error.message : "Could not load poster dashboard.");
+          setDashboardError(error instanceof Error ? error.message : "Could not load your request workspace.");
         }
       } finally {
         if (mounted) {
@@ -6653,945 +5029,66 @@ function PosterDashboardPage({
       }
     };
 
-    loadDashboard();
+    void loadDashboard();
 
     return () => {
       mounted = false;
     };
-  }, [refreshKey]);
+  }, []);
 
-  const submissionsByRequest = useMemo(() => {
-    const counts = new Map<string, number>();
-    submissions.forEach((submission) => counts.set(submission.request_id, (counts.get(submission.request_id) ?? 0) + 1));
-    return counts;
-  }, [submissions]);
-  const dashboardBounties = requests.length
-    ? requests.map((request) => requestRowToBounty(request, submissionsByRequest.get(request.id) ?? 0))
-    : [];
-  const selectedSubmission = submissions.find((submission) => submission.id === selectedSubmissionId) ?? submissions[0] ?? null;
-  const selectedRequest = selectedSubmission ? requests.find((request) => request.id === selectedSubmission.request_id) ?? null : null;
-  const selectedReveal = selectedSubmission ? revealedSources.find((source) => source.id === selectedSubmission.id) ?? null : null;
-  const selectedReview = selectedSubmission ? reviews.find((review) => review.submission_id === selectedSubmission.id) ?? null : null;
-  const openRequestCount = requests.filter((request) => request.status === "open" || request.payment_status === "free").length;
-  const acceptedSuggestionCount = reviews.filter((review) => review.decision === "accepted").length;
-  const awaitingReviewCount = submissions.filter((submission) => ["submitted", "revealed", "in_review"].includes(submission.status)).length;
-
-  const selectRequest = (requestId: string) => {
-    const requestSubmission = submissions.find((submission) => submission.request_id === requestId);
-    if (requestSubmission) {
-      setSelectedSubmissionId(requestSubmission.id);
-      setReviewMode(false);
-      setActionMessage("");
-    }
-  };
-
-  const revealSelectedSource = async () => {
-    if (!selectedSubmission || !supabase) {
-      return;
-    }
-
-    setDashboardError("");
-    setActionMessage("");
-
-    try {
-      const user = await getCurrentSupabaseUser();
-      const { error } = await supabase.from("source_reveals").insert({
-        submission_id: selectedSubmission.id,
-        request_id: selectedSubmission.request_id,
-        poster_id: user.id,
-        reveal_terms_accepted: true,
-      });
-
-      if (error) {
-        throw error;
-      }
-
-      setActionMessage("Source details opened. The full details are visible now, and the review is saved to the case timeline.");
-      trackAcquisitionEvent("source_revealed", {
-        request_id: selectedSubmission.request_id,
-        source_type: selectedSubmission.source_type,
-      });
-      setRefreshKey((key) => key + 1);
-    } catch (error) {
-      setDashboardError(error instanceof Error ? error.message : "Could not open this source.");
-    }
-  };
-
-  const reviewSelectedSource = async (decision: "accepted" | "sent_to_review") => {
-    if (!selectedSubmission || !supabase) {
-      return;
-    }
-
-    setDashboardError("");
-    setActionMessage("");
-
-    try {
-      const user = await getCurrentSupabaseUser();
-      const { error } = await supabase.from("source_reviews").insert({
-        submission_id: selectedSubmission.id,
-        request_id: selectedSubmission.request_id,
-        reviewer_id: user.id,
-        decision,
-        reason_code: decision === "accepted" ? null : rejectionReason,
-        note: reviewNote.trim(),
-      });
-
-      if (error) {
-        throw error;
-      }
-
-      setReviewMode(false);
-      setReviewNote("");
-      setActionMessage(decision === "accepted" ? "Source marked useful. No platform payout is created or released from this review." : "Review reason saved. The source is now in review.");
-      trackAcquisitionEvent(decision === "accepted" ? "source_accepted" : "source_sent_to_review", {
-        request_id: selectedSubmission.request_id,
-        source_type: selectedSubmission.source_type,
-        review_reason: decision === "accepted" ? undefined : rejectionReason,
-      });
-      setRefreshKey((key) => key + 1);
-    } catch (error) {
-      setDashboardError(error instanceof Error ? error.message : "Could not save this review decision.");
-    }
-  };
+  const openRequests = requests.filter((request) => request.status === "open");
+  const archivedRequests = requests.filter((request) => request.status === "archived");
+  const dashboardRequests = requests.map((request) => ({
+    request,
+    listing: requestRowToListing(request),
+  }));
 
   return (
     <main className="route-page dashboard-page" aria-labelledby="poster-dashboard-title">
-      {checkoutReturnStatus === "success" ? (
-        <PostSuccessConfirmation checkoutSnapshot={checkoutSnapshot} onProfile={onProfile} />
-      ) : null}
       <section className="dashboard-head">
         <div>
-          <p className="route-kicker">Poster dashboard</p>
-          <h1 id="poster-dashboard-title">Review source leads.</h1>
+          <p className="route-kicker">Request workspace</p>
+          <h1 id="poster-dashboard-title">Your item searches.</h1>
+          <p>Open, share, and organize every public search brief from one place.</p>
         </div>
-        <a className="section-link section-button" href={routeHref("profile")} onClick={(event) => handleRoutedAnchorClick(event, onProfile)}>
-          Public trust page <ArrowRight size={17} />
-        </a>
       </section>
-      {loading ? <p className="dialog-note">Loading your requests and source suggestions...</p> : null}
+      {loading ? <p className="dialog-note">Loading your requests...</p> : null}
       {dashboardError ? <p className="dialog-error" role="alert">{dashboardError}</p> : null}
-      {actionMessage ? <p className="dialog-success" role="status">{actionMessage}</p> : null}
       <section className="metric-grid">
-        <Metric icon={LockKeyhole} label="Open requests" value={String(openRequestCount)} />
-        <Metric icon={MessageSquare} label="Sources awaiting review" value={String(awaitingReviewCount)} />
-        <Metric icon={PackageCheck} label="Source suggestions" value={String(submissions.length)} />
-        <Metric icon={CheckCircle2} label="Marked useful" value={String(acceptedSuggestionCount)} />
+        <Metric icon={Search} label="Total requests" value={String(requests.length)} />
+        <Metric icon={Clock3} label="Open requests" value={String(openRequests.length)} />
+        <Metric icon={FileText} label="Archived history" value={String(archivedRequests.length)} />
       </section>
-      <section className="dashboard-grid">
-        <div className="dashboard-panel">
-          <div className="panel-header">
-            <h2>Sources to review</h2>
-            <Filter size={18} />
-          </div>
-          {dashboardBounties.length ? dashboardBounties.map((bounty) => {
-            const request = requests.find((entry) => entry.id === bounty.id);
-            return (
-              <div className="request-review-row" key={bounty.id}>
-                <button className="review-row" type="button" onClick={() => selectRequest(bounty.id)}>
-                  <img src={bounty.image} alt={`${bounty.name} reference`} loading="lazy" decoding="async" />
+      <section className="dashboard-panel">
+        <div className="panel-header">
+          <h2>Your requests</h2>
+          <LayoutDashboard size={18} />
+        </div>
+        {dashboardRequests.length ? (
+          <div className="request-workspace-list">
+            {dashboardRequests.map(({ request, listing }) => (
+              <article className="request-review-row" key={request.id}>
+                <button className="review-row" type="button" onClick={() => onOpenRequest(request.id)}>
+                  <img src={listing.image} alt={`${listing.name} reference`} loading="lazy" decoding="async" />
                   <span>
-                    <strong>{bounty.name}</strong>
-                    <small>{bounty.submissions} submissions · {bounty.status}</small>
+                    <strong>{listing.name}</strong>
+                    <small>{listing.category} · {listing.status}</small>
                   </span>
-                  <em>{bounty.reward || "Free request"}</em>
                 </button>
-                <div className="request-review-row-actions" aria-label={`${bounty.name} actions`}>
-                  <button type="button" onClick={() => onOpenRequest(bounty.id)}><ExternalLink size={14} /> Open public page</button>
-                  {request ? <button type="button" onClick={() => onShareRequest(request)}><Share2 size={14} /> Share request</button> : null}
+                <div className="request-review-row-actions" aria-label={`${listing.name} actions`}>
+                  <button type="button" onClick={() => onOpenRequest(request.id)}><ExternalLink size={14} /> Open public page</button>
+                  <button type="button" onClick={() => onShareRequest(request)}><Share2 size={14} /> Share request</button>
                 </div>
-              </div>
-            );
-          }) : (
-            <div className="empty-state"><Search size={25} /><strong>No searches yet</strong><span>Post a request to start collecting clues.</span></div>
-          )}
-        </div>
-        <div className="dashboard-panel active-review">
-          <div className="panel-header">
-            <h2>Source suggestion review</h2>
-            <LockKeyhole size={20} />
-          </div>
-          {selectedSubmission ? (
-            <>
-              <h3>{selectedRequest?.item_name ?? "Source suggestion"}</h3>
-              <p>{selectedSubmission.match_notes || "A helper shared a lead. Review it before contacting the seller."}</p>
-              <div className="protected-source-review" aria-label="Source suggestion review">
-                <div className="source-review-row">
-                  <span>Preview</span>
-                  <strong>{selectedSubmission.price_or_terms || selectedSubmission.match_notes || "Source preview saved"}</strong>
-                </div>
-                <div className="source-review-row">
-                  <span>Source</span>
-                  <strong>{selectedReveal ? selectedReveal.source_url || selectedReveal.source_contact || "Source details available" : "Open full details to review"}</strong>
-                </div>
-                <div className="source-review-row">
-                  <span>Helper context</span>
-                  <strong>{selectedSubmission.proof?.length ? `${selectedSubmission.proof.length} context file${selectedSubmission.proof.length === 1 ? "" : "s"} saved` : "No files attached; notes are saved"}</strong>
-                </div>
-              </div>
-
-              {selectedReview ? (
-                <div className={selectedReview.decision === "accepted" ? "reveal-log success-log" : "reveal-log"} role="status">
-                  <BadgeCheck size={20} />
-                  <span>Review saved: {selectedReview.decision.replace(/_/g, " ")}{selectedReview.reason_code ? ` (${selectedReview.reason_code})` : ""}.</span>
-                </div>
-              ) : selectedReveal ? (
-                <>
-                  <div className="reveal-log" role="status">
-                    <CheckCircle2 size={20} />
-                    <span>Source details are saved to the timeline. Review them before marking this lead useful.</span>
-                  </div>
-                  <div className="action-row">
-                    <button className="primary-button" type="button" onClick={() => reviewSelectedSource("accepted")}>
-                      Mark useful
-                    </button>
-                    <button className="danger-button" type="button" onClick={() => setReviewMode((value) => !value)}>
-                      Reject with reason
-                    </button>
-                  </div>
-                  {reviewMode ? (
-                    <div className="reject-review-panel" role="group" aria-label="Reject source with reason">
-                      <label>
-                        Why is this not right?
-                        <select value={rejectionReason} onChange={(event) => setRejectionReason(event.target.value)}>
-                          <option value="wrong-item">Wrong item</option>
-                          <option value="unavailable">Listing is gone or unavailable</option>
-                          <option value="fake-seller">Seller or source looks fake</option>
-                          <option value="condition">Condition does not match</option>
-                          <option value="price">Price or terms are not what was promised</option>
-                        </select>
-                      </label>
-                      <label>
-                        Review note
-                        <textarea value={reviewNote} placeholder="Explain what did not match. This becomes part of the case record." onChange={(event) => setReviewNote(event.target.value)} />
-                      </label>
-                      <button className="danger-button strong-danger" type="button" onClick={() => reviewSelectedSource("sent_to_review")}>
-                        Save review reason
-                      </button>
-                        <a className="section-link section-button" href={routeHref("dispute")} onClick={(event) => handleRoutedAnchorClick(event, onDispute)}>
-                          Open dispute <ArrowRight size={17} />
-                        </a>
-                    </div>
-                  ) : null}
-                </>
-              ) : (
-                <>
-                  <div className="reveal-rule">
-                    <ShieldCheck size={21} />
-                      <span>Open full details when you are ready to verify.</span>
-                  </div>
-                  <button className="primary-button" type="button" onClick={revealSelectedSource}>
-                    Open source details
-                  </button>
-                </>
-              )}
-            </>
-          ) : (
-            <div className="empty-state">
-              <LockKeyhole size={26} />
-              <strong>No source suggestions yet</strong>
-            </div>
-          )}
-        </div>
-      </section>
-    </main>
-  );
-}
-
-function PostSuccessConfirmation({
-  checkoutSnapshot,
-  onProfile,
-}: {
-  checkoutSnapshot: CheckoutSnapshot | null;
-  onProfile: () => void;
-}) {
-  const currencyPreference = useCurrencyPreference();
-  const itemName = checkoutSnapshot?.itemName ?? "Your request";
-  const confirmationCode = formatConfirmationCode(checkoutSnapshot?.requestId);
-  const postedDate = formatConfirmationDate(checkoutSnapshot?.createdAt);
-  const durationText = checkoutSnapshot?.durationDays ? `${checkoutSnapshot.durationDays} days` : "Active window";
-  const categoryText = checkoutSnapshot?.category ?? "Public request";
-  const paidTodayText = checkoutSnapshot ? formatUsdMoney(checkoutSnapshot.total, currencyPreference) : "No payment due";
-  const requestTypeText = checkoutSnapshot?.total ? "Featured request" : "Free request";
-  const receiptTarget = checkoutSnapshot?.email ? `Receipt sent to ${checkoutSnapshot.email}` : "Receipt saved to your account";
-  const platformShareText = checkoutSnapshot
-    ? "Your free request was created successfully."
-    : "Free requests publish without checkout.";
-  const reviewDashboard = () => {
-    document.getElementById("poster-dashboard-title")?.scrollIntoView({ behavior: "smooth", block: "start" });
-  };
-
-  return (
-    <section className="post-success-confirmation" role="status" aria-label="Request posted confirmation">
-      <div className="post-success-main">
-        <div className="confirmation-title-row">
-          <span className="confirmation-check" aria-hidden="true">
-            <CheckCircle2 size={30} />
-          </span>
-          <div>
-            <p className="confirmation-label">Request posted</p>
-            <h2>{itemName} is live.</h2>
-          </div>
-        </div>
-        <p className="confirmation-copy">
-          Your request is live. Helpers can share links and lead details for your review.
-        </p>
-        <div className="confirmation-detail-grid" aria-label="Posted request receipt">
-          <div>
-            <span>Confirmation</span>
-            <strong>{confirmationCode}</strong>
-          </div>
-          <div>
-            <span>Paid today</span>
-            <strong>{paidTodayText}</strong>
-          </div>
-          <div>
-            <span>Request type</span>
-            <strong>{requestTypeText}</strong>
-          </div>
-          <div>
-            <span>Live for</span>
-            <strong>{durationText}</strong>
-          </div>
-        </div>
-        <div className="confirmation-payment-strip">
-          <CreditCard size={21} />
-          <span>
-            <strong>{receiptTarget}</strong>
-            {categoryText} posted on {postedDate}. {platformShareText}
-          </span>
-        </div>
-        <div className="confirmation-actions">
-          <button className="primary-button" type="button" onClick={reviewDashboard}>
-            Review dashboard <ArrowRight size={17} />
-          </button>
-          <a className="section-link section-button" href={routeHref("profile")} onClick={(event) => handleRoutedAnchorClick(event, onProfile)}>
-            Open trust page <ArrowRight size={17} />
-          </a>
-        </div>
-      </div>
-    </section>
-  );
-}
-
-function FinderDashboardPage({
-  bounties,
-  onBrowse,
-  onMessages,
-  onProfile,
-  onSettings,
-  onSubmit,
-}: {
-  bounties: BountyListing[];
-  onBrowse: () => void;
-  onMessages: () => void;
-  onProfile: () => void;
-  onSettings: () => void;
-  onSubmit: (bountyId?: string) => void;
-}) {
-  const [accountProfile, setAccountProfile] = useState<AccountProfile>(() => readStoredAccountProfile());
-  const [finderSubmissions, setFinderSubmissions] = useState<RevealedSourceDetailRow[]>([]);
-  const [dashboardError, setDashboardError] = useState("");
-
-  useEffect(() => {
-    if (!supabase) {
-      return undefined;
-    }
-
-    const client = supabase;
-    let mounted = true;
-
-    const loadSubmissions = async () => {
-      try {
-        await getCurrentSupabaseUser();
-        const { data, error } = await client
-          .rpc("get_finder_source_submission_details")
-          .select("id,request_id,finder_id,source_type,source_url,source_contact,contact_email,price_or_terms,match_notes,proof,status,created_at,updated_at")
-          .order("created_at", { ascending: false });
-
-        if (error) {
-          throw error;
-        }
-
-        if (mounted) {
-          setFinderSubmissions((data ?? []) as RevealedSourceDetailRow[]);
-        }
-      } catch (error) {
-        if (mounted) {
-          setDashboardError(error instanceof Error ? error.message : "Could not load helper submissions.");
-        }
-      }
-    };
-
-    loadSubmissions();
-
-    return () => {
-      mounted = false;
-    };
-  }, []);
-
-  useEffect(() => {
-    const syncProfile = () => setAccountProfile(readStoredAccountProfile());
-    window.addEventListener("storage", syncProfile);
-    window.addEventListener("focus", syncProfile);
-    return () => {
-      window.removeEventListener("storage", syncProfile);
-      window.removeEventListener("focus", syncProfile);
-    };
-  }, []);
-
-  const availableBounties = bounties.slice(0, 4);
-  const acceptedCount = finderSubmissions.filter((submission) => submission.status === "accepted" || submission.status === "awarded").length;
-  const openRequestCount = availableBounties.length;
-  const readiness = getFinderReadiness(accountProfile);
-
-  return (
-    <main className="route-page dashboard-page" aria-labelledby="finder-dashboard-title">
-      <section className="dashboard-head">
-        <div>
-          <p className="route-kicker">Helper dashboard</p>
-          <h1 id="finder-dashboard-title">Find leads. Build trust.</h1>
-        </div>
-        <div className="head-actions">
-          <a className="section-link section-button" href={routeHref("profile")} onClick={(event) => handleRoutedAnchorClick(event, onProfile)}>
-            Profile <ArrowRight size={17} />
-          </a>
-          <button className="section-link section-button" type="button" onClick={onMessages}>
-            Messages <ArrowRight size={17} />
-          </button>
-          <button className="primary-button" type="button" onClick={onBrowse}>
-            Find requests
-          </button>
-        </div>
-      </section>
-      {dashboardError ? <p className="dialog-error" role="alert">{dashboardError}</p> : null}
-      <section className="metric-grid">
-        <Metric icon={Banknote} label="Open requests" value={String(openRequestCount)} />
-        <Metric icon={Star} label="Readiness" value={`${readiness.score}%`} />
-        <Metric icon={Trophy} label="Suggestions shared" value={String(finderSubmissions.length)} />
-        <Metric icon={Clock3} label="Marked useful" value={String(acceptedCount)} />
-      </section>
-      <section className="dashboard-grid">
-        <div className="dashboard-panel finder-readiness-panel">
-          <div className="panel-header">
-            <h2>Helper readiness</h2>
-            <ShieldCheck size={20} />
-          </div>
-          <div className="readiness-score-row">
-            <div className="score-ring">{readiness.score}%</div>
-            <div>
-              <strong>{readiness.label}</strong>
-              <p>Complete profile and contact details before sharing more leads.</p>
-            </div>
-          </div>
-          <ul className="check-list readiness-list">
-            {readiness.items.map((item) => (
-              <li className={item.complete ? "is-complete" : "is-missing"} key={item.label}>
-                {item.complete ? <CheckCircle2 size={18} /> : <CircleHelp size={18} />}
-                <span>
-                  <strong>{item.label}</strong>
-                  {item.copy}
-                </span>
-              </li>
+              </article>
             ))}
-          </ul>
-          <button className="primary-button" type="button" onClick={onSettings}>
-            Update account settings
-          </button>
-        </div>
-        <div className="dashboard-panel">
-          <div className="panel-header">
-            <h2>Active opportunities</h2>
-            <Search size={18} />
           </div>
-          {availableBounties.map((bounty) => (
-            <button className="review-row" key={bounty.id} type="button" onClick={() => onSubmit(bounty.id)}>
-              <img src={bounty.image} alt={`${bounty.name} reference`} loading="lazy" decoding="async" />
-              <span>
-                <strong>{bounty.name}</strong>
-                <small>{bounty.category} · {bounty.closes} left</small>
-              </span>
-              <em>{bounty.reward || "Free request"}</em>
-            </button>
-          ))}
-        </div>
-      </section>
-    </main>
-  );
-}
-
-function MessageCenterPage({ onDashboard }: { onDashboard: () => void }) {
-  const [sourceCases, setSourceCases] = useState<RevealedSourceDetailRow[]>([]);
-  const [messages, setMessages] = useState<SourceMessageRow[]>([]);
-  const [selectedCaseId, setSelectedCaseId] = useState("");
-  const [draftMessage, setDraftMessage] = useState("");
-  const [statusMessage, setStatusMessage] = useState("");
-  const [errorMessage, setErrorMessage] = useState("");
-  const [loading, setLoading] = useState(Boolean(supabase));
-  const [sending, setSending] = useState(false);
-  const selectedCase = sourceCases.find((sourceCase) => sourceCase.id === selectedCaseId) ?? sourceCases[0] ?? null;
-
-  useEffect(() => {
-    if (!supabase) {
-      setLoading(false);
-      return undefined;
-    }
-
-    const client = supabase;
-    let mounted = true;
-
-    const loadCases = async () => {
-      setLoading(true);
-      setErrorMessage("");
-
-      try {
-        await getCurrentSupabaseUser();
-        const { data, error } = await client
-          .rpc("get_revealed_source_details")
-          .select("id,request_id,finder_id,source_type,source_url,source_contact,contact_email,price_or_terms,match_notes,proof,status,revealed_at,accepted_at,rejected_at,awarded_at,poster_id,revealed_log_created_at,created_at,updated_at")
-          .order("updated_at", { ascending: false });
-
-        if (error) {
-          throw error;
-        }
-
-        if (mounted) {
-          const nextCases = (data ?? []) as RevealedSourceDetailRow[];
-          setSourceCases(nextCases);
-          setSelectedCaseId((current) => (current && nextCases.some((sourceCase) => sourceCase.id === current) ? current : nextCases[0]?.id ?? ""));
-        }
-      } catch (error) {
-        if (mounted) {
-          setErrorMessage(error instanceof Error ? error.message : "Could not load source follow-up cases.");
-        }
-      } finally {
-        if (mounted) {
-          setLoading(false);
-        }
-      }
-    };
-
-    loadCases();
-
-    return () => {
-      mounted = false;
-    };
-  }, []);
-
-  useEffect(() => {
-    if (!supabase || !selectedCase) {
-      setMessages([]);
-      return undefined;
-    }
-
-    const client = supabase;
-    let mounted = true;
-
-    const loadMessages = async () => {
-      const { data, error } = await client
-        .from("source_messages")
-        .select("id,submission_id,request_id,sender_id,body,created_at")
-        .eq("submission_id", selectedCase.id)
-        .order("created_at", { ascending: true });
-
-      if (!mounted) {
-        return;
-      }
-
-      if (error) {
-        setMessages([]);
-          setStatusMessage("Message history will appear here after the source message migration is applied.");
-        return;
-      }
-
-      setMessages((data ?? []) as SourceMessageRow[]);
-      setStatusMessage("");
-    };
-
-    loadMessages();
-
-    return () => {
-      mounted = false;
-    };
-  }, [selectedCase]);
-
-  const sendMessage = async (event: React.FormEvent<HTMLFormElement>) => {
-    event.preventDefault();
-    setErrorMessage("");
-    setStatusMessage("");
-
-    if (!selectedCase) {
-      setErrorMessage("Choose a source case before sending a message.");
-      return;
-    }
-
-    if (!draftMessage.trim()) {
-      setErrorMessage("Write a short message before sending.");
-      return;
-    }
-
-    setSending(true);
-
-    try {
-      if (!supabase) {
-        setStatusMessage("Demo message saved locally for this preview. Live accounts save messages to the source case.");
-        setMessages((current) => [
-          ...current,
-          {
-            id: `local-${Date.now()}`,
-            submission_id: selectedCase.id,
-            request_id: selectedCase.request_id,
-            sender_id: "local-preview",
-            body: draftMessage.trim(),
-            created_at: new Date().toISOString(),
-          },
-        ]);
-        setDraftMessage("");
-        return;
-      }
-
-      const user = await getCurrentSupabaseUser();
-      const { data, error } = await supabase
-        .from("source_messages")
-        .insert({
-          submission_id: selectedCase.id,
-          request_id: selectedCase.request_id,
-          sender_id: user.id,
-          body: draftMessage.trim(),
-        })
-        .select("id,submission_id,request_id,sender_id,body,created_at")
-        .single();
-
-      if (error) {
-          setStatusMessage("Message table is not active yet. Apply the profile and messaging migration before relying on in-app delivery.");
-        setMessages((current) => [
-          ...current,
-          {
-            id: `local-${Date.now()}`,
-            submission_id: selectedCase.id,
-            request_id: selectedCase.request_id,
-            sender_id: user.id,
-            body: draftMessage.trim(),
-            created_at: new Date().toISOString(),
-          },
-        ]);
-        setDraftMessage("");
-        return;
-      }
-
-      setMessages((current) => [...current, data as SourceMessageRow]);
-      setDraftMessage("");
-      setStatusMessage("Message saved to this source case.");
-    } catch (error) {
-      setErrorMessage(error instanceof Error ? error.message : "Could not send this message.");
-    } finally {
-      setSending(false);
-    }
-  };
-
-  return (
-    <main className="route-page dashboard-page" aria-labelledby="messages-title">
-      <section className="dashboard-head">
-        <div>
-          <p className="route-kicker">Messages</p>
-          <h1 id="messages-title">Source follow-ups in one place.</h1>
-          <p>Use this for final lead checks.</p>
-        </div>
-        <div className="head-actions">
-          <button className="section-link section-button" type="button" onClick={onDashboard}>
-            Helper dashboard <ArrowRight size={17} />
-          </button>
-          <a className="primary-button" href="mailto:support@pleasefindmethis.com?subject=Help%20with%20a%20source%20follow-up">
-            Email help
-          </a>
-        </div>
-      </section>
-      {loading ? <p className="dialog-note">Loading source follow-ups...</p> : null}
-      {errorMessage ? <p className="dialog-error" role="alert">{errorMessage}</p> : null}
-      {statusMessage ? <p className="dialog-note" role="status">{statusMessage}</p> : null}
-      <section className="dashboard-grid messages-grid">
-        <div className="dashboard-panel">
-          <div className="panel-header">
-            <h2>Source cases</h2>
-            <MessageSquare size={20} />
+        ) : (
+          <div className="empty-state">
+            <Search size={25} />
+            <strong>No searches yet</strong>
+            <span>Post a free request to create your first shareable search brief.</span>
           </div>
-          {sourceCases.length ? (
-            sourceCases.map((sourceCase) => (
-              <button className="review-row" key={sourceCase.id} type="button" onClick={() => setSelectedCaseId(sourceCase.id)}>
-                <span>
-                  <strong>{sourceCase.match_notes.slice(0, 64) || "Source suggestion case"}</strong>
-                  <small>{sourceCase.status.replace(/_/g, " ")} · {getRelativeTimeLabel(sourceCase.updated_at)}</small>
-                </span>
-                <em>{sourceCase.source_type.replace(/-/g, " ")}</em>
-              </button>
-            ))
-          ) : (
-            <div className="empty-state">
-              <MessageSquare size={26} />
-              <strong>No source follow-ups yet</strong>
-            </div>
-          )}
-        </div>
-        <form className="dashboard-panel message-thread-panel" onSubmit={sendMessage}>
-          <div className="panel-header">
-            <h2>{selectedCase ? "Case thread" : "No case selected"}</h2>
-            <ShieldCheck size={20} />
-          </div>
-          {selectedCase ? (
-            <>
-              <div className="source-review-row">
-                <span>Source status</span>
-                <strong>{selectedCase.status.replace(/_/g, " ")}</strong>
-              </div>
-              <div className="source-review-row">
-                <span>Contact path</span>
-                <strong>{selectedCase.source_url || selectedCase.source_contact || selectedCase.contact_email || "Private source details"}</strong>
-              </div>
-              <div className="message-thread" aria-label="Source case messages">
-                {messages.length ? (
-                  messages.map((message) => (
-                    <div className="message-bubble" key={message.id}>
-                      <p>{message.body}</p>
-                      <span>{getRelativeTimeLabel(message.created_at)}</span>
-                    </div>
-                  ))
-                ) : (
-              <p className="dialog-note">No messages yet.</p>
-                )}
-              </div>
-              <label className="message-composer">
-                Message
-                <textarea value={draftMessage} placeholder="Add the next step, seller update, or safety note." onChange={(event) => setDraftMessage(event.target.value)} />
-              </label>
-              <button className="primary-button" type="submit" disabled={sending}>
-                {sending ? "Sending..." : "Send message"}
-              </button>
-            </>
-          ) : (
-            <p className="dialog-note">Pick a source case first.</p>
-          )}
-        </form>
-      </section>
-    </main>
-  );
-}
-
-function DisputePage({ onBack }: { onBack: () => void }) {
-  const [submissions, setSubmissions] = useState<SourceSubmissionRow[]>([]);
-  const [selectedSubmissionId, setSelectedSubmissionId] = useState("");
-  const [reasonCode, setReasonCode] = useState("bad-source");
-  const [evidenceSummary, setEvidenceSummary] = useState("");
-  const [message, setMessage] = useState("");
-  const [errorMessage, setErrorMessage] = useState("");
-  const [submitting, setSubmitting] = useState(false);
-
-  useEffect(() => {
-    if (!supabase) {
-      return undefined;
-    }
-
-    const client = supabase;
-    let mounted = true;
-
-    const loadSubmissions = async () => {
-      try {
-        await getCurrentSupabaseUser();
-        const { data, error } = await client
-          .from("source_submissions")
-          .select("id,request_id,finder_id,source_type,price_or_terms,match_notes,proof,status,first_valid_rank,revealed_at,accepted_at,rejected_at,awarded_at,created_at,updated_at")
-          .in("status", ["revealed", "accepted", "rejected", "in_review"]);
-
-        if (error) {
-          throw error;
-        }
-
-        if (mounted) {
-          const nextSubmissions = (data ?? []) as SourceSubmissionRow[];
-          setSubmissions(nextSubmissions);
-          setSelectedSubmissionId(nextSubmissions[0]?.id ?? "");
-        }
-      } catch (error) {
-        if (mounted) {
-          setErrorMessage(error instanceof Error ? error.message : "Could not load dispute-eligible sources.");
-        }
-      }
-    };
-
-    loadSubmissions();
-
-    return () => {
-      mounted = false;
-    };
-  }, []);
-
-  const submitDispute = async (event: React.FormEvent<HTMLFormElement>) => {
-    event.preventDefault();
-    setErrorMessage("");
-    setMessage("");
-
-    if (!supabase) {
-      setErrorMessage("Dispute submission requires Supabase configuration.");
-      return;
-    }
-
-    const selectedSubmission = submissions.find((submission) => submission.id === selectedSubmissionId);
-
-    if (!selectedSubmission) {
-      setErrorMessage("Choose a reviewed source first.");
-      return;
-    }
-
-    if (!evidenceSummary.trim()) {
-      setErrorMessage("Add an evidence summary before opening a dispute.");
-      return;
-    }
-
-    setSubmitting(true);
-
-    try {
-      const user = await getCurrentSupabaseUser();
-      const { error } = await supabase.from("source_disputes").insert({
-        submission_id: selectedSubmission.id,
-        request_id: selectedSubmission.request_id,
-        opened_by: user.id,
-        opened_by_role: selectedSubmission.finder_id === user.id ? "finder" : "poster",
-        reason_code: reasonCode,
-        evidence_summary: evidenceSummary.trim(),
-        status: "open",
-        resolution_note: "",
-      });
-
-      if (error) {
-        throw error;
-      }
-
-      setMessage("Dispute opened. The case is now available for review with your evidence summary.");
-      setEvidenceSummary("");
-    } catch (error) {
-      setErrorMessage(error instanceof Error ? error.message : "Could not open dispute.");
-    } finally {
-      setSubmitting(false);
-    }
-  };
-
-  return (
-    <main className="route-page" aria-labelledby="dispute-title">
-      <section className="two-column-page">
-        <form className="form-panel" onSubmit={submitDispute}>
-          <button className="back-button" type="button" onClick={onBack}>
-            <ArrowLeft size={17} /> Poster dashboard
-          </button>
-          <h1 id="dispute-title">Open a dispute.</h1>
-          <p>Use this when a source does not match.</p>
-          <label>
-            Source case
-            <select value={selectedSubmissionId} onChange={(event) => setSelectedSubmissionId(event.target.value)}>
-              {submissions.length ? (
-                submissions.map((submission) => (
-                  <option value={submission.id} key={submission.id}>
-                    {submission.match_notes.slice(0, 72) || submission.id} · {submission.status}
-                  </option>
-                ))
-              ) : (
-                <option value="">Choose a reviewed source</option>
-              )}
-            </select>
-          </label>
-          <label>
-            Dispute reason
-            <select value={reasonCode} onChange={(event) => setReasonCode(event.target.value)}>
-              <option value="bad-source">Source does not match request</option>
-	              <option value="used-valid-source">Useful source was dismissed incorrectly</option>
-	              <option value="wrong-rejection">Source was rejected unfairly</option>
-	              <option value="handoff-issue">Seller or buying-path issue</option>
-	              <option value="payment-release">Digital tool or billing issue</option>
-              <option value="other">Other</option>
-            </select>
-          </label>
-          <label>
-            Evidence summary
-            <textarea value={evidenceSummary} placeholder="Explain what is wrong and share source links, messages, or proof." onChange={(event) => setEvidenceSummary(event.target.value)} />
-          </label>
-          <p className="form-hint">Add links, receipts, photos, and messages in the summary.</p>
-          {errorMessage ? <p className="dialog-error" role="alert">{errorMessage}</p> : null}
-          {message ? <p className="dialog-success" role="status">{message}</p> : null}
-          <button className="danger-button strong-danger" type="submit" disabled={submitting || !selectedSubmissionId}>
-            {submitting ? "Submitting dispute..." : "Submit dispute"}
-          </button>
-        </form>
-      </section>
-    </main>
-  );
-}
-
-function TrustProfilePage({ onBrowse, onFinder, onSettings }: { onBrowse: () => void; onFinder: () => void; onSettings: () => void }) {
-  const [profile, setProfile] = useState<AccountProfile>(() => readStoredAccountProfile());
-  const readiness = getFinderReadiness(profile);
-  const displayName = profile.displayName.trim() || "Your helper profile";
-  const handle = profile.handle.trim() ? `@${profile.handle.trim()}` : "No public handle yet";
-  const initials = displayName
-    .split(" ")
-    .map((part) => part[0])
-    .join("")
-    .slice(0, 2)
-    .toUpperCase();
-
-  useEffect(() => {
-    const syncProfile = () => setProfile(readStoredAccountProfile());
-    window.addEventListener("focus", syncProfile);
-    window.addEventListener("storage", syncProfile);
-    return () => {
-      window.removeEventListener("focus", syncProfile);
-      window.removeEventListener("storage", syncProfile);
-    };
-  }, []);
-
-  return (
-    <main className="route-page" aria-labelledby="profile-title">
-      <section className="profile-hero">
-        <div className="profile-card-main">
-          <span className="avatar large-avatar">{initials || "PF"}</span>
-          <div>
-            <p className="route-kicker">Finder profile</p>
-            <h1 id="profile-title">{displayName}</h1>
-            <p>{handle} · {profile.specialty.trim() || "Add sourcing focus in Account Settings."}</p>
-          </div>
-        </div>
-        <div className="profile-actions">
-          <button className="primary-button" type="button" onClick={onFinder}>
-            Help with requests
-          </button>
-          <button className="section-link section-button" type="button" onClick={onSettings}>
-            Edit profile <ArrowRight size={17} />
-          </button>
-          <a className="section-link section-button" href={routeHref("browse")} onClick={(event) => handleRoutedAnchorClick(event, onBrowse)}>
-            Browse requests <ArrowRight size={17} />
-          </a>
-        </div>
-      </section>
-      <section className="metric-grid">
-        <Metric icon={Star} label="Readiness" value={`${readiness.score}%`} />
-        <Metric icon={Trophy} label="Source history" value="Tracked" />
-        <Metric icon={ShieldCheck} label="Review status" value={profile.identityStatus.replace(/_/g, " ")} />
-        <Metric icon={Scale} label="Dispute history" value="Case-based" />
-      </section>
-      <section className="dashboard-grid">
-        <div className="dashboard-panel">
-          <div className="panel-header">
-            <h2>Trust signals</h2>
-            <ShieldCheck size={20} />
-          </div>
-          <ul className="check-list readiness-list">
-            {readiness.items.map((item) => (
-              <li className={item.complete ? "is-complete" : "is-missing"} key={item.label}>
-                {item.complete ? <CheckCircle2 size={18} /> : <CircleHelp size={18} />}
-                <span>
-                  <strong>{item.label}</strong>
-                  {item.copy}
-                </span>
-              </li>
-            ))}
-          </ul>
-        </div>
+        )}
       </section>
     </main>
   );
@@ -7641,21 +5138,21 @@ function PrivacyPage() {
         {
           title: "Data we collect",
           copy: [
-            "We collect email, request details, photos, source leads, and proof files.",
+            "We collect account email, request details, reference photos, public clue text, public source URLs, and basic security logs.",
           ],
         },
         {
           title: "How data is used",
           copy: [
-            "Request details are shared on request pages without sensitive account data.",
-            "Source details are stored so requesters can review links and context before buying.",
+            "Published request details, reference photos, clue text, and submitted source URLs appear on public request pages. Sensitive account data is not shown there.",
+            "We use account and security data to operate the workspace, prevent abuse, and respond to privacy or moderation requests.",
           ],
         },
         {
           title: "Choices and requests",
           copy: [
-            "Use Account settings to request deletion, export, or changes.",
-            "We keep only records needed for security and legal requirements.",
+            "Email support@pleasefindmethis.com to request account deletion, data export, or correction.",
+            "We retain only what is needed to operate the service, prevent abuse, and meet legal requirements.",
           ],
         },
       ]}
@@ -7667,42 +5164,27 @@ function TermsPage() {
   return (
     <PolicyPage
       title="Terms of Service"
-      intro="Posting rules, lead sharing, and safety."
+      intro="Rules for public requests, clues, and external links."
       sections={[
         {
           title: "Posting a request",
           copy: [
-            "Requesters post for free. Helpers share leads.",
-            "We do not sell items.",
+            "The service is a self-serve public request board. Posting requests and public clues is free.",
+            "We do not sell items, search on a customer’s behalf, hold funds, pay contributors, or arrange purchases between users.",
           ],
         },
         {
-          title: "Source checks and safety",
+          title: "External links and safety",
           copy: [
-            "A source can be a public listing, seller contact, or local lead.",
-            "Verify price, seller, and authenticity before buying.",
+            "Clues and source URLs are public suggestions from visitors and may be inaccurate, outdated, or unsafe.",
+            "Any purchase happens independently on a third-party site. Verify availability, price, seller, authenticity, and site safety before acting.",
           ],
         },
         {
           title: "Account enforcement",
           copy: [
-            "We can remove requests, block bad activity, pause abuse, or suspend accounts.",
+            "We can remove requests or clues, block abusive activity, and suspend accounts that violate these terms or applicable law.",
           ],
-        },
-      ]}
-    />
-  );
-}
-
-function RefundPolicyPage() {
-  return (
-    <PolicyPage
-      title="Refund and Cancellation Policy"
-      intro="How request removals and cancellations work."
-      sections={[
-        {
-          title: "Free requests",
-          copy: ["Posting is free and done directly on the request board."],
         },
       ]}
     />
@@ -7726,46 +5208,32 @@ function AccountSettingsPage() {
     const loadProfile = async () => {
       try {
         const user = await getCurrentSupabaseUser();
-        const [profileResult, payoutResult] = await Promise.all([
-          client
-            .from("profiles")
-            .select("display_name,handle,account_type,region,specialty,identity_status")
-            .eq("id", user.id)
-            .maybeSingle(),
-          client
-            .from("finder_payout_profiles")
-            .select("payout_email,country,status")
-            .eq("user_id", user.id)
-            .maybeSingle(),
-        ]);
+        const { data, error } = await client
+          .from("profiles")
+          .select("display_name,handle,region,specialty")
+          .eq("id", user.id)
+          .maybeSingle();
 
-        if (!mounted) {
-          return;
-        }
-
-        if (profileResult.error || payoutResult.error) {
+        if (!mounted || error) {
           return;
         }
 
         const nextProfile = normalizeAccountProfile({
           ...readStoredAccountProfile(),
-          displayName: profileResult.data?.display_name ?? "",
-          handle: profileResult.data?.handle ?? "",
-          accountType: (profileResult.data?.account_type as AuthAccountType | null) ?? "both",
-          region: profileResult.data?.region ?? "",
-          specialty: profileResult.data?.specialty ?? "",
-          identityStatus: (profileResult.data?.identity_status as FinderIdentityStatus | null) ?? "not_started",
-          payoutEmail: payoutResult.data?.payout_email ?? "",
-          payoutCountry: payoutResult.data?.country ?? "US",
+          displayName: data?.display_name ?? "",
+          handle: data?.handle ?? "",
+          region: data?.region ?? "",
+          specialty: data?.specialty ?? "",
+          notificationEmail: user.email ?? readStoredAccountProfile().notificationEmail,
         });
         setProfile(nextProfile);
         writeStoredAccountProfile(nextProfile);
       } catch {
-        // Settings stay usable locally if the profile tables are not deployed yet.
+        // Local settings remain available when the profile table is unavailable.
       }
     };
 
-    loadProfile();
+    void loadProfile();
 
     return () => {
       mounted = false;
@@ -7781,7 +5249,6 @@ function AccountSettingsPage() {
   const saveProfile = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     const nextProfile = normalizeAccountProfile(profile);
-    const nextReadiness = getFinderReadiness(nextProfile);
 
     setSaveStatus("");
     setSaveError("");
@@ -7796,8 +5263,8 @@ function AccountSettingsPage() {
       return;
     }
 
-    if (nextProfile.payoutEmail.trim() && !emailPattern.test(nextProfile.payoutEmail.trim())) {
-      setSaveError("Enter a valid contact email or leave it blank.");
+    if (nextProfile.notificationEmail.trim() && !emailPattern.test(nextProfile.notificationEmail.trim())) {
+      setSaveError("Enter a valid notification email or leave it blank.");
       return;
     }
 
@@ -7808,39 +5275,22 @@ function AccountSettingsPage() {
     try {
       if (supabase) {
         const user = await getCurrentSupabaseUser();
-        const profileResult = await supabase.from("profiles").upsert({
+        const { error } = await supabase.from("profiles").upsert({
           id: user.id,
           display_name: nextProfile.displayName.trim(),
           handle: nextProfile.handle.trim(),
-          account_type: nextProfile.accountType,
           region: nextProfile.region.trim(),
           specialty: nextProfile.specialty.trim(),
-          identity_status: nextProfile.identityStatus,
-          profile_completed_at: nextReadiness.score >= 75 ? new Date().toISOString() : null,
         });
 
-        if (profileResult.error) {
-          throw profileResult.error;
-        }
-
-        if (nextProfile.payoutEmail.trim()) {
-          const payoutResult = await supabase.from("finder_payout_profiles").upsert({
-            user_id: user.id,
-            payout_email: nextProfile.payoutEmail.trim(),
-            country: nextProfile.payoutCountry.trim() || "US",
-            status: nextProfile.identityStatus === "verified" ? "ready" : "details_saved",
-            terms_accepted_at: new Date().toISOString(),
-          });
-
-          if (payoutResult.error) {
-            throw payoutResult.error;
-          }
+        if (error) {
+          throw error;
         }
       }
 
-      setSaveStatus("Account settings saved. Helper readiness has been updated.");
+      setSaveStatus("Account settings saved.");
     } catch {
-      setSaveStatus("Saved locally. Apply the profile migration before relying on server-side readiness.");
+      setSaveStatus("Saved locally. Server profile sync is temporarily unavailable.");
     } finally {
       setSaving(false);
     }
@@ -7851,8 +5301,8 @@ function AccountSettingsPage() {
       <section className="dashboard-head">
         <div>
           <p className="route-kicker">Account settings</p>
-          <h1 id="settings-title">Set up your profile</h1>
-          <p>Keep your name and contact details up to date.</p>
+          <h1 id="settings-title">Your request profile</h1>
+          <p>Keep your public name and search preferences up to date.</p>
         </div>
       </section>
       <section className="two-column-page account-settings-layout" style={{ gridTemplateColumns: "minmax(0, 1fr)" }}>
@@ -7863,452 +5313,26 @@ function AccountSettingsPage() {
           </label>
           <label>
             Public handle
-            <input value={profile.handle} placeholder="camera-scout" onChange={(event) => updateProfile({ handle: event.target.value })} />
-          </label>
-          <label>
-            Account type
-            <select value={profile.accountType} onChange={(event) => updateProfile({ accountType: event.target.value as AuthAccountType })}>
-              <option value="both">Requester and helper</option>
-              <option value="poster">Requester only</option>
-              <option value="finder">Helper only</option>
-            </select>
+            <input value={profile.handle} placeholder="camera-searcher" onChange={(event) => updateProfile({ handle: event.target.value })} />
           </label>
           <label>
             Region
-            <input value={profile.region} placeholder="US, Canada, Japan proxy, local NYC..." onChange={(event) => updateProfile({ region: event.target.value })} />
+            <input value={profile.region} placeholder="India, US, Canada..." onChange={(event) => updateProfile({ region: event.target.value })} />
           </label>
           <label>
-            Sourcing focus
-            <textarea value={profile.specialty} placeholder="Rare camera gear, discontinued mugs, local estate sales, repair donor units..." onChange={(event) => updateProfile({ specialty: event.target.value })} />
-          </label>
-          <label>
-            Contact email
-            <input type="email" value={profile.payoutEmail} placeholder="you@example.com" onChange={(event) => updateProfile({ payoutEmail: event.target.value })} />
-          </label>
-          <label>
-            Country
-            <input value={profile.payoutCountry} placeholder="US" onChange={(event) => updateProfile({ payoutCountry: event.target.value })} />
-          </label>
-          <label>
-            Trust review status
-            <select value={profile.identityStatus} onChange={(event) => updateProfile({ identityStatus: event.target.value as FinderIdentityStatus })}>
-              <option value="not_started">Not started</option>
-              <option value="review_requested">Review requested</option>
-              <option value="verified" disabled>Verified by review</option>
-            </select>
+            Search interests
+            <textarea value={profile.specialty} placeholder="Rare camera gear, discontinued mugs, repair parts..." onChange={(event) => updateProfile({ specialty: event.target.value })} />
           </label>
           <label>
             Notification email
             <input type="email" value={profile.notificationEmail} placeholder="you@example.com" onChange={(event) => updateProfile({ notificationEmail: event.target.value })} />
           </label>
           {saveError ? <p className="dialog-error" role="alert">{saveError}</p> : null}
-          {saveStatus ? <p className="dialog-success" role="status">{saveStatus}</p> : null}
+          {saveStatus ? <p className="dialog-note" role="status">{saveStatus}</p> : null}
           <button className="primary-button" type="submit" disabled={saving}>
             {saving ? "Saving..." : "Save settings"}
           </button>
         </form>
-      </section>
-    </main>
-  );
-}
-
-function AdminReviewPage() {
-  const currencyPreference = useCurrencyPreference();
-  const [payoutCases, setPayoutCases] = useState<FinderPayoutCaseRow[]>([]);
-  const [disputes, setDisputes] = useState<SourceDisputeRow[]>([]);
-  const [duplicateFlags, setDuplicateFlags] = useState<SourceDuplicateFlagRow[]>([]);
-  const [caseNotes, setCaseNotes] = useState<Record<string, string>>({});
-  const [caseTransferRefs, setCaseTransferRefs] = useState<Record<string, string>>({});
-  const [disputeNotes, setDisputeNotes] = useState<Record<string, string>>({});
-  const [duplicateNotes, setDuplicateNotes] = useState<Record<string, string>>({});
-  const [actingPayoutCaseId, setActingPayoutCaseId] = useState("");
-  const [adminEmail, setAdminEmail] = useState("");
-  const [adminConfigured, setAdminConfigured] = useState(false);
-  const [adminMessage, setAdminMessage] = useState("");
-  const [adminError, setAdminError] = useState("");
-  const [loading, setLoading] = useState(Boolean(supabase));
-
-  const loadAdminQueues = async () => {
-    if (!supabase) {
-      setLoading(false);
-      setAdminError("Sign in is not available right now.");
-      return;
-    }
-
-    setLoading(true);
-    setAdminError("");
-    setAdminMessage("");
-
-    try {
-      const accessToken = await getSupabaseAccessToken();
-      const response = await fetch("/api/admin/payout-cases", {
-        method: "GET",
-        headers: {
-          Authorization: `Bearer ${accessToken}`,
-        },
-      });
-      const payload = (await response.json()) as AdminPayoutQueuesResponse;
-
-      if (!response.ok) {
-        throw new Error(payload.error || "Could not load admin queue.");
-      }
-
-      setPayoutCases(payload.payoutCases ?? []);
-      setDisputes(payload.disputes ?? []);
-      setDuplicateFlags(payload.duplicateFlags ?? []);
-      setAdminEmail(payload.admin?.email ?? "");
-      setAdminConfigured(Boolean(payload.admin?.configured));
-
-      if (!payload.admin?.configured) {
-        setAdminMessage("Admin role comes from Supabase app metadata. Add ADMIN_EMAILS to allowlist admin emails.");
-      }
-    } catch (error) {
-      setAdminError(error instanceof Error ? error.message : "Could not load admin queue.");
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  useEffect(() => {
-    void loadAdminQueues();
-  }, []);
-
-  const runPayoutAction = async (payoutCase: FinderPayoutCaseRow, action: "hold" | "processing" | "paid" | "note") => {
-    setActingPayoutCaseId(`payout:${payoutCase.id}:${action}`);
-    setAdminError("");
-    setAdminMessage("");
-
-    try {
-      const accessToken = await getSupabaseAccessToken();
-      const response = await fetch("/api/admin/payout-cases", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${accessToken}`,
-        },
-        body: JSON.stringify({
-          payoutCaseId: payoutCase.id,
-          action,
-          adminNote: caseNotes[payoutCase.id] ?? "",
-          processor: action === "paid" ? "manual" : undefined,
-          processorTransferId: action === "paid" ? caseTransferRefs[payoutCase.id] ?? "" : undefined,
-        }),
-      });
-      const payload = (await response.json()) as AdminPayoutQueuesResponse;
-
-      if (!response.ok || !payload.payoutCase) {
-        throw new Error(payload.error || "Could not update review case.");
-      }
-
-      setPayoutCases((current) => current.map((entry) => (entry.id === payload.payoutCase?.id ? payload.payoutCase : entry)));
-      setCaseNotes((current) => ({ ...current, [payoutCase.id]: "" }));
-      setAdminMessage(`Review case updated to ${payload.payoutCase.status.replace(/_/g, " ")}.`);
-    } catch (error) {
-      setAdminError(error instanceof Error ? error.message : "Could not update review case.");
-    } finally {
-      setActingPayoutCaseId("");
-    }
-  };
-
-  const runDisputeAction = async (dispute: SourceDisputeRow, action: "needs_evidence" | "finder_wins" | "poster_wins" | "closed" | "note") => {
-    setActingPayoutCaseId(`dispute:${dispute.id}:${action}`);
-    setAdminError("");
-    setAdminMessage("");
-
-    try {
-      const accessToken = await getSupabaseAccessToken();
-      const response = await fetch("/api/admin/payout-cases", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${accessToken}`,
-        },
-        body: JSON.stringify({
-          caseType: "source_dispute",
-          disputeId: dispute.id,
-          action,
-          resolutionNote: disputeNotes[dispute.id] ?? "",
-        }),
-      });
-      const payload = (await response.json()) as AdminPayoutQueuesResponse;
-
-      if (!response.ok || !payload.dispute) {
-        throw new Error(payload.error || "Could not update source dispute.");
-      }
-
-      setDisputes((current) => current.map((entry) => (entry.id === payload.dispute?.id ? payload.dispute : entry)));
-      setPayoutCases((current) =>
-        current.map((entry) => {
-          if (entry.submission_id !== payload.dispute?.submission_id) {
-            return entry;
-          }
-
-          if (action === "finder_wins") {
-            return { ...entry, status: "hold", admin_note: "Review marked complete for helper source." };
-          }
-
-          if (action === "poster_wins") {
-            return { ...entry, status: "cancelled", admin_note: "Review marked complete for requester concern." };
-          }
-
-          if (action === "needs_evidence") {
-            return { ...entry, status: "disputed", admin_note: "Review needs more evidence before the source suggestion is trusted." };
-          }
-
-          return entry;
-        }),
-      );
-      setDisputeNotes((current) => ({ ...current, [dispute.id]: "" }));
-      setAdminMessage(`Source dispute updated to ${payload.dispute.status.replace(/_/g, " ")}.`);
-    } catch (error) {
-      setAdminError(error instanceof Error ? error.message : "Could not update source dispute.");
-    } finally {
-      setActingPayoutCaseId("");
-    }
-  };
-
-  const runDuplicateFlagAction = async (duplicateFlag: SourceDuplicateFlagRow, action: "reviewed" | "linked" | "dismissed" | "note") => {
-    setActingPayoutCaseId(`duplicate:${duplicateFlag.id}:${action}`);
-    setAdminError("");
-    setAdminMessage("");
-
-    try {
-      const accessToken = await getSupabaseAccessToken();
-      const response = await fetch("/api/admin/payout-cases", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${accessToken}`,
-        },
-        body: JSON.stringify({
-          caseType: "duplicate_source",
-          duplicateFlagId: duplicateFlag.id,
-          action,
-          adminNote: duplicateNotes[duplicateFlag.id] ?? "",
-        }),
-      });
-      const payload = (await response.json()) as AdminPayoutQueuesResponse;
-
-      if (!response.ok || !payload.duplicateFlag) {
-        throw new Error(payload.error || "Could not update duplicate source flag.");
-      }
-
-      setDuplicateFlags((current) => current.map((entry) => (entry.id === payload.duplicateFlag?.id ? payload.duplicateFlag : entry)));
-      setDuplicateNotes((current) => ({ ...current, [duplicateFlag.id]: "" }));
-      setAdminMessage(`Duplicate source flag updated to ${payload.duplicateFlag.status.replace(/_/g, " ")}.`);
-    } catch (error) {
-      setAdminError(error instanceof Error ? error.message : "Could not update duplicate source flag.");
-    } finally {
-      setActingPayoutCaseId("");
-    }
-  };
-
-  const actionablePayouts = payoutCases.filter((payoutCase) => ["payable", "hold", "disputed", "processing"].includes(payoutCase.status));
-  const openDisputes = disputes.filter((dispute) => ["open", "needs_evidence"].includes(dispute.status));
-  const openDuplicateFlags = duplicateFlags.filter((duplicateFlag) => duplicateFlag.status === "open");
-
-  return (
-    <main className="route-page dashboard-page" aria-labelledby="admin-review-title">
-      <section className="dashboard-head">
-        <div>
-          <p className="route-kicker">Admin review</p>
-          <h1 id="admin-review-title">Admin queue.</h1>
-          <p>Handle reviews, disputes, and duplicate sources.</p>
-        </div>
-      </section>
-      {loading ? <p className="dialog-note">Loading admin queue...</p> : null}
-      {adminError ? <p className="dialog-error" role="alert">{adminError}</p> : null}
-      {adminMessage ? <p className="dialog-note" role="status">{adminMessage}</p> : null}
-      <section className="metric-grid">
-        <Metric icon={Banknote} label="Review cases" value={String(actionablePayouts.length)} />
-        <Metric icon={Scale} label="Open disputes" value={String(openDisputes.length)} />
-        <Metric icon={Flag} label="Duplicate flags" value={String(openDuplicateFlags.length)} />
-        <Metric icon={ShieldAlert} label="Admin API" value={adminConfigured || adminEmail ? "Active" : "Locked"} />
-      </section>
-      <section className="dashboard-grid">
-        <div className="dashboard-panel">
-          <div className="panel-header">
-            <h2>Review cases</h2>
-            <button className="icon-button" type="button" aria-label="Refresh admin queue" onClick={() => void loadAdminQueues()}>
-              <TimerReset size={18} />
-            </button>
-          </div>
-          {payoutCases.length ? (
-            <div className="payout-case-list">
-              {payoutCases.slice(0, 8).map((payoutCase) => {
-                const note = caseNotes[payoutCase.id] ?? "";
-                const transferRef = caseTransferRefs[payoutCase.id] ?? "";
-                const isActing = actingPayoutCaseId.startsWith(`payout:${payoutCase.id}:`);
-                const canProcess = ["payable", "hold", "disputed"].includes(payoutCase.status);
-                const canHold = !["hold", "paid", "cancelled", "refunded"].includes(payoutCase.status);
-                const canRecordPaid = false;
-
-                return (
-                  <div className="payout-case-row" key={payoutCase.id}>
-                    <span>
-                      <strong>{formatUsdMoney(payoutCase.amount, currencyPreference)}</strong>
-                      {payoutCase.status.replace(/_/g, " ")}
-                    </span>
-                      <small>{payoutCase.release_after ? `Review window ${getRelativeTimeLabel(payoutCase.release_after)}` : "No review window"}</small>
-                    {payoutCase.processor_transfer_id ? <em>Transfer ref: {payoutCase.processor_transfer_id}</em> : null}
-                    {payoutCase.admin_note ? <em>{payoutCase.admin_note}</em> : null}
-                    <div className="admin-payout-controls">
-                      <label>
-                        Staff note
-                        <textarea
-                          value={note}
-                          placeholder="Why this action is correct"
-                          onChange={(event) => setCaseNotes((current) => ({ ...current, [payoutCase.id]: event.target.value }))}
-                        />
-                      </label>
-                      <label>
-                        Reference
-                        <input
-                          value={transferRef}
-                          placeholder="Reference or transfer id"
-                          onChange={(event) => setCaseTransferRefs((current) => ({ ...current, [payoutCase.id]: event.target.value }))}
-                        />
-                      </label>
-                      <div className="admin-action-row">
-                        <button type="button" disabled={isActing || !note.trim()} onClick={() => void runPayoutAction(payoutCase, "note")}>
-                          <FileText size={16} /> Save note
-                        </button>
-                        <button type="button" disabled={isActing || !canHold || !note.trim()} onClick={() => void runPayoutAction(payoutCase, "hold")}>
-                          <ShieldAlert size={16} /> Hold
-                        </button>
-                        <button type="button" disabled={isActing || !canProcess} onClick={() => void runPayoutAction(payoutCase, "processing")}>
-                          <Clock3 size={16} /> Processing
-                        </button>
-                        <button type="button" disabled={isActing || !canRecordPaid || !transferRef.trim()} onClick={() => void runPayoutAction(payoutCase, "paid")}>
-                          <CheckCircle2 size={16} /> Paid (inactive)
-                        </button>
-                      </div>
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-          ) : (
-            <div className="empty-state">
-              <Banknote size={26} />
-              <strong>No active review cases</strong>
-            </div>
-          )}
-        </div>
-        <div className="dashboard-panel">
-          <div className="panel-header">
-            <h2>Source disputes</h2>
-            <Scale size={20} />
-          </div>
-          {disputes.length ? (
-            <div className="payout-case-list">
-              {disputes.slice(0, 8).map((dispute) => {
-                const note = disputeNotes[dispute.id] ?? "";
-                const isActing = actingPayoutCaseId.startsWith(`dispute:${dispute.id}:`);
-                const isResolved = ["finder_wins", "poster_wins", "closed"].includes(dispute.status);
-
-                return (
-                  <div className="payout-case-row" key={dispute.id}>
-                    <span>
-                      <strong>{dispute.reason_code.replace(/-/g, " ")}</strong>
-                      {dispute.status.replace(/_/g, " ")} · {dispute.opened_by_role}
-                    </span>
-                    <small>{dispute.evidence_summary.slice(0, 140) || "No evidence summary"}</small>
-                    {dispute.resolution_note ? <em>{dispute.resolution_note}</em> : null}
-                    <div className="admin-payout-controls">
-                      <label>
-                        Resolution note
-                        <textarea
-                          value={note}
-                          placeholder="What staff reviewed and why this decision is correct"
-                          onChange={(event) => setDisputeNotes((current) => ({ ...current, [dispute.id]: event.target.value }))}
-                        />
-                      </label>
-                      <div className="admin-action-row">
-                        <button type="button" disabled={isActing || !note.trim()} onClick={() => void runDisputeAction(dispute, "note")}>
-                          <FileText size={16} /> Save note
-                        </button>
-                        <button type="button" disabled={isActing || isResolved || !note.trim()} onClick={() => void runDisputeAction(dispute, "needs_evidence")}>
-                          <CircleHelp size={16} /> Need evidence
-                        </button>
-                        <button type="button" disabled={isActing || isResolved || !note.trim()} onClick={() => void runDisputeAction(dispute, "finder_wins")}>
-                          <Trophy size={16} /> Helper source valid
-                        </button>
-                        <button type="button" disabled={isActing || isResolved || !note.trim()} onClick={() => void runDisputeAction(dispute, "poster_wins")}>
-                          <CheckCircle2 size={16} /> Requester concern valid
-                        </button>
-                        <button type="button" disabled={isActing || isResolved || !note.trim()} onClick={() => void runDisputeAction(dispute, "closed")}>
-                          <X size={16} /> Close
-                        </button>
-                      </div>
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-          ) : (
-            <div className="empty-state">
-              <Scale size={26} />
-              <strong>No disputes visible</strong>
-            </div>
-          )}
-        </div>
-        <div className="dashboard-panel">
-          <div className="panel-header">
-            <h2>Duplicate sources</h2>
-            <Flag size={20} />
-          </div>
-          {duplicateFlags.length ? (
-            <div className="payout-case-list">
-              {duplicateFlags.slice(0, 8).map((duplicateFlag) => {
-                const note = duplicateNotes[duplicateFlag.id] ?? "";
-                const isActing = actingPayoutCaseId.startsWith(`duplicate:${duplicateFlag.id}:`);
-                const isClosed = ["linked", "dismissed"].includes(duplicateFlag.status);
-
-                return (
-                  <div className="payout-case-row" key={duplicateFlag.id}>
-                    <span>
-                      <strong>{duplicateFlag.source_type.replace(/-/g, " ")}</strong>
-                      {duplicateFlag.status.replace(/_/g, " ")}
-                    </span>
-                    <small>{duplicateFlag.normalized_source || "No public source identity saved"}</small>
-                    {duplicateFlag.admin_note ? <em>{duplicateFlag.admin_note}</em> : null}
-                    <div className="admin-payout-controls">
-                      <label>
-                        Duplicate review note
-                        <textarea
-                          value={note}
-                          placeholder="How staff decided source priority or why this signal is not a duplicate"
-                          onChange={(event) => setDuplicateNotes((current) => ({ ...current, [duplicateFlag.id]: event.target.value }))}
-                        />
-                      </label>
-                      <div className="admin-action-row">
-                        <button type="button" disabled={isActing || !note.trim()} onClick={() => void runDuplicateFlagAction(duplicateFlag, "note")}>
-                          <FileText size={16} /> Save note
-                        </button>
-                        <button type="button" disabled={isActing || isClosed || !note.trim()} onClick={() => void runDuplicateFlagAction(duplicateFlag, "reviewed")}>
-                          <Clock3 size={16} /> Reviewed
-                        </button>
-                        <button type="button" disabled={isActing || isClosed || !note.trim()} onClick={() => void runDuplicateFlagAction(duplicateFlag, "linked")}>
-                          <LinkIcon size={16} /> Link earlier source
-                        </button>
-                        <button type="button" disabled={isActing || isClosed || !note.trim()} onClick={() => void runDuplicateFlagAction(duplicateFlag, "dismissed")}>
-                          <X size={16} /> Dismiss
-                        </button>
-                      </div>
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-          ) : (
-            <div className="empty-state">
-              <Flag size={26} />
-              <strong>No duplicate source flags</strong>
-              <span>Exact source collisions are logged here so staff can preserve first-valid-source priority.</span>
-            </div>
-          )}
-        </div>
       </section>
     </main>
   );
@@ -8380,14 +5404,14 @@ function AppReadyMarker() {
 }
 
 type RootWindow = Window & {
-  __bountyMarketplaceRoot?: ReturnType<typeof createRoot>;
+  __requestBoardRoot?: ReturnType<typeof createRoot>;
 };
 
 const rootElement = document.getElementById("root")!;
 const rootWindow = window as RootWindow;
-const root = rootWindow.__bountyMarketplaceRoot ?? createRoot(rootElement);
+const root = rootWindow.__requestBoardRoot ?? createRoot(rootElement);
 
-rootWindow.__bountyMarketplaceRoot = root;
+rootWindow.__requestBoardRoot = root;
 root.render(
   <>
     <App />

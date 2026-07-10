@@ -7,23 +7,25 @@ const distDir = path.join(root, "dist");
 const siteUrl = "https://pleasefindmethis.com";
 const siteName = "pleasefindmethis.com";
 const titleBrand = "pleasefindmethis";
-const lastmod = "2026-07-03";
-const defaultImage = "/og/pleasefindmethis-vintage-tee-fullscreen-v3.png";
-const defaultImageAlt = "Public request for a hard-to-find item with photos, failed searches, and source suggestions.";
+const lastmod = "2026-07-10";
+const defaultImage = "/og/pleasefindmethis-request-board.png";
+const defaultImageAlt = "A free public request board for hard-to-find items, photos, and public clues.";
+const defaultImageWidth = 1200;
+const defaultImageHeight = 630;
 
 const appRoutes = [
   {
     path: "/browse",
     title: `Featured Find Requests | ${titleBrand}`,
-    description: "Browse open requests for rare, sold-out, discontinued, vintage, and replacement items that helpers can suggest sources for.",
+    description: "Browse free public requests for rare, sold-out, discontinued, vintage, and replacement items, then add a useful public clue.",
     h1: "Featured hard-to-find item requests",
     eyebrow: "Browse requests",
     cta: "/browse/all",
     ctaLabel: "Browse all requests",
     sections: [
-      ["What this page is for", "Use this page to scan open requests where people need exact sources, seller paths, local clues, or compatibility notes. These are not marketplace listings; they are free public request briefs with category, match criteria, and source-suggestion expectations."],
-      ["How to evaluate a request", "Read the item name, reference image, must-have details, region, and timeline before sharing a source suggestion. A useful suggestion should explain why the item is available and close enough to the posted criteria for the requester to act on it."],
-      ["Good helper submissions", "Strong submissions include a current listing, seller or shop contact, source path, compatibility proof, price or terms, and notes about condition or availability. Duplicate, expired, vague, or lookalike-only suggestions are weaker and may be rejected."],
+      ["What this page is for", "Use this page to scan open requests where people need exact sources, seller paths, local clues, or compatibility notes. These are free public request briefs, not item listings."],
+      ["How to evaluate a request", "Read the item name, reference image, must-have details, region, and timeline before adding a public clue. A useful clue explains why a source matches the posted criteria."],
+      ["Useful public clues", "Strong clues include a current listing, seller or shop path, compatibility evidence, price or terms, and notes about condition or availability. Never post private personal information."],
     ],
     links: [["Browse all requests", "/browse/all"], ["Request categories", "/requests/"], ["Post a request", "/post/describe"], ["Browse guides", "/guides/"]],
     schemaType: "CollectionPage",
@@ -31,81 +33,49 @@ const appRoutes = [
   {
     path: "/browse/all",
     title: `Browse All Find Requests | ${titleBrand}`,
-    description: "Search open find requests by item, category, and location, then share a useful source suggestion when you know where to find it.",
+    description: "Search open public requests by item, category, and location, then share a useful public clue when you know where to find it.",
     h1: "Browse every open find request",
     eyebrow: "All requests",
     cta: "/post/describe",
     ctaLabel: "Post your own request",
     sections: [
-      ["All public opportunities", "This page is the full request board for people who know where rare, discontinued, sentimental, or hard-to-search items can be found. Each request is a brief for a specific item rather than a generic shopping category."],
-      ["Filter by fit", "Start with categories you understand: sentimental replacements, plush toys, fashion, repair parts, cameras, watches, retro gaming, or home decor. Then check whether the timeline and request details make the suggestion useful."],
-      ["Source suggestion workflow", "When you submit a source suggestion, the platform records the link, clue, proof, and safety notes with the request. Requesters can review the match or use the saved trail if the lead is wrong, duplicated, unavailable, or disputed."],
+      ["All public requests", "This page is the full request board for rare, discontinued, sentimental, or hard-to-search items. Each request describes a specific item rather than a generic shopping category."],
+      ["Filter by fit", "Start with categories you understand: sentimental replacements, plush toys, fashion, repair parts, cameras, watches, retro gaming, or home decor. Then check whether the timeline and request details make your clue useful."],
+      ["Public clue workflow", "Anyone can add a public link, model clue, compatibility note, seller path, or safety warning to an open request. Do not post private personal information, and verify third-party sellers independently."],
     ],
     links: [["Featured requests", "/browse"], ["Guides", "/guides/"], ["Request categories", "/requests/"], ["Terms", "/terms"]],
     schemaType: "CollectionPage",
   },
   {
-    path: "/profile",
-    title: `Helper Trust Profile Example | ${titleBrand}`,
-    description: "See how helper contribution history, source quality, verification, and review history build trust on pleasefindmethis.com.",
-    h1: "Helper trust profile example",
-    eyebrow: "Helper trust",
-    cta: "/browse",
-    ctaLabel: "Browse requests",
-    sections: [
-      ["Why trust profiles matter", "A helper profile helps requesters understand whether someone has a track record with useful sources, niche categories, evidence quality, and safe conduct. It is especially useful for high-effort searches where the best clue may come from a collector, repair shop, reseller, or local source."],
-      ["Signals to review", "Useful trust signals include source history, profile verification, review notes, source timing, category expertise, and whether previous suggestions were specific enough for requesters to act on."],
-      ["How helpers can improve", "Helpers should submit clear match proof, current availability, price or terms, seller context, compatibility notes, and any risks. Good source notes reduce confusion and make it easier for requesters to evaluate suggestions."],
-    ],
-    links: [["Help with requests", "/finder-dashboard"], ["Browse opportunities", "/browse/all"], ["How to post", "/post/describe"], ["Read terms", "/terms"]],
-    schemaType: "ProfilePage",
-  },
-  {
-    path: "/refunds",
-    title: `Refund and Cancellation Policy | ${titleBrand}`,
-    description: "How optional digital visibility purchases, cancellations, and support reviews work on pleasefindmethis.com.",
-    h1: "Refund and cancellation policy",
-    eyebrow: "Refunds",
-    cta: "mailto:support@pleasefindmethis.com",
-    ctaLabel: "Email support",
-    sections: [
-      ["Free requests", "Public requests can publish for free without checkout. Helpers share source suggestions directly with the requester, and any item purchase happens separately with the seller."],
-      ["Optional digital tools", "If paid digital tools are offered, they cover software features such as visibility, alerts, monitoring, or request-writing assistance. Separate item purchases from third-party sellers are outside the platform checkout."],
-      ["Reports and reviews", "When a source suggestion is reported, support can review the saved request, source notes, screenshots, links, and account history. Reports are handled as content and account reviews."],
-    ],
-    links: [["Terms", "/terms"], ["Privacy", "/privacy"], ["Browse requests", "/browse"], ["Post a request", "/post/describe"]],
-    schemaType: "WebPage",
-  },
-  {
     path: "/terms",
     title: `Terms of Service | ${titleBrand}`,
-    description: "Terms for requesters, helpers, free public requests, source suggestions, moderation, and optional digital visibility tools.",
+    description: "Terms for free public requests, public clues, third-party seller safety, moderation, and acceptable use.",
     h1: "Terms of service",
     eyebrow: "Terms",
-    cta: "/refunds",
-    ctaLabel: "Refund policy",
+    cta: "/post/describe",
+    ctaLabel: "Post a request",
     sections: [
-      ["Request board role", "Requesters publish free requests and describe exact match criteria. Helpers submit source links, seller paths, clues, or safety notes. The platform records the workflow and review trail, but it is not the seller of the requested item."],
-      ["Optional digital tools", "Optional paid products must be direct digital tools sold by pleasefindmethis, such as visibility, alerts, monitoring, or request-writing assistance."],
-      ["Account enforcement", "The platform may remove requests, block submissions, refund digital-tool purchases, or suspend accounts for fraud, abuse, prohibited goods, duplicate spam, unsafe conduct, or payment processor policy conflicts."],
+      ["Request board role", "People publish free public requests and describe exact match criteria. Anyone may add public links, seller paths, clues, or safety notes. Pleasefindmethis is not the seller, broker, or fulfillment provider for requested items."],
+      ["Third-party purchases", "Any item purchase happens separately and directly with the third-party seller. Pleasefindmethis does not authenticate sellers or guarantee listings, so users must verify sources and use the seller's permitted checkout process."],
+      ["Account enforcement", "The platform may remove requests or clues and suspend accounts for fraud, abuse, prohibited goods, spam, unsafe conduct, privacy violations, or attempts to misuse the service."],
     ],
-    links: [["Privacy", "/privacy"], ["Refunds", "/refunds"], ["Browse requests", "/browse"], ["Email support", "mailto:support@pleasefindmethis.com"]],
+    links: [["Privacy", "/privacy"], ["Browse requests", "/browse"], ["Post a request", "/post/describe"], ["Email support", "mailto:support@pleasefindmethis.com"]],
     schemaType: "WebPage",
   },
   {
     path: "/privacy",
     title: `Privacy Policy | ${titleBrand}`,
-    description: "How pleasefindmethis.com handles account, request, source, image, support, and payment-related data.",
+    description: "How pleasefindmethis.com handles account, public request, image, public clue, moderation, and support data.",
     h1: "Privacy policy",
     eyebrow: "Privacy",
     cta: "mailto:support@pleasefindmethis.com",
     ctaLabel: "Email support",
     sections: [
-      ["Data collected", "The request board processes account email, authentication provider, request descriptions, reference images, source suggestions, proof files, support messages, report evidence, and optional digital-tool billing records."],
-      ["How data is used", "Public request data powers request pages after sensitive account fields are removed. Source suggestion details are stored so requesters can review links, clues, seller context, and safety notes."],
-      ["User choices", "Users can request account deletion, data export, correction, or support review. Fraud, support, safety, digital-tool billing, and integrity records may be retained when needed for legal, financial, or operational reasons."],
+      ["Data collected", "The request board processes account email, authentication provider, request descriptions, reference images, public clues, source URLs, and basic security signals."],
+      ["How data is used", "Public request details and public clues power request pages. Account and moderation data support authentication, abuse prevention, safety reviews, and service operation."],
+      ["User choices", "Users can email the site operator to request account deletion, data export, or correction. Security and integrity records may be retained when needed for legal or operational reasons."],
     ],
-    links: [["Terms", "/terms"], ["Refunds", "/refunds"], ["Browse requests", "/browse"], ["Email support", "mailto:support@pleasefindmethis.com"]],
+    links: [["Terms", "/terms"], ["Browse requests", "/browse"], ["Post a request", "/post/describe"], ["Email support", "mailto:support@pleasefindmethis.com"]],
     schemaType: "WebPage",
   },
 ];
@@ -137,8 +107,8 @@ function renderRouteHtml(template, route) {
     .replace(/<meta\b(?=[^>]*\bproperty="og:url")[^>]*>/i, `<meta property="og:url" content="${canonicalUrl}" />`)
     .replace(/<meta\b(?=[^>]*\bproperty="og:image")[^>]*>/i, `<meta property="og:image" content="${imageUrl}" />`)
     .replace(/<meta\b(?=[^>]*\bproperty="og:image:secure_url")[^>]*>/i, `<meta property="og:image:secure_url" content="${imageUrl}" />`)
-    .replace(/<meta\b(?=[^>]*\bproperty="og:image:width")[^>]*>/i, `<meta property="og:image:width" content="${route.imageWidth ?? 1200}" />`)
-    .replace(/<meta\b(?=[^>]*\bproperty="og:image:height")[^>]*>/i, `<meta property="og:image:height" content="${route.imageHeight ?? 675}" />`)
+    .replace(/<meta\b(?=[^>]*\bproperty="og:image:width")[^>]*>/i, `<meta property="og:image:width" content="${route.imageWidth ?? defaultImageWidth}" />`)
+    .replace(/<meta\b(?=[^>]*\bproperty="og:image:height")[^>]*>/i, `<meta property="og:image:height" content="${route.imageHeight ?? defaultImageHeight}" />`)
     .replace(/<meta\b(?=[^>]*\bproperty="og:image:alt")[^>]*>/i, `<meta property="og:image:alt" content="${attr(imageAlt)}" />`)
     .replace(/<meta\b(?=[^>]*\bname="twitter:title")[^>]*>/i, `<meta name="twitter:title" content="${attr(route.title)}" />`)
     .replace(/<meta\b(?=[^>]*\bname="twitter:description")[^>]*>/i, `<meta name="twitter:description" content="${attr(route.description)}" />`)
@@ -189,17 +159,18 @@ function createStructuredData(route, canonicalUrl, imageUrl) {
       "@id": websiteId,
       name: siteName,
       url: siteUrl,
-      description: "A free public request board where requesters post exact hard-to-find item requests and helpers share source suggestions.",
+      description: "A free public request board where people post exact hard-to-find item requests and anyone can add public clues.",
       publisher: { "@id": organizationId },
     },
     {
-      "@type": "Service",
-      "@id": `${siteUrl}/#service`,
+      "@type": "WebApplication",
+      "@id": `${siteUrl}/#app`,
       name: "Hard-to-find item request board",
-      serviceType: "Free public request-board web app",
+      applicationCategory: "LifestyleApplication",
+      operatingSystem: "Web",
       url: siteUrl,
-      provider: { "@id": organizationId },
-      areaServed: "Worldwide",
+      publisher: { "@id": organizationId },
+      isAccessibleForFree: true,
       termsOfService: absoluteUrl("/terms"),
     },
     {

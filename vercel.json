@@ -75,7 +75,7 @@
       "destination": "/index.html"
     },
     {
-      "source": "/bounty/detail",
+      "source": "/request/detail",
       "destination": "/index.html"
     },
     {
@@ -83,27 +83,7 @@
       "destination": "/index.html"
     },
     {
-      "source": "/submit-find",
-      "destination": "/index.html"
-    },
-    {
       "source": "/poster-dashboard",
-      "destination": "/index.html"
-    },
-    {
-      "source": "/finder-dashboard",
-      "destination": "/index.html"
-    },
-    {
-      "source": "/messages",
-      "destination": "/index.html"
-    },
-    {
-      "source": "/dispute",
-      "destination": "/index.html"
-    },
-    {
-      "source": "/profile",
       "destination": "/index.html"
     },
     {
@@ -115,15 +95,7 @@
       "destination": "/index.html"
     },
     {
-      "source": "/refunds",
-      "destination": "/index.html"
-    },
-    {
       "source": "/account/:path*",
-      "destination": "/index.html"
-    },
-    {
-      "source": "/admin/:path*",
       "destination": "/index.html"
     }
   ]

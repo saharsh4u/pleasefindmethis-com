@@ -68,6 +68,48 @@ test("sitemap pages have unique initial SEO metadata in built HTML", () => {
   }
 });
 
+test("built product surfaces describe a free public request board without legacy financial claims", () => {
+  const builtTextFiles = collectBuiltTextFiles(distRoot);
+  const forbiddenClaims = [
+    ["retired bounty terminology", /\bbount(?:y|ies)\b/i],
+    ["bounty-board positioning", /\bbounty board\b/i],
+    ["funded-request positioning", /\bfund(?:ed|ing)? (?:a|the|this|your) request\b/i],
+    ["reward offer", /\b(?:offer|set) (?:a|the|your) reward\b/i],
+    ["rewarded finder or lead", /\breward (?:a|the|your) (?:finder|helper|valid lead)\b/i],
+    ["reward earnings", /\bearn(?:ing)? (?:a|the|your)?\s*reward\b/i],
+    ["finder payout", /\bfinder(?:'s)? payout\b/i],
+    ["payout operations", /\bpayout (?:case|path|queue|review|status)\b/i],
+    ["paid finder", /\bpay(?:ing)? (?:a|the|your) finder\b/i],
+    ["private source handoff", /\b(?:share|submit|review|reveal) (?:a|the)?\s*private (?:lead|source)\b/i],
+    ["private source submission", /\bprivate (?:lead|source) submission\b/i],
+    ["protected source workflow", /\bprotected (?:lead|source)\b/i],
+    ["source reveal workflow", /\b(?:save|show) (?:a|the)?\s*source before reveal\b|\breveal (?:a|the)?\s*source\b/i],
+    ["finder dashboard", /\bfinder dashboard\b/i],
+    ["marketplace administration", /\bmarketplace admin(?:istration)?\b/i],
+    ["payment-for-help prompt", /\boffer payment for help\b/i],
+    ["marketplace offer schema", /\bAggregateOffer\b/],
+  ];
+
+  assert.ok(builtTextFiles.length > 20, "expected the build to contain public text surfaces");
+
+  for (const filePath of builtTextFiles) {
+    const content = fs.readFileSync(filePath, "utf8");
+    const relativePath = path.relative(distRoot, filePath);
+
+    for (const [claim, pattern] of forbiddenClaims) {
+      assert.doesNotMatch(content, pattern, `${relativePath} does not advertise ${claim}`);
+    }
+  }
+
+  const builtCorpus = builtTextFiles.map((filePath) => fs.readFileSync(filePath, "utf8")).join("\n");
+  assert.match(
+    builtCorpus,
+    /\bfree public request(?:-board| board| workspace)s?\b|\bpublishing is free\b/i,
+    "the built site explicitly says requests are free",
+  );
+  assert.match(builtCorpus, /\bpublic clues?\b/i, "the built site directs responses into public clues");
+});
+
 test("canonical redirects are declared for duplicate host and static slash variants", () => {
   const vercelConfig = JSON.parse(fs.readFileSync(path.join(root, "vercel.json"), "utf8"));
   const redirects = vercelConfig.redirects ?? [];
@@ -87,6 +129,23 @@ function readBuiltHtml(pathname) {
   const filePath = path.join(distRoot, relative);
   assert.ok(fs.existsSync(filePath), `${pathname} exists at ${filePath}`);
   return fs.readFileSync(filePath, "utf8");
+}
+
+function collectBuiltTextFiles(directory) {
+  const textExtensions = new Set([".css", ".html", ".js", ".json", ".md", ".svg", ".txt", ".xml"]);
+  const files = [];
+
+  for (const entry of fs.readdirSync(directory, { withFileTypes: true })) {
+    const entryPath = path.join(directory, entry.name);
+
+    if (entry.isDirectory()) {
+      files.push(...collectBuiltTextFiles(entryPath));
+    } else if (textExtensions.has(path.extname(entry.name).toLowerCase())) {
+      files.push(entryPath);
+    }
+  }
+
+  return files;
 }
 
 function textMatch(html, regex) {

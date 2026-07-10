@@ -1,4 +1,6 @@
 .vercel
+.agents
 .env
 .env.*
 .env*.local
+dodo-payments-official-onboarding-research.md

@@ -1,4 +1,4 @@
-import { handleRequest } from "../../server.mjs";
+import { handleRequest } from "../server.mjs";
 
 export default async function handler(req, res) {
   await handleRequest(req, res);

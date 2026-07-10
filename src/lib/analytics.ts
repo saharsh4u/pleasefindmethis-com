@@ -34,21 +34,6 @@ type AcquisitionAttribution = {
   latest_utm_term?: string;
 };
 
-type GoogleAnalyticsContext = AcquisitionAttribution & {
-  datafast_visitor_id?: string;
-  ga_client_id?: string;
-  ga_session_id?: string;
-  page_path?: string;
-  referrer_host?: string;
-  current_source?: string;
-  current_channel?: string;
-  utm_source?: string;
-  utm_medium?: string;
-  utm_campaign?: string;
-  utm_content?: string;
-  utm_term?: string;
-};
-
 type StoredAttributionTouch = {
   landing_page?: string;
   referrer_host?: string;
@@ -76,9 +61,6 @@ type SimpleEventDefinition = {
 
 declare global {
   interface Window {
-    datafast?: {
-      visitorId?: string;
-    };
     dataLayer?: DataLayerEvent[];
     gtag?: (...args: unknown[]) => void;
   }
@@ -181,53 +163,6 @@ const simpleEventDefinitions: Record<string, SimpleEventDefinition> = {
     actionType: "error",
     funnelStep: "publish_error",
   },
-  checkout_started: {
-    eventName: "user_started_checkout",
-    whatHappened: "User clicked the checkout button",
-    actionType: "button_click",
-    buttonName: "Start checkout",
-    funnelStep: "checkout_started",
-  },
-  checkout_redirected: {
-    eventName: "user_went_to_payment",
-    whatHappened: "User was sent to the payment page",
-    actionType: "redirect",
-    funnelStep: "payment_redirect",
-  },
-  checkout_failed: {
-    eventName: "checkout_did_not_start",
-    whatHappened: "Checkout did not start",
-    actionType: "error",
-    funnelStep: "checkout_error",
-  },
-  submit_source: {
-    eventName: "helper_submitted_source_suggestion",
-    whatHappened: "Helper submitted a source suggestion",
-    actionType: "form_submit",
-    buttonName: "Share source suggestion",
-    funnelStep: "source_submitted",
-  },
-  source_revealed: {
-    eventName: "requester_opened_source_details",
-    whatHappened: "Requester opened source details",
-    actionType: "button_click",
-    buttonName: "Open source details",
-    funnelStep: "source_details_opened",
-  },
-  source_accepted: {
-    eventName: "requester_marked_source_useful",
-    whatHappened: "Requester marked a source useful",
-    actionType: "button_click",
-    buttonName: "Mark useful",
-    funnelStep: "source_accepted",
-  },
-  source_sent_to_review: {
-    eventName: "requester_sent_source_to_review",
-    whatHappened: "Requester sent a source to review",
-    actionType: "button_click",
-    buttonName: "Send to review",
-    funnelStep: "source_review",
-  },
 };
 let attributionCapturedForPage = false;
 let dataFastClientPromise: Promise<DataFastWeb | null> | null = null;
@@ -282,28 +217,6 @@ export function trackMarketingEvent(name: string, properties: AnalyticsPropertie
   sendAnalyticsEvent(name, eventProperties);
   sendDataFastEvent(name, eventProperties);
   sendSimpleMarketingEvent(name, eventProperties);
-}
-
-export async function getCheckoutAnalyticsContext(): Promise<GoogleAnalyticsContext> {
-  const utmProperties = getUtmProperties();
-  const attributionProperties = getAttributionProperties();
-  const readableProperties = getReadableSourceProperties(attributionProperties, utmProperties);
-  const dataFastVisitorId = await getDataFastVisitorId();
-
-  return stripUndefined({
-    ...attributionProperties,
-    ...readableProperties,
-    datafast_visitor_id: dataFastVisitorId,
-    ga_client_id: getGaClientId(),
-    ga_session_id: getGaSessionId(),
-    page_path: window.location.pathname,
-    referrer_host: getReferrerHost(),
-    utm_source: utmProperties.utm_source,
-    utm_medium: utmProperties.utm_medium,
-    utm_campaign: utmProperties.utm_campaign,
-    utm_content: utmProperties.utm_content,
-    utm_term: utmProperties.utm_term,
-  });
 }
 
 function buildCommonProperties(properties: AnalyticsProperties) {
@@ -510,24 +423,6 @@ function sendDataFastEvent(name: string, properties: AnalyticsProperties) {
   });
 }
 
-async function getDataFastVisitorId() {
-  const cookieVisitorId = getCookie("datafast_visitor_id");
-
-  if (cookieVisitorId) {
-    return cookieVisitorId.slice(0, maxStringLength);
-  }
-
-  const client = await initializeDataFast();
-  const clientVisitorId = client?.getVisitorId?.();
-
-  if (clientVisitorId) {
-    return clientVisitorId.slice(0, maxStringLength);
-  }
-
-  const windowVisitorId = typeof window.datafast?.visitorId === "string" ? window.datafast.visitorId.trim() : "";
-  return windowVisitorId ? windowVisitorId.slice(0, maxStringLength) : undefined;
-}
-
 function toDataFastEventName(name: string) {
   const normalized = name.trim().toLowerCase().replace(/[^a-z0-9_:-]+/g, "_").slice(0, 64);
   return normalized || null;
@@ -541,11 +436,8 @@ function toDataFastProperties(properties: AnalyticsProperties): CustomProperties
     "page_title",
     "signed_in",
     "category",
-    "bounty_id",
     "request_id",
-    "source_type",
-    "reward",
-    "total_due",
+    "request_id",
     "current_channel",
     "current_source",
     "utm_source",
@@ -810,39 +702,6 @@ function sanitizeAttributionString(value: unknown) {
 function getSearchParam(params: URLSearchParams, key: string) {
   const value = params.get(key)?.trim();
   return value ? value.slice(0, maxStringLength) : undefined;
-}
-
-function getGaClientId() {
-  const value = getCookie("_ga");
-  const match = value.match(/^GA\d+\.\d+\.(.+)$/);
-  return match?.[1] || undefined;
-}
-
-function getGaSessionId() {
-  if (!ga4MeasurementId.startsWith("G-")) {
-    return undefined;
-  }
-
-  const streamCookie = getCookie(`_ga_${ga4MeasurementId.slice(2)}`);
-  const gs2Match = streamCookie.match(/[.$]s(\d+)/);
-
-  if (gs2Match?.[1]) {
-    return gs2Match[1];
-  }
-
-  const parts = streamCookie.split(".");
-  const gs1SessionId = parts[2];
-  return /^\d+$/.test(gs1SessionId) ? gs1SessionId : undefined;
-}
-
-function getCookie(name: string) {
-  const encodedName = `${encodeURIComponent(name)}=`;
-  const entry = document.cookie
-    .split(";")
-    .map((part) => part.trim())
-    .find((part) => part.startsWith(encodedName));
-
-  return entry ? decodeURIComponent(entry.slice(encodedName.length)) : "";
 }
 
 function getReferrerHost() {

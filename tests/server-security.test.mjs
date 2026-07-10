@@ -11,121 +11,20 @@ test.afterEach(() => {
   process.env = { ...originalEnv };
 });
 
-test("production checkout origin rejects attacker-controlled Host headers without a trusted app URL", async () => {
-  const { getCheckoutRedirectOrigin } = await loadSecurityHelpers({
-    PUBLIC_APP_URL: "",
-    VERCEL_PROJECT_PRODUCTION_URL: "",
-    VITE_PUBLIC_APP_URL: "",
-  });
-
-  const origin = getCheckoutRedirectOrigin(fakeRequest({
-    host: "evil.example",
-    "x-forwarded-host": "evil.example",
-    "x-forwarded-proto": "https",
-  }));
-
-  assert.equal(origin, "");
-});
-
-test("production checkout route fails closed when no trusted public origin is configured", async () => {
-  const { handleRequest } = await loadServer({
-    LEMONSQUEEZY_API_KEY: "test-api-key",
-    LEMONSQUEEZY_STORE_ID: "123",
-    LEMONSQUEEZY_TEST_MODE: "false",
-    LEMONSQUEEZY_VARIANT_ID: "456",
-    PAYMENT_PROVIDER: "lemonsqueezy",
-    PUBLIC_APP_URL: "",
-    VERCEL_PROJECT_PRODUCTION_URL: "",
-    VITE_PUBLIC_APP_URL: "",
-  });
-  const req = fakeRequest({
-    authorization: "Bearer test-session",
-    host: "evil.example",
-    "x-forwarded-host": "evil.example",
-    "x-forwarded-proto": "https",
-  });
-  const res = fakeResponse();
-
-  req.method = "POST";
-  req.url = "/api/lemonsqueezy/checkout";
-
-  await handleRequest(req, res);
-
-  assert.equal(res.statusCode, 503);
-  assert.deepEqual(JSON.parse(res.body), {
-    error: "Checkout is unavailable until the public app URL is configured.",
-  });
-});
-
-test("production checkout origin uses configured public app URL instead of request headers", async () => {
-  const { getCheckoutRedirectOrigin } = await loadSecurityHelpers({
-    PUBLIC_APP_URL: "https://pleasefindmethis.com",
-    VERCEL_PROJECT_PRODUCTION_URL: "",
-    VITE_PUBLIC_APP_URL: "",
-  });
-
-  const origin = getCheckoutRedirectOrigin(fakeRequest({
-    host: "evil.example",
-    "x-forwarded-host": "evil.example",
-    "x-forwarded-proto": "https",
-  }));
-
-  assert.equal(origin, "https://pleasefindmethis.com");
-});
-
-test("production checkout origin can use Vercel production URL as a trusted fallback", async () => {
-  const { getCheckoutRedirectOrigin, normalizeDeploymentAppUrl } = await loadSecurityHelpers({
-    PUBLIC_APP_URL: "",
-    VERCEL_PROJECT_PRODUCTION_URL: "pleasefindmethis.com",
-    VITE_PUBLIC_APP_URL: "",
-  });
-
-  const origin = getCheckoutRedirectOrigin(fakeRequest({
-    host: "evil.example",
-    "x-forwarded-host": "evil.example",
-    "x-forwarded-proto": "https",
-  }));
+test("deployment hostnames normalize to trusted HTTPS app origins", async () => {
+  const { normalizeDeploymentAppUrl } = await loadSecurityHelpers({});
 
   assert.equal(normalizeDeploymentAppUrl("pleasefindmethis.com"), "https://pleasefindmethis.com");
-  assert.equal(origin, "https://pleasefindmethis.com");
+  assert.equal(normalizeDeploymentAppUrl("javascript:alert(1)"), "");
 });
 
-test("payment provider selector supports Razorpay", async () => {
-  const { getPaymentProvider } = await loadSecurityHelpers({
-    PAYMENT_PROVIDER: "razorpay",
-    RAZORPAY_KEY_ID: "rzp_test_123",
-    RAZORPAY_KEY_SECRET: "test-secret",
-  });
-
-  assert.equal(getPaymentProvider(), "razorpay");
-});
-
-test("Razorpay webhook signatures are checked against the raw body", async () => {
-  const { verifyRazorpaySignature } = await loadSecurityHelpers({});
-  const body = Buffer.from(JSON.stringify({ event: "payment_link.paid", payload: { payment_link: { entity: { id: "plink_test" } } } }));
-  const secret = "webhook-secret";
-  const signature = crypto.createHmac("sha256", secret).update(body).digest("hex");
-
-  assert.equal(verifyRazorpaySignature(body, signature, secret), true);
-  assert.equal(verifyRazorpaySignature(body, signature, "wrong-secret"), false);
-});
-
-test("payment metadata preserves DataFast visitor attribution", async () => {
+test("public comment helpers normalize identity, content, URLs, and request ids", async () => {
   const {
-    getAnalyticsContextFromPaymentMetadata,
-    getPaymentAnalyticsMetadata,
     getPublicRequestCommentIdentity,
-    getRazorpayPaymentNotes,
     isUuid,
     normalizePublicCommentSourceUrl,
-    sanitizeCheckoutAnalyticsContext,
     sanitizePublicCommentBody,
   } = await loadSecurityHelpers({});
-  const analytics = sanitizeCheckoutAnalyticsContext({
-    datafast_visitor_id: " dfv_test_123 ",
-    ga_client_id: "ga-client",
-    latest_source: "google",
-  });
   const commentIdentity = getPublicRequestCommentIdentity("visitor-seed-123");
   const sameCommentIdentity = getPublicRequestCommentIdentity("visitor-seed-123");
   const scopedCommentIdentity = getPublicRequestCommentIdentity("visitor-seed-123", "fingerprint-a", "request-a");
@@ -136,20 +35,6 @@ test("payment metadata preserves DataFast visitor attribution", async () => {
     seed: "visitor-seed-123:request-a",
   });
 
-  const metadata = getPaymentAnalyticsMetadata(analytics);
-  const restored = getAnalyticsContextFromPaymentMetadata(metadata);
-  const razorpayNotes = getRazorpayPaymentNotes({
-    analytics,
-    category: "Fashion",
-    durationDays: 30,
-    itemName: "Rare jacket",
-    requestId: "req_123",
-  });
-
-  assert.equal(metadata.datafast_visitor_id, "dfv_test_123");
-  assert.equal(restored.datafast_visitor_id, "dfv_test_123");
-  assert.equal(razorpayNotes.datafast_visitor_id, "dfv_test_123");
-  assert.ok(Object.keys(razorpayNotes).length <= 15);
   assert.equal(commentIdentity.alias, sameCommentIdentity.alias);
   assert.equal(commentIdentity.seedHash.length, 64);
   assert.match(commentIdentity.alias, /^[a-z]+ [a-z]+$/);
@@ -161,47 +46,6 @@ test("payment metadata preserves DataFast visitor attribution", async () => {
   assert.equal(normalizePublicCommentSourceUrl("javascript:alert(1)"), "");
   assert.equal(isUuid("550e8400-e29b-41d4-a716-446655440000"), true);
   assert.equal(isUuid("not-a-request"), false);
-});
-
-test("DataFast Payment API receives confirmed payment revenue", async () => {
-  const originalFetch = globalThis.fetch;
-  const calls = [];
-
-  globalThis.fetch = async (url, options) => {
-    calls.push({ url, options });
-    return new Response("", { status: 200 });
-  };
-
-  try {
-    const { sendPaidRequestDataFastPayment } = await loadSecurityHelpers({
-      DATAFAST_API_KEY: "test-datafast-key",
-      DATAFAST_PAYMENT_API_URL: "https://datafa.st.test/api/v1/payments",
-    });
-
-    await sendPaidRequestDataFastPayment({
-      analytics: { datafast_visitor_id: "dfv_test_123" },
-      provider: "razorpay",
-      providerEventId: "evt_test_123",
-      request: {
-        id: "req_123",
-        total_due: 25,
-        currency: "USD",
-      },
-      transactionId: "pay_test_123",
-    });
-  } finally {
-    globalThis.fetch = originalFetch;
-  }
-
-  assert.equal(calls.length, 1);
-  assert.equal(calls[0].url, "https://datafa.st.test/api/v1/payments");
-  assert.equal(calls[0].options.headers.Authorization, "Bearer test-datafast-key");
-  assert.deepEqual(JSON.parse(calls[0].options.body), {
-    amount: 25,
-    currency: "USD",
-    transaction_id: "razorpay:pay_test_123",
-    datafast_visitor_id: "dfv_test_123",
-  });
 });
 
 test("public request comments reject invalid request ids before Supabase lookup", async () => {
@@ -266,12 +110,9 @@ test("public request lookup returns only the requested public card", async () =>
     item_name: "Vintage green lamp",
     category: "Home",
     details: "Find this exact lamp",
-    reward: 25,
     duration_days: 14,
     status: "open",
-    payment_status: "free",
     created_at: "2026-07-09T00:00:00.000Z",
-    paid_at: null,
     closes_at: "2026-07-23T00:00:00.000Z",
     days_remaining: 14,
     primary_image_url: "/lamp.jpg",
@@ -304,7 +145,13 @@ test("public request lookup returns only the requested public card", async () =>
     assert.equal(res.statusCode, 200);
     assert.deepEqual(JSON.parse(res.body), { requests: [matchingCard] });
     assert.equal(calls.length, 1);
-    assert.equal(new URL(calls[0].url).searchParams.get("id"), `eq.${requestId}`);
+    const requestUrl = new URL(calls[0].url);
+    assert.equal(requestUrl.searchParams.get("id"), `eq.${requestId}`);
+    assert.doesNotMatch(
+      requestUrl.searchParams.get("select") ?? "",
+      /reward|payment|payout|provider|customer/i,
+      "the public request card query excludes retired financial fields",
+    );
   } finally {
     globalThis.fetch = originalFetch;
   }
@@ -324,12 +171,9 @@ test("shared request documents contain request-specific social metadata", async 
         item_name: "Help me find this rose blanket",
         category: "Home goods",
         details: "Pink rose print & fringed edges. The exact pattern matters.",
-        reward: 0,
         duration_days: 14,
         status: "open",
-        payment_status: "free",
-        created_at: "2026-07-09T01:00:00.000Z",
-        paid_at: null,
+        created_at: new Date().toISOString(),
         closes_at: "2026-07-23T01:00:00.000Z",
         days_remaining: 14,
         primary_image_url: "https://cdn.example/rose-blanket.jpg",
@@ -409,8 +253,8 @@ test("public requests endpoint serves comments through its resource query", asyn
       return new Response(JSON.stringify({
         id: requestId,
         status: "open",
-        payment_status: "free",
-        paid_at: null,
+        duration_days: 30,
+        created_at: new Date().toISOString(),
       }), {
         status: 200,
         headers: { "Content-Type": "application/json" },
@@ -452,6 +296,51 @@ test("public requests endpoint serves comments through its resource query", asyn
   }
 });
 
+test("expired requests are not exposed as commentable", async () => {
+  const originalFetch = globalThis.fetch;
+  const requestId = "11111111-1111-4111-8111-111111111111";
+  const calls = [];
+
+  globalThis.fetch = async (url) => {
+    const requestUrl = new URL(String(url));
+    calls.push(requestUrl.pathname);
+
+    if (requestUrl.pathname.endsWith("/requests")) {
+      return new Response(JSON.stringify({
+        id: requestId,
+        status: "open",
+        duration_days: 7,
+        created_at: "2000-01-01T00:00:00.000Z",
+      }), {
+        status: 200,
+        headers: { "Content-Type": "application/json" },
+      });
+    }
+
+    throw new Error(`Unexpected Supabase request: ${requestUrl}`);
+  };
+
+  try {
+    const { handleRequest } = await loadServer({
+      PUBLIC_APP_URL: "https://pleasefindmethis.com",
+      SUPABASE_SERVICE_ROLE_KEY: "service-role-key",
+      SUPABASE_URL: "https://example.supabase.co",
+    });
+    const req = fakeRequest({ host: "pleasefindmethis.com" });
+    const res = fakeResponse();
+
+    req.method = "GET";
+    req.url = `/api/requests/public?resource=comments&request_id=${requestId}`;
+
+    await handleRequest(req, res);
+
+    assert.equal(res.statusCode, 404);
+    assert.deepEqual(calls, ["/rest/v1/requests"]);
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
+});
+
 test("public comment posts use one server-fingerprinted RPC without sending raw request signals", async () => {
   const originalFetch = globalThis.fetch;
   const requestId = "11111111-1111-4111-8111-111111111111";
@@ -466,8 +355,8 @@ test("public comment posts use one server-fingerprinted RPC without sending raw 
       return new Response(JSON.stringify({
         id: requestId,
         status: "open",
-        payment_status: "free",
-        paid_at: null,
+        duration_days: 30,
+        created_at: new Date().toISOString(),
       }), {
         status: 200,
         headers: { "Content-Type": "application/json" },
@@ -482,7 +371,7 @@ test("public comment posts use one server-fingerprinted RPC without sending raw 
         source_url: null,
         helper_alias: "amber trout",
         helper_avatar_tone: 2,
-        created_at: "2026-07-09T01:00:00.000Z",
+        created_at: new Date().toISOString(),
       }), {
         status: 200,
         headers: { "Content-Type": "application/json" },
@@ -554,8 +443,8 @@ test("rotated or missing visitor seeds cannot rotate a request-scoped fingerprin
       return new Response(JSON.stringify({
         id: requestId,
         status: "open",
-        payment_status: "free",
-        paid_at: null,
+        duration_days: 30,
+        created_at: "2026-07-09T01:00:00.000Z",
       }), {
         status: 200,
         headers: { "Content-Type": "application/json" },
@@ -646,8 +535,8 @@ test("database comment rate limits are returned as HTTP 429", async () => {
       return new Response(JSON.stringify({
         id: requestId,
         status: "open",
-        payment_status: "free",
-        paid_at: null,
+        duration_days: 30,
+        created_at: "2026-07-09T01:00:00.000Z",
       }), {
         status: 200,
         headers: { "Content-Type": "application/json" },
@@ -696,24 +585,36 @@ test("database comment rate limits are returned as HTTP 429", async () => {
   }
 });
 
-test("public comment RPC atomically locks, counts, and inserts for service_role only", async () => {
-  const migration = await readFile(
+test("public comment RPC is atomic and its terminal definition is least-privilege", async () => {
+  const baseMigration = await readFile(
     new URL("../supabase/migrations/20260709183000_create_public_request_comments.sql", import.meta.url),
     "utf8",
   );
+  const retirementMigration = await readFile(
+    new URL("../supabase/migrations/20260710125608_retire_marketplace_payments.sql", import.meta.url),
+    "utf8",
+  );
 
-  assert.match(migration, /create or replace function public\.create_public_request_comment\s*\(/i);
-  assert.match(migration, /pg_advisory_xact_lock/i);
-  assert.match(migration, /request_fingerprint_hash\s*=\s*p_request_fingerprint_hash/i);
-  assert.match(migration, /insert into public\.request_comments/i);
-  assert.match(migration, /security definer/i);
-  assert.match(migration, /set search_path\s*=\s*pg_catalog,\s*pg_temp/i);
-  assert.match(migration, /revoke all on public\.request_comments from service_role/i);
-  assert.match(migration, /grant select on public\.request_comments to service_role/i);
-  assert.doesNotMatch(migration, /grant (?:insert|all)[^;]*on public\.request_comments to service_role/i);
-  assert.match(migration, /revoke all on function public\.create_public_request_comment[\s\S]+from public/i);
-  assert.match(migration, /grant execute on function public\.create_public_request_comment[\s\S]+to service_role/i);
-  assert.doesNotMatch(migration, /grant execute on function public\.create_public_request_comment[\s\S]+to (anon|authenticated)/i);
+  assert.match(baseMigration, /create or replace function public\.create_public_request_comment\s*\(/i);
+  assert.match(baseMigration, /pg_advisory_xact_lock/i);
+  assert.match(baseMigration, /request_fingerprint_hash\s*=\s*p_request_fingerprint_hash/i);
+  assert.match(baseMigration, /insert into public\.request_comments/i);
+  assert.match(baseMigration, /set search_path\s*=\s*pg_catalog,\s*pg_temp/i);
+  assert.match(baseMigration, /revoke all on public\.request_comments from service_role/i);
+  assert.match(baseMigration, /grant select on public\.request_comments to service_role/i);
+  assert.doesNotMatch(baseMigration, /grant (?:insert|all)[^;]*on public\.request_comments to service_role/i);
+
+  assert.match(retirementMigration, /create or replace function public\.create_public_request_comment[\s\S]+?security invoker/i);
+  assert.match(retirementMigration, /created_at \+ make_interval\(days => duration_days\) > timezone\('utc', now\(\)\)/i);
+  assert.match(retirementMigration, /grant select, insert on public\.request_comments to service_role/i);
+  assert.match(retirementMigration, /revoke all on function public\.create_public_request_comment[\s\S]+from public, anon, authenticated/i);
+  assert.match(retirementMigration, /retired_financial_obligations_require_manual_reconciliation/i);
+  assert.match(retirementMigration, /lock table public\.requests in access exclusive mode[\s\S]+?lock table public\.request_payment_events in access exclusive mode/i);
+  assert.match(retirementMigration, /active_checkout_count[\s\S]+?status = 'checkout_started'[\s\S]+?payment_status = 'checkout_started'/i);
+  assert.match(retirementMigration, /'payment\.succeeded'[\s\S]+?'payment\.captured'[\s\S]+?'payment_link\.paid'/i);
+  assert.match(retirementMigration, /create or replace function public\.is_free_request_board_ready\(\)/i);
+  assert.match(retirementMigration, /grant execute on function public\.create_public_request_comment[\s\S]+to service_role/i);
+  assert.doesNotMatch(retirementMigration, /grant execute on function public\.create_public_request_comment[\s\S]+to (anon|authenticated)/i);
 });
 
 test("public request comments fail closed without Supabase admin configuration", async () => {
@@ -736,24 +637,114 @@ test("public request comments fail closed without Supabase admin configuration",
   });
 });
 
-test("admin payout review route does not expose queues without an admin bearer token", async () => {
+test("health check keeps publishing paused until the free-board migration is ready", async () => {
+  const healthFunction = await readFile(new URL("../api/health.mjs", import.meta.url), "utf8");
+  const originalFetch = globalThis.fetch;
+  let migrationReady = false;
+
+  assert.match(healthFunction, /handleRequest/);
+
+  globalThis.fetch = async (url) => {
+    const requestUrl = new URL(String(url));
+
+    if (requestUrl.pathname.endsWith("/rpc/is_free_request_board_ready")) {
+      if (migrationReady) {
+        return new Response("true", {
+          status: 200,
+          headers: { "Content-Type": "application/json" },
+        });
+      }
+
+      return new Response(JSON.stringify({ message: "function is_free_request_board_ready() does not exist" }), {
+        status: 404,
+        headers: { "Content-Type": "application/json" },
+      });
+    }
+
+    return new Response(null, {
+      status: 200,
+      headers: { "Content-Range": "*/0" },
+    });
+  };
+
+  try {
+    const { handleRequest } = await loadServer({
+      PUBLIC_APP_URL: "https://pleasefindmethis.com",
+      SUPABASE_SERVICE_ROLE_KEY: "service-role-key",
+      SUPABASE_URL: "https://example.supabase.co",
+      VITE_SUPABASE_PUBLISHABLE_KEY: "publishable-key",
+      VITE_SUPABASE_URL: "https://example.supabase.co",
+    });
+    const req = fakeRequest({ host: "pleasefindmethis.com" });
+    const res = fakeResponse();
+
+    req.method = "GET";
+    req.url = "/api/health";
+
+    await handleRequest(req, res);
+
+    assert.equal(res.statusCode, 503);
+    assert.deepEqual(JSON.parse(res.body), {
+      ok: false,
+      app: "pleasefindmethis-com",
+      free_request_board_ready: false,
+    });
+
+    migrationReady = true;
+    const { handleRequest: handleReadyRequest } = await loadServer({
+      PUBLIC_APP_URL: "https://pleasefindmethis.com",
+      SUPABASE_SERVICE_ROLE_KEY: "service-role-key",
+      SUPABASE_URL: "https://example.supabase.co",
+      VITE_SUPABASE_PUBLISHABLE_KEY: "publishable-key",
+      VITE_SUPABASE_URL: "https://example.supabase.co",
+    });
+    const readyReq = fakeRequest({ host: "pleasefindmethis.com" });
+    const readyRes = fakeResponse();
+
+    readyReq.method = "GET";
+    readyReq.url = "/api/health";
+
+    await handleReadyRequest(readyReq, readyRes);
+
+    assert.equal(readyRes.statusCode, 200);
+    assert.deepEqual(JSON.parse(readyRes.body), {
+      ok: true,
+      app: "pleasefindmethis-com",
+      free_request_board_ready: true,
+    });
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
+});
+
+test("retired checkout, webhook, and payout administration APIs return 404", async () => {
   const { handleRequest } = await loadServer({
     PUBLIC_APP_URL: "https://pleasefindmethis.com",
-    SUPABASE_URL: "https://example.supabase.co",
-    SUPABASE_SERVICE_ROLE_KEY: "service-role-key",
   });
-  const req = fakeRequest({ host: "pleasefindmethis.com" });
-  const res = fakeResponse();
+  const retiredRoutes = [
+    ["POST", "/api/payments/checkout"],
+    ["POST", "/api/dodo/checkout"],
+    ["POST", "/api/dodo/webhook"],
+    ["POST", "/api/lemonsqueezy/checkout"],
+    ["POST", "/api/lemonsqueezy/webhook"],
+    ["POST", "/api/whop/checkout"],
+    ["POST", "/api/whop/webhook"],
+    ["POST", "/api/razorpay/checkout"],
+    ["POST", "/api/razorpay/webhook"],
+    ["GET", "/api/admin/payout-cases"],
+  ];
 
-  req.method = "GET";
-  req.url = "/api/admin/payout-cases";
+  for (const [method, pathname] of retiredRoutes) {
+    const req = fakeRequest({ host: "pleasefindmethis.com" });
+    const res = fakeResponse();
+    req.method = method;
+    req.url = pathname;
 
-  await handleRequest(req, res);
+    await handleRequest(req, res);
 
-  assert.equal(res.statusCode, 401);
-  assert.deepEqual(JSON.parse(res.body), {
-    error: "Sign in as a marketplace admin before opening payout review.",
-  });
+    assert.equal(res.statusCode, 404, `${method} ${pathname} remains retired`);
+    assert.equal(res.body, "Not found");
+  }
 });
 
 async function loadSecurityHelpers(env) {
