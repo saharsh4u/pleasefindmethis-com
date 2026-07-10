@@ -353,7 +353,7 @@ function injectPublicRequestDocumentMetadata(template, requestCard, req) {
   const subject = getPublicRequestShareSubject(itemName);
   const detailText = parseString(requestCard.details, 1000).replace(/\s+/g, " ");
   const description = truncateMetaText(
-    `Do you recognize ${subject}? ${detailText || "Someone is searching for this exact item."} Leave a clue—no signup needed.`,
+    `Do you recognize ${subject}? ${detailText || "Someone is searching for this exact item."} Log in to leave a clue.`,
     180,
   );
   const title = truncateMetaText(`${itemName} | pleasefindmethis`, 65);
@@ -605,6 +605,10 @@ async function handlePublicRequestComments(req, res, rawRequestId) {
   }
 
   try {
+    if (req.method === "POST") {
+      await requireAuthenticatedCommentUser(req);
+    }
+
     const publicRequest = await loadPublicRequestForComments(requestId);
 
     if (!publicRequest) {
@@ -639,6 +643,23 @@ async function handlePublicRequestComments(req, res, rawRequestId) {
       error: error instanceof Error ? error.message : "Request comments are unavailable.",
     });
   }
+}
+
+async function requireAuthenticatedCommentUser(req) {
+  const authorization = parseString(req?.headers?.authorization, 4096);
+  const token = authorization.match(/^Bearer\s+(.+)$/i)?.[1]?.trim() ?? "";
+
+  if (!token) {
+    throw new RequestCommentApiError("Log in to post a comment.", 401);
+  }
+
+  const { data, error } = await supabaseAdmin.auth.getUser(token);
+
+  if (error || !data.user || data.user.is_anonymous) {
+    throw new RequestCommentApiError("Log in to post a comment.", 401);
+  }
+
+  return data.user;
 }
 
 async function loadPublicRequestForComments(requestId) {

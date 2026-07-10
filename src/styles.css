@@ -868,6 +868,22 @@ main {
   outline: 0;
 }
 
+.request-review-row-actions .request-delete-button {
+  border-color: rgba(194, 59, 43, 0.28);
+  color: var(--danger);
+}
+
+.request-review-row-actions .request-delete-button:hover,
+.request-review-row-actions .request-delete-button:focus-visible {
+  border-color: var(--danger);
+  background: #fff5f3;
+}
+
+.request-review-row-actions button:disabled {
+  cursor: wait;
+  opacity: 0.58;
+}
+
 @media (prefers-reduced-motion: reduce) {
   .request-route-state-icon.is-loading svg {
     animation: none;
@@ -12029,6 +12045,56 @@ small {
 .app-page .legacy-public-request-page .comment-status.error,
 .app-page .legacy-public-request-page .comment-load-state {
   color: #9b4b3f;
+}
+
+.app-page .legacy-public-request-page .comment-login-gate {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  gap: 0.85rem;
+  align-items: center;
+  padding: 1rem;
+  border-bottom: 1px solid var(--comment-line-soft);
+  background: var(--comment-soft);
+}
+
+.app-page .legacy-public-request-page .comment-login-gate > svg {
+  color: var(--comment-accent);
+}
+
+.app-page .legacy-public-request-page .comment-login-gate > div {
+  display: grid;
+  gap: 0.18rem;
+}
+
+.app-page .legacy-public-request-page .comment-login-gate strong {
+  font-size: 0.88rem;
+  font-weight: 790;
+}
+
+.app-page .legacy-public-request-page .comment-login-gate span {
+  color: var(--comment-muted);
+  font-size: 0.78rem;
+  line-height: 1.4;
+}
+
+.app-page .legacy-public-request-page .comment-login-gate .primary-button {
+  min-height: 2.45rem;
+  padding: 0.58rem 0.92rem;
+  border-radius: 9px;
+  background: var(--comment-accent);
+  box-shadow: none;
+  font-size: 0.78rem;
+}
+
+@media (max-width: 640px) {
+  .app-page .legacy-public-request-page .comment-login-gate {
+    grid-template-columns: auto minmax(0, 1fr);
+  }
+
+  .app-page .legacy-public-request-page .comment-login-gate .primary-button {
+    grid-column: 1 / -1;
+    width: 100%;
+  }
 }
 
 .app-page .legacy-public-request-page .comments-ledger-columns,

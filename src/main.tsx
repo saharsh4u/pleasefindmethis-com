@@ -30,11 +30,13 @@ import {
   ShieldCheck,
   Store,
   TimerReset,
+  Trash2,
   Upload,
   WifiOff,
   X,
 } from "lucide-react";
 import { hasSupabaseEnv, supabase } from "./lib/supabase";
+import { mergeRequestListings } from "./lib/request-listings.mjs";
 import {
   initializeGoogleAnalytics,
   trackMarketingEvent,
@@ -146,7 +148,7 @@ type RequestRow = {
   details: string | null;
   duration_days: number;
   status: string;
-  reference_images: Array<{ url?: string; name?: string }> | null;
+  reference_images: Array<{ url?: string; name?: string; path?: string }> | null;
   created_at: string;
 };
 
@@ -622,6 +624,8 @@ const pageSeoCopy: Record<Page, { title: string; description: string; socialDesc
 
 const signedInStorageKey = "pleasefindmethis-signed-in";
 const pendingRouteStorageKey = "pleasefindmethis-pending-route";
+const pendingRequestIdStorageKey = "pleasefindmethis-pending-request-id";
+const pendingRequestNameStorageKey = "pleasefindmethis-pending-request-name";
 const authProviderStorageKey = "pleasefindmethis-auth-provider";
 const authEmailStorageKey = "pleasefindmethis-auth-email";
 const postDraftStorageKey = "pleasefindmethis-post-draft";
@@ -825,10 +829,6 @@ function requestRowToPublishedSnapshot(row: RequestRow): PublishedRequestSnapsho
     durationDays: isRequestDuration(row.duration_days) ? row.duration_days : 30,
     createdAt: row.created_at || new Date().toISOString(),
   };
-}
-
-function mergeRequestListings(primary: RequestListing[], fallback: RequestListing[]) {
-  return primary.length ? primary : fallback;
 }
 
 function usePublicRequestListings(enabled = true, requestId = "") {
@@ -1267,11 +1267,23 @@ function useRequestComments(request: RequestListing) {
       return localComment;
     }
 
+    if (!supabase) {
+      throw new CommentAuthenticationRequiredError();
+    }
+
+    const { data: sessionData, error: sessionError } = await supabase.auth.getSession();
+    const accessToken = sessionData.session?.access_token;
+
+    if (sessionError || !accessToken) {
+      throw new CommentAuthenticationRequiredError();
+    }
+
     const params = new URLSearchParams({ resource: "comments", request_id: request.id });
     const response = await fetch(`/api/requests/public?${params.toString()}`, {
       method: "POST",
       headers: {
         Accept: "application/json",
+        Authorization: `Bearer ${accessToken}`,
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
@@ -1281,6 +1293,10 @@ function useRequestComments(request: RequestListing) {
       }),
     });
     const payload = (await response.json()) as { comment?: PublicRequestCommentRow; error?: string };
+
+    if (response.status === 401) {
+      throw new CommentAuthenticationRequiredError();
+    }
 
     if (!response.ok || !payload.comment) {
       throw new Error(payload.error || "Could not post this comment.");
@@ -1292,6 +1308,13 @@ function useRequestComments(request: RequestListing) {
   };
 
   return { comments, loading, error, addComment };
+}
+
+class CommentAuthenticationRequiredError extends Error {
+  constructor() {
+    super("Log in to post a comment.");
+    this.name = "CommentAuthenticationRequiredError";
+  }
 }
 
 async function copyTextToClipboard(value: string) {
@@ -2916,6 +2939,13 @@ function App() {
     navigate("auth");
   };
 
+  const requireCommentAuth = (request: RequestListing) => {
+    setActiveRequestId(request.id);
+    window.sessionStorage.setItem(pendingRequestIdStorageKey, request.id);
+    window.sessionStorage.setItem(pendingRequestNameStorageKey, request.name);
+    requireAuth("request-detail", "login");
+  };
+
   const goToDetail = (requestId: string) => {
     const targetRequest = requestListings.find((request) => request.id === requestId);
     setActiveRequestId(requestId);
@@ -2923,12 +2953,16 @@ function App() {
   };
 
   const markSignedIn = (provider = "email", email?: string) => {
+    const pendingRequestId = window.sessionStorage.getItem(pendingRequestIdStorageKey) ?? "";
+    const pendingRequestName = window.sessionStorage.getItem(pendingRequestNameStorageKey) ?? "";
     window.sessionStorage.setItem(signedInStorageKey, "true");
     window.sessionStorage.setItem(authProviderStorageKey, provider);
     if (email) {
       window.sessionStorage.setItem(authEmailStorageKey, email);
     }
     window.sessionStorage.removeItem(pendingRouteStorageKey);
+    window.sessionStorage.removeItem(pendingRequestIdStorageKey);
+    window.sessionStorage.removeItem(pendingRequestNameStorageKey);
     setEmailOtpSentTo("");
     setAuthMessage("");
     setSignedIn(true);
@@ -2936,7 +2970,7 @@ function App() {
       provider,
       pending_route: pendingRoute,
     });
-    navigate(pendingRoute);
+    navigate(pendingRoute, pendingRequestId || activeRequestId, pendingRequestName);
   };
 
   const changeAuthMode = (mode: AuthMode) => {
@@ -3065,6 +3099,8 @@ function App() {
     window.sessionStorage.removeItem(authProviderStorageKey);
     window.sessionStorage.removeItem(authEmailStorageKey);
     window.sessionStorage.removeItem(pendingRouteStorageKey);
+    window.sessionStorage.removeItem(pendingRequestIdStorageKey);
+    window.sessionStorage.removeItem(pendingRequestNameStorageKey);
     setPendingRoute("post-describe");
     setAuthMode("login");
 
@@ -3215,6 +3251,8 @@ function App() {
     const finishSupabaseSession = (session: Session) => {
       const storedRoute = readStoredPendingRoute();
       const hadPendingAuthRoute = Boolean(window.sessionStorage.getItem(pendingRouteStorageKey));
+      const pendingRequestId = window.sessionStorage.getItem(pendingRequestIdStorageKey) ?? "";
+      const pendingRequestName = window.sessionStorage.getItem(pendingRequestNameStorageKey) ?? "";
       const provider = session.user.app_metadata?.provider;
 
       window.sessionStorage.setItem(signedInStorageKey, "true");
@@ -3223,6 +3261,8 @@ function App() {
         window.sessionStorage.setItem(authEmailStorageKey, session.user.email);
       }
       window.sessionStorage.removeItem(pendingRouteStorageKey);
+      window.sessionStorage.removeItem(pendingRequestIdStorageKey);
+      window.sessionStorage.removeItem(pendingRequestNameStorageKey);
       setEmailOtpSentTo("");
       setAuthMessage("");
       setSignedIn(true);
@@ -3232,7 +3272,10 @@ function App() {
           provider: typeof provider === "string" ? provider : "email",
           pending_route: storedRoute,
         });
-        navigate(storedRoute);
+        if (pendingRequestId) {
+          setActiveRequestId(pendingRequestId);
+        }
+        navigate(storedRoute, pendingRequestId || activeRequestId, pendingRequestName);
       }
     };
 
@@ -3274,7 +3317,7 @@ function App() {
       {visibleRoute === "landing" ? (
         <LandingPage
           menuOpen={menuOpen}
-          requests={requestListings}
+          requests={exampleRequestListings}
           onBrowse={() => navigate("browse")}
           onBrowseAll={() => navigate("browse-all")}
           onLogin={() => {
@@ -3288,7 +3331,7 @@ function App() {
           onPost={(location) => startPostRequest(location)}
           acquisitionStarterPrompt={acquisitionStarter?.prompt ?? null}
           setMenuOpen={setMenuOpen}
-          showingExamples={requestListingsAreExamples}
+          showingExamples
           signedIn={signedIn}
         />
       ) : (
@@ -3373,8 +3416,10 @@ function App() {
               <NotFoundPage onBrowse={() => navigate("browse")} onHome={() => navigate("landing")} />
             ) : (
               <RequestDetailPage
+                signedIn={signedIn}
                 request={activeRequest}
                 onBrowse={() => navigate("browse")}
+                onRequireAuth={() => requireCommentAuth(activeRequest)}
                 onStartSearch={() => startPostRequest("shared_request_cta")}
               />
             )
@@ -4357,7 +4402,7 @@ function ShareRequestPage({
   requestUrl.searchParams.set("utm_campaign", "request_help");
   const trackedRequestUrl = requestUrl.toString();
   const publicRequestUrl = new URL(requestPath, window.location.origin).toString();
-  const message = `I’ve searched everywhere for ${getShareSubject(publishedRequest.itemName)}. Do you recognize it? Leave a clue—no signup needed.`;
+  const message = `I’ve searched everywhere for ${getShareSubject(publishedRequest.itemName)}. Do you recognize it? Log in to leave a clue.`;
   const encodedMessage = encodeURIComponent(message);
   const getChannelShareUrl = (channel: string) => {
     const channelUrl = new URL(trackedRequestUrl);
@@ -4708,11 +4753,15 @@ function RequestSquareCard({
 
 function RequestDetailPage({
   request,
+  signedIn,
   onBrowse,
+  onRequireAuth,
   onStartSearch,
 }: {
   request: RequestListing;
+  signedIn: boolean;
   onBrowse: () => void;
+  onRequireAuth: () => void;
   onStartSearch: () => void;
 }) {
   const requestComments = useRequestComments(request);
@@ -4756,7 +4805,7 @@ function RequestDetailPage({
 
   const handleShareRequest = async () => {
     const requestUrl = getShareRequestUrl();
-    const shareText = `Do you recognize ${getShareSubject(request.name)}? Leave a clue—no signup needed.`;
+    const shareText = `Do you recognize ${getShareSubject(request.name)}? Log in to leave a clue.`;
 
     if (typeof navigator.share === "function") {
       try {
@@ -4788,6 +4837,12 @@ function RequestDetailPage({
 
   const handleCommentSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
+
+    if (!signedIn) {
+      onRequireAuth();
+      return;
+    }
+
     setCommentStatus("posting");
     setCommentError("");
 
@@ -4804,6 +4859,11 @@ function RequestDetailPage({
         has_source_link: Boolean(savedComment.source_url),
       });
     } catch (error) {
+      if (error instanceof CommentAuthenticationRequiredError) {
+        onRequireAuth();
+        return;
+      }
+
       setCommentStatus("error");
       setCommentError(error instanceof Error ? error.message : "Could not post this comment.");
     }
@@ -4836,8 +4896,12 @@ function RequestDetailPage({
               </dl>
             ) : null}
             <div className="legacy-detail-actions">
-              <button className="primary-button wide-button" type="button" onClick={() => document.getElementById("request-comment-body")?.focus()}>
-                Leave a public clue <MessageSquare size={18} />
+              <button
+                className="primary-button wide-button"
+                type="button"
+                onClick={() => signedIn ? document.getElementById("request-comment-body")?.focus() : onRequireAuth()}
+              >
+                {signedIn ? "Leave a public clue" : "Log in to leave a clue"} <MessageSquare size={18} />
               </button>
               <button className="section-link section-button" type="button" onClick={() => void handleShareRequest()}>
                 <Share2 size={16} /> {shareCopied ? "Link copied" : "Share this request"}
@@ -4851,7 +4915,7 @@ function RequestDetailPage({
         <div className="request-comments-head">
           <div>
             <h2 id="request-comments-title">Comments &amp; clues</h2>
-            <p>Public suggestions from visitors. No account needed.</p>
+            <p>Public suggestions from signed-in helpers.</p>
             {isExample ? <span className="example-thread-note">Example only — identities are illustrative and posts aren’t published.</span> : null}
           </div>
           <button className="section-link section-button comment-share-button" type="button" onClick={() => void handleShareRequest()}>
@@ -4892,40 +4956,51 @@ function RequestDetailPage({
             </label>
           </div>
 
-          <div className={`comment-composer-card ${commentBody || commentLink || commentStatus !== "idle" ? "has-draft" : ""}`}>
-            <CommentAvatar alias={commentVisitor.alias} eager />
-            <form className="comment-composer" onSubmit={handleCommentSubmit}>
-              <div className="comment-identity-row"><strong>{commentVisitor.alias}</strong><span>your anonymous name</span></div>
-              <label className="comment-textarea-label" htmlFor="request-comment-body">
-                Your clue
-                <textarea
-                  id="request-comment-body"
-                  value={commentBody}
-                  maxLength={requestCommentMaxLength}
-                  placeholder="Leave a clue or public source link…"
-                  onChange={(event) => { setCommentBody(event.target.value); setCommentStatus("idle"); setCommentError(""); }}
-                />
-              </label>
-              <div className="comment-composer-footer">
-                <label className="comment-link-label" htmlFor="request-comment-link">
-                  <LinkIcon size={16} aria-hidden="true" />
-                  <input
-                    id="request-comment-link"
-                    aria-label="Optional source link"
-                    value={commentLink}
-                    placeholder="Optional source link"
-                    onChange={(event) => { setCommentLink(event.target.value); setCommentStatus("idle"); setCommentError(""); }}
+          {signedIn ? (
+            <div className={`comment-composer-card ${commentBody || commentLink || commentStatus !== "idle" ? "has-draft" : ""}`}>
+              <CommentAvatar alias={commentVisitor.alias} eager />
+              <form className="comment-composer" onSubmit={handleCommentSubmit}>
+                <div className="comment-identity-row"><strong>{commentVisitor.alias}</strong><span>your public helper name</span></div>
+                <label className="comment-textarea-label" htmlFor="request-comment-body">
+                  Your clue
+                  <textarea
+                    id="request-comment-body"
+                    value={commentBody}
+                    maxLength={requestCommentMaxLength}
+                    placeholder="Leave a clue or public source link…"
+                    onChange={(event) => { setCommentBody(event.target.value); setCommentStatus("idle"); setCommentError(""); }}
                   />
                 </label>
-                <span>{requestCommentMaxLength - commentBody.length} left</span>
-                <button className="primary-button" type="submit" disabled={commentStatus === "posting" || commentBody.trim().length < 2}>
-                  {commentStatus === "posting" ? "Posting…" : "Post clue"} <Send size={16} />
-                </button>
+                <div className="comment-composer-footer">
+                  <label className="comment-link-label" htmlFor="request-comment-link">
+                    <LinkIcon size={16} aria-hidden="true" />
+                    <input
+                      id="request-comment-link"
+                      aria-label="Optional source link"
+                      value={commentLink}
+                      placeholder="Optional source link"
+                      onChange={(event) => { setCommentLink(event.target.value); setCommentStatus("idle"); setCommentError(""); }}
+                    />
+                  </label>
+                  <span>{requestCommentMaxLength - commentBody.length} left</span>
+                  <button className="primary-button" type="submit" disabled={commentStatus === "posting" || commentBody.trim().length < 2}>
+                    {commentStatus === "posting" ? "Posting…" : "Post clue"} <Send size={16} />
+                  </button>
+                </div>
+                {commentStatus === "posted" ? <p className="comment-status success">Clue posted. Thank you for moving the search forward.</p> : null}
+                {commentStatus === "error" && commentError ? <p className="comment-status error">{commentError}</p> : null}
+              </form>
+            </div>
+          ) : (
+            <div className="comment-login-gate">
+              <LockKeyhole size={21} aria-hidden="true" />
+              <div>
+                <strong>Log in to join this search.</strong>
+                <span>Your helper name stays public, while login helps prevent spam.</span>
               </div>
-              {commentStatus === "posted" ? <p className="comment-status success">Clue posted. Thank you for moving the search forward.</p> : null}
-              {commentStatus === "error" && commentError ? <p className="comment-status error">{commentError}</p> : null}
-            </form>
-          </div>
+              <button className="primary-button" type="button" onClick={onRequireAuth}>Log in to comment</button>
+            </div>
+          )}
 
           <div className="comments-ledger-columns" aria-hidden="true">
             <span>Visitor &amp; clue</span>
@@ -4990,6 +5065,8 @@ function PosterDashboardPage({
   const [requests, setRequests] = useState<RequestRow[]>([]);
   const [loading, setLoading] = useState(Boolean(supabase));
   const [dashboardError, setDashboardError] = useState("");
+  const [deletingRequestId, setDeletingRequestId] = useState("");
+  const [deleteMessage, setDeleteMessage] = useState("");
 
   useEffect(() => {
     if (!supabase) {
@@ -5036,6 +5113,66 @@ function PosterDashboardPage({
     };
   }, []);
 
+  const deleteRequest = async (request: RequestRow) => {
+    const confirmed = window.confirm(`Delete “${request.item_name}”? This removes the public request and its comments permanently.`);
+
+    if (!confirmed) {
+      return;
+    }
+
+    if (!supabase) {
+      setDashboardError("Request deletion is unavailable right now.");
+      return;
+    }
+
+    setDeletingRequestId(request.id);
+    setDashboardError("");
+    setDeleteMessage("");
+
+    try {
+      const user = await getCurrentSupabaseUser();
+      const { data, error } = await supabase
+        .from("requests")
+        .delete()
+        .eq("id", request.id)
+        .eq("user_id", user.id)
+        .select("id")
+        .maybeSingle();
+
+      if (error) {
+        throw error;
+      }
+
+      if (!data) {
+        throw new Error("This request could not be deleted. Refresh and make sure you are logged in with the account that posted it.");
+      }
+
+      const imagePaths = (request.reference_images ?? [])
+        .map((image) => image.path?.trim() ?? "")
+        .filter(Boolean);
+
+      if (imagePaths.length) {
+        const { error: storageError } = await supabase.storage
+          .from(requestReferenceImagesBucket)
+          .remove(imagePaths);
+
+        if (storageError) {
+          console.warn("The request was deleted, but some uploaded images could not be cleaned up.", storageError);
+        }
+      }
+
+      setRequests((current) => current.filter((item) => item.id !== request.id));
+      if (readStoredPublishedRequest()?.requestId === request.id) {
+        window.sessionStorage.removeItem(publishedRequestStorageKey);
+      }
+      setDeleteMessage(`“${request.item_name}” was deleted.`);
+    } catch (error) {
+      setDashboardError(error instanceof Error ? error.message : "Could not delete this request.");
+    } finally {
+      setDeletingRequestId("");
+    }
+  };
+
   const openRequests = requests.filter((request) => request.status === "open");
   const archivedRequests = requests.filter((request) => request.status === "archived");
   const dashboardRequests = requests.map((request) => ({
@@ -5054,6 +5191,7 @@ function PosterDashboardPage({
       </section>
       {loading ? <p className="dialog-note">Loading your requests...</p> : null}
       {dashboardError ? <p className="dialog-error" role="alert">{dashboardError}</p> : null}
+      {deleteMessage ? <p className="dialog-note" role="status">{deleteMessage}</p> : null}
       <section className="metric-grid">
         <Metric icon={Search} label="Total requests" value={String(requests.length)} />
         <Metric icon={Clock3} label="Open requests" value={String(openRequests.length)} />
@@ -5078,6 +5216,14 @@ function PosterDashboardPage({
                 <div className="request-review-row-actions" aria-label={`${listing.name} actions`}>
                   <button type="button" onClick={() => onOpenRequest(request.id)}><ExternalLink size={14} /> Open public page</button>
                   <button type="button" onClick={() => onShareRequest(request)}><Share2 size={14} /> Share request</button>
+                  <button
+                    className="request-delete-button"
+                    type="button"
+                    disabled={deletingRequestId === request.id}
+                    onClick={() => void deleteRequest(request)}
+                  >
+                    <Trash2 size={14} /> {deletingRequestId === request.id ? "Deleting…" : "Delete request"}
+                  </button>
                 </div>
               </article>
             ))}

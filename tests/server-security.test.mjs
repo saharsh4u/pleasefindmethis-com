@@ -249,6 +249,17 @@ test("public requests endpoint serves comments through its resource query", asyn
     const requestUrl = new URL(String(url));
     calls.push({ url: requestUrl, options });
 
+    if (requestUrl.pathname.endsWith("/auth/v1/user")) {
+      return new Response(JSON.stringify({
+        id: "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa",
+        email: "helper@example.com",
+        is_anonymous: false,
+      }), {
+        status: 200,
+        headers: { "Content-Type": "application/json" },
+      });
+    }
+
     if (requestUrl.pathname.endsWith("/requests")) {
       return new Response(JSON.stringify({
         id: requestId,
@@ -341,6 +352,43 @@ test("expired requests are not exposed as commentable", async () => {
   }
 });
 
+test("anonymous comment posts are rejected before request or comment data is accessed", async () => {
+  const originalFetch = globalThis.fetch;
+  const requestId = "11111111-1111-4111-8111-111111111111";
+  let fetchCount = 0;
+
+  globalThis.fetch = async () => {
+    fetchCount += 1;
+    throw new Error("Anonymous comment submission must fail before Supabase is called.");
+  };
+
+  try {
+    const { handleRequest } = await loadServer({
+      PUBLIC_APP_URL: "https://pleasefindmethis.com",
+      SUPABASE_SERVICE_ROLE_KEY: "service-role-key",
+      SUPABASE_URL: "https://example.supabase.co",
+    });
+    const req = fakeRequest(
+      { host: "pleasefindmethis.com" },
+      JSON.stringify({ body: "A useful lead" }),
+    );
+    const res = fakeResponse();
+
+    req.method = "POST";
+    req.url = `/api/requests/public?resource=comments&request_id=${requestId}`;
+
+    await handleRequest(req, res);
+
+    assert.equal(res.statusCode, 401);
+    assert.deepEqual(JSON.parse(res.body), {
+      error: "Log in to post a comment.",
+    });
+    assert.equal(fetchCount, 0);
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
+});
+
 test("public comment posts use one server-fingerprinted RPC without sending raw request signals", async () => {
   const originalFetch = globalThis.fetch;
   const requestId = "11111111-1111-4111-8111-111111111111";
@@ -350,6 +398,17 @@ test("public comment posts use one server-fingerprinted RPC without sending raw 
   globalThis.fetch = async (url, options = {}) => {
     const requestUrl = new URL(String(url));
     calls.push({ url: requestUrl, options });
+
+    if (requestUrl.pathname.endsWith("/auth/v1/user")) {
+      return new Response(JSON.stringify({
+        id: "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa",
+        email: "helper@example.com",
+        is_anonymous: false,
+      }), {
+        status: 200,
+        headers: { "Content-Type": "application/json" },
+      });
+    }
 
     if (requestUrl.pathname.endsWith("/requests")) {
       return new Response(JSON.stringify({
@@ -390,6 +449,7 @@ test("public comment posts use one server-fingerprinted RPC without sending raw 
     });
     const req = fakeRequest(
       {
+        authorization: "Bearer valid-comment-token",
         host: "pleasefindmethis.com",
         "user-agent": "Test Browser/1.0",
         "x-vercel-forwarded-for": "203.0.113.42",
@@ -439,6 +499,17 @@ test("rotated or missing visitor seeds cannot rotate a request-scoped fingerprin
   globalThis.fetch = async (url, options = {}) => {
     const requestUrl = new URL(String(url));
 
+    if (requestUrl.pathname.endsWith("/auth/v1/user")) {
+      return new Response(JSON.stringify({
+        id: "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa",
+        email: "helper@example.com",
+        is_anonymous: false,
+      }), {
+        status: 200,
+        headers: { "Content-Type": "application/json" },
+      });
+    }
+
     if (requestUrl.pathname.endsWith("/requests")) {
       return new Response(JSON.stringify({
         id: requestId,
@@ -482,6 +553,7 @@ test("rotated or missing visitor seeds cannot rotate a request-scoped fingerprin
     for (const [index, visitorSeed] of ["seed-one", "seed-two", undefined, undefined].entries()) {
       const req = fakeRequest(
         {
+          authorization: "Bearer valid-comment-token",
           host: "pleasefindmethis.com",
           "user-agent": "Test Browser/1.0",
           "x-vercel-forwarded-for": "203.0.113.42",
@@ -500,6 +572,7 @@ test("rotated or missing visitor seeds cannot rotate a request-scoped fingerprin
     const otherRequestId = "33333333-3333-4333-8333-333333333333";
     const otherRequestReq = fakeRequest(
       {
+        authorization: "Bearer valid-comment-token",
         host: "pleasefindmethis.com",
         "user-agent": "Test Browser/1.0",
         "x-vercel-forwarded-for": "203.0.113.42",
@@ -530,6 +603,17 @@ test("database comment rate limits are returned as HTTP 429", async () => {
 
   globalThis.fetch = async (url) => {
     const requestUrl = new URL(String(url));
+
+    if (requestUrl.pathname.endsWith("/auth/v1/user")) {
+      return new Response(JSON.stringify({
+        id: "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa",
+        email: "helper@example.com",
+        is_anonymous: false,
+      }), {
+        status: 200,
+        headers: { "Content-Type": "application/json" },
+      });
+    }
 
     if (requestUrl.pathname.endsWith("/requests")) {
       return new Response(JSON.stringify({
@@ -566,7 +650,7 @@ test("database comment rate limits are returned as HTTP 429", async () => {
       SUPABASE_URL: "https://example.supabase.co",
     });
     const req = fakeRequest(
-      { host: "pleasefindmethis.com", "x-vercel-forwarded-for": "203.0.113.42" },
+      { authorization: "Bearer valid-comment-token", host: "pleasefindmethis.com", "x-vercel-forwarded-for": "203.0.113.42" },
       JSON.stringify({ body: "One lead too many", visitorSeed: "rotated-again" }),
     );
     const res = fakeResponse();
@@ -615,6 +699,19 @@ test("public comment RPC is atomic and its terminal definition is least-privileg
   assert.match(retirementMigration, /create or replace function public\.is_free_request_board_ready\(\)/i);
   assert.match(retirementMigration, /grant execute on function public\.create_public_request_comment[\s\S]+to service_role/i);
   assert.doesNotMatch(retirementMigration, /grant execute on function public\.create_public_request_comment[\s\S]+to (anon|authenticated)/i);
+});
+
+test("request deletion is granted only to the authenticated request owner", async () => {
+  const deletionMigration = await readFile(
+    new URL("../supabase/migrations/20260710192303_allow_request_owner_deletion.sql", import.meta.url),
+    "utf8",
+  );
+
+  assert.match(deletionMigration, /grant delete on table public\.requests to authenticated/i);
+  assert.match(deletionMigration, /create policy "Users can delete their own requests"/i);
+  assert.match(deletionMigration, /on public\.requests[\s\S]+?for delete[\s\S]+?to authenticated/i);
+  assert.match(deletionMigration, /using\s*\(\s*\(select auth\.uid\(\)\)\s*=\s*user_id\s*\)/i);
+  assert.doesNotMatch(deletionMigration, /to anon|using\s*\(\s*true\s*\)/i);
 });
 
 test("public request comments fail closed without Supabase admin configuration", async () => {
