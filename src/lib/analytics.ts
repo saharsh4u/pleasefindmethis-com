@@ -477,7 +477,7 @@ function initializeDataFast() {
     websiteId: dataFastWebsiteId,
     autoCapturePageviews: false,
     debug: analyticsDebugMode,
-  }).catch((error) => {
+  }).catch((error: unknown) => {
     if (analyticsDebugMode) {
       console.warn("[Analytics] DataFast initialization failed", error);
     }

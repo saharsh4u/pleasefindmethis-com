@@ -55,6 +55,10 @@
   ],
   "rewrites": [
     {
+      "source": "/requests/:requestId/:slug",
+      "destination": "/api/requests/public?render=request_page&request_id=:requestId"
+    },
+    {
       "source": "/auth",
       "destination": "/index.html"
     },

@@ -7,10 +7,12 @@ import {
   ArrowRight,
   BadgeCheck,
   Banknote,
+  Camera,
   CalendarDays,
   CheckCircle2,
   CircleHelp,
   Clock3,
+  Copy,
   CreditCard,
   ExternalLink,
   FileText,
@@ -24,11 +26,13 @@ import {
   Mail,
   MapPin,
   Menu,
+  MessageCircle,
   MessageSquare,
   PackageCheck,
   Scale,
   Search,
   Send,
+  Share2,
   ShieldAlert,
   ShieldCheck,
   Star,
@@ -36,6 +40,8 @@ import {
   TimerReset,
   Trophy,
   Upload,
+  Users,
+  WifiOff,
   X,
 } from "lucide-react";
 import { hasSupabaseEnv, supabase } from "./lib/supabase";
@@ -53,6 +59,7 @@ type Page =
   | "post-describe"
   | "post-reward"
   | "post-pay"
+  | "share-request"
   | "browse"
   | "browse-all"
   | "bounty-detail"
@@ -122,6 +129,7 @@ type BountyListing = {
   description: string;
   mustHaves: string[];
   timeline: string[];
+  brief?: RequestBriefFields;
   live?: boolean;
   createdAt?: string;
   closesAt?: string;
@@ -300,6 +308,14 @@ type PostDraft = {
 type PostReferenceImageDraft = {
   file: File;
   name: string;
+  dataUrl: string;
+};
+
+type StoredPostReferenceImageDraft = {
+  name: string;
+  type: string;
+  lastModified: number;
+  dataUrl: string;
 };
 
 type StoredPostDraft = {
@@ -339,6 +355,16 @@ type CheckoutSnapshot = {
   email: string;
   durationDays?: number;
   createdAt?: string;
+};
+
+type PublishedRequestSnapshot = {
+  requestId: string;
+  itemName: string;
+  category: string;
+  details: string;
+  image: string;
+  durationDays: RequestDuration;
+  createdAt: string;
 };
 
 type FinderIdentityStatus = "not_started" | "review_requested" | "verified";
@@ -381,6 +407,9 @@ const defaultSocialDescription =
   "Looking for a hard-to-find or discontinued item? Post one free request with photos and clear details first.";
 const organizationLogo = `${siteOrigin}/magnifying-glass.png`;
 const defaultSeoImage = `${siteOrigin}/og/pleasefindmethis-vintage-tee-fullscreen-v3.png`;
+const neutralRequestImage = `data:image/svg+xml,${encodeURIComponent(
+  '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 900"><rect width="1200" height="900" fill="#eef4ff"/><rect x="382" y="255" width="436" height="334" rx="20" fill="#fff" stroke="#aebbd4" stroke-width="8"/><circle cx="515" cy="365" r="46" fill="#dbe7ff"/><path d="m420 535 145-132 92 78 74-58 69 112" fill="none" stroke="#0b46d4" stroke-width="18" stroke-linecap="round" stroke-linejoin="round"/><path d="M538 662h124" stroke="#ff5b0b" stroke-width="18" stroke-linecap="round"/></svg>',
+)}`;
 const requestSingular = "request";
 const requestPlural = "requests";
 const checkoutRequestTimeoutMs = 25000;
@@ -398,7 +427,7 @@ const requestCategories: Array<{ value: RequestCategory; label: string }> = [
 ];
 
 const initialPostDraft: PostDraft = {
-  itemName: "Help me find this exact item",
+  itemName: "",
   category: "home",
   details: "",
   reward: 0,
@@ -682,9 +711,8 @@ function hasUsefulRequestBrief(fields: RequestBriefFields) {
 }
 
 const protectedPages = new Set<Page>([
-  "post-describe",
-  "post-reward",
   "post-pay",
+  "share-request",
   "submit-find",
   "poster-dashboard",
   "finder-dashboard",
@@ -698,8 +726,9 @@ const pageLabels: Record<Page, string> = {
   landing: "Landing page",
   auth: "Sign up / Log in",
   "post-describe": "Post Request - Describe",
-  "post-reward": "Post Request - Visibility",
+  "post-reward": "Post Request - Duration",
   "post-pay": "Post Request - Publish",
+  "share-request": "Share request",
   browse: "Browse requests",
   "browse-all": "Browse all",
   "bounty-detail": "Request detail",
@@ -725,10 +754,12 @@ const routeMap: Record<string, Page> = {
   post: "post-describe",
   "post/describe": "post-describe",
   "post/visibility": "post-reward",
+  "post/duration": "post-reward",
   "post/publish": "post-pay",
   "post/offer": "post-reward",
   "post/reward": "post-reward",
   "post/pay": "post-pay",
+  "post/share": "share-request",
   browse: "browse",
   "browse/all": "browse-all",
   "bounty/detail": "bounty-detail",
@@ -749,8 +780,9 @@ const pageRoutes: Record<Page, string> = {
   landing: "/",
   auth: "auth",
   "post-describe": "post/describe",
-  "post-reward": "post/visibility",
+  "post-reward": "post/duration",
   "post-pay": "post/publish",
+  "share-request": "post/share",
   browse: "browse",
   "browse-all": "browse/all",
   "bounty-detail": "bounty/detail",
@@ -816,12 +848,16 @@ const pageSeoCopy: Record<Page, { title: string; description: string; socialDesc
     description: "Describe what you need and what makes a lead valid.",
   },
   "post-reward": {
-    title: "Choose Request Visibility | pleasefindmethis",
+    title: "Choose Request Duration | pleasefindmethis",
     description: "Set how long your request stays open.",
   },
   "post-pay": {
     title: "Publish a Free Request | pleasefindmethis",
     description: "Publish the request and open it for source leads.",
+  },
+  "share-request": {
+    title: "Share Your Search | pleasefindmethis",
+    description: "Share your public request with people who may recognize the exact item.",
   },
   browse: {
     title: "Featured Find Requests | pleasefindmethis",
@@ -891,9 +927,14 @@ const authProviderStorageKey = "pleasefindmethis-auth-provider";
 const authEmailStorageKey = "pleasefindmethis-auth-email";
 const checkoutSnapshotStorageKey = "pleasefindmethis-last-checkout";
 const postDraftStorageKey = "pleasefindmethis-post-draft";
+const postReferenceImagesStorageKey = "pleasefindmethis-post-reference-images";
+const publishedRequestStorageKey = "pleasefindmethis-published-request";
 const accountProfileStorageKey = "pleasefindmethis-account-profile";
 const requestReferenceImagesBucket = "request-reference-images";
 const sourceSubmissionProofBucket = "source-submission-proof";
+const maxPersistedReferenceImages = 4;
+const maxPersistedReferenceImageDataUrlLength = 450_000;
+const maxPersistedReferenceImagesTotalLength = maxPersistedReferenceImages * maxPersistedReferenceImageDataUrlLength;
 const googleClientId = import.meta.env.VITE_GOOGLE_CLIENT_ID;
 const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const uuidPattern = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
@@ -1470,14 +1511,16 @@ function getClosesLabel(daysRemaining?: number | null) {
 
 function getReferenceImage(referenceImages?: RequestRow["reference_images"]) {
   const firstImage = Array.isArray(referenceImages) ? referenceImages.find((image) => image?.url) : null;
-  return firstImage?.url || "/find-requests/duck-wall-art.jpg";
+  return firstImage?.url || neutralRequestImage;
 }
 
 function getMustHaves(details?: string | null) {
-  const parts = (details ?? "")
-    .split(/\n|\.|;/)
+  const brief = getRequestBriefFields(details ?? "");
+  const source = brief.mustMatch || brief.story || details || "";
+  const parts = source
+    .split(/\n|\.|;|,|•/)
     .map((part) => part.trim())
-    .filter(Boolean)
+    .filter((part) => Boolean(part) && !requestBriefKeyByHeading[normalizeRequestBriefHeading(part)])
     .slice(0, 4);
 
   return parts.length
@@ -1485,26 +1528,32 @@ function getMustHaves(details?: string | null) {
     : ["Exact match preferred", "Clear source or contact path", "Availability should be current", "Proof helps review faster"];
 }
 
+function getRequestDescription(itemName: string, details?: string | null) {
+  const brief = getRequestBriefFields(details ?? "");
+  return brief.story || `Looking for ${itemName || "this exact item"}. Share a clue if you recognize it.`;
+}
+
 function publicRequestRowToBounty(row: PublicRequestCardRow): BountyListing {
   const details = row.details?.trim() || "Helpers can share a public listing, shop contact path, source clue, or legal availability note.";
-  const visibilityText = row.payment_status === "free" ? "Free request" : "Featured request";
+  const requestTypeText = row.payment_status === "free" ? "Free request" : "Featured request";
 
   return {
     id: row.id,
     name: row.item_name || "Hard-to-find item",
-    detail: visibilityText,
-    reward: visibilityText,
+    detail: requestTypeText,
+    reward: requestTypeText,
     rewardValue: row.reward || 0,
     closes: getClosesLabel(row.days_remaining),
-    image: row.primary_image_url || "/find-requests/duck-wall-art.jpg",
+    image: row.primary_image_url || neutralRequestImage,
     category: row.category || "General",
     status: getStatusLabel(row.status, row.payment_status),
     location: "Open to source suggestions",
-    poster: "Verified poster",
+    poster: "Requester",
     posted: getRelativeTimeLabel(row.created_at),
     submissions: row.submission_count ?? 0,
-    description: details,
+    description: getRequestDescription(row.item_name, details),
     mustHaves: getMustHaves(details),
+    brief: getRequestBriefFields(details),
     timeline: ["Free request posted", `${row.submission_count ?? 0} source suggestion${row.submission_count === 1 ? "" : "s"}`, "Helpers can share useful leads"],
     live: true,
     createdAt: row.created_at,
@@ -1515,13 +1564,13 @@ function publicRequestRowToBounty(row: PublicRequestCardRow): BountyListing {
 function requestRowToBounty(row: RequestRow, submissionCount = 0): BountyListing {
   const createdAt = row.created_at;
   const paidAt = row.paid_at;
-  const visibilityText = row.payment_status === "free" ? "Free request" : "Open request";
+  const requestTypeText = row.payment_status === "free" ? "Free request" : "Open request";
 
   return {
     id: row.id,
     name: row.item_name || "Hard-to-find item",
-    detail: visibilityText,
-    reward: visibilityText,
+    detail: requestTypeText,
+    reward: requestTypeText,
     rewardValue: row.reward || 0,
     closes: `${row.duration_days} days`,
     image: getReferenceImage(row.reference_images),
@@ -1531,8 +1580,9 @@ function requestRowToBounty(row: RequestRow, submissionCount = 0): BountyListing
     poster: "You",
     posted: getRelativeTimeLabel(paidAt ?? createdAt),
     submissions: submissionCount,
-    description: row.details?.trim() || "No additional details provided.",
+    description: getRequestDescription(row.item_name, row.details),
     mustHaves: getMustHaves(row.details),
+    brief: getRequestBriefFields(row.details ?? ""),
     timeline: [
       row.payment_status === "free" ? "Free request posted" : "Request is open",
       `${submissionCount} source suggestion${submissionCount === 1 ? "" : "s"}`,
@@ -1543,32 +1593,36 @@ function requestRowToBounty(row: RequestRow, submissionCount = 0): BountyListing
   };
 }
 
-function mergeBounties(primary: BountyListing[], fallback: BountyListing[]) {
-  const seen = new Set<string>();
-  const merged: BountyListing[] = [];
-
-  for (const bounty of [...primary, ...fallback]) {
-    if (seen.has(bounty.id)) {
-      continue;
-    }
-
-    seen.add(bounty.id);
-    merged.push(bounty);
-  }
-
-  return merged;
+function requestRowToPublishedSnapshot(row: RequestRow): PublishedRequestSnapshot {
+  return {
+    requestId: row.id,
+    itemName: row.item_name || "Hard-to-find item",
+    category: row.category || "General",
+    details: row.details?.trim() || `Looking for: ${row.item_name || "this exact item"}`,
+    image: getReferenceImage(row.reference_images),
+    durationDays: isRequestDuration(row.duration_days) ? row.duration_days : 30,
+    createdAt: row.paid_at || row.created_at || new Date().toISOString(),
+  };
 }
 
-function usePublicRequestListings(enabled = true) {
+function mergeBounties(primary: BountyListing[], fallback: BountyListing[]) {
+  return primary.length ? primary : fallback;
+}
+
+function usePublicRequestListings(enabled = true, requestId = "") {
   const [listings, setListings] = useState<BountyListing[]>([]);
   const [loading, setLoading] = useState(enabled);
   const [error, setError] = useState("");
+  const [requestNotFound, setRequestNotFound] = useState(false);
+  const [resolvedRequestId, setResolvedRequestId] = useState("");
 
   useEffect(() => {
     if (!enabled) {
       setListings([]);
       setLoading(false);
       setError("");
+      setRequestNotFound(false);
+      setResolvedRequestId("");
       return undefined;
     }
 
@@ -1577,9 +1631,16 @@ function usePublicRequestListings(enabled = true) {
     const loadRequests = async () => {
       setLoading(true);
       setError("");
+      setRequestNotFound(false);
+      setResolvedRequestId("");
 
       try {
-        const response = await fetch("/api/requests/public", {
+        const params = new URLSearchParams();
+        if (isUuid(requestId)) {
+          params.set("request_id", requestId);
+        }
+        const endpoint = params.size ? `/api/requests/public?${params.toString()}` : "/api/requests/public";
+        const response = await fetch(endpoint, {
           headers: {
             Accept: "application/json",
           },
@@ -1590,11 +1651,21 @@ function usePublicRequestListings(enabled = true) {
           return;
         }
 
+        if (response.status === 404 && isUuid(requestId)) {
+          setListings([]);
+          setRequestNotFound(true);
+          setResolvedRequestId(requestId);
+          setLoading(false);
+          return;
+        }
+
         if (!response.ok || !Array.isArray(payload.requests)) {
           throw new Error(payload.error || "Live request feed is not ready yet.");
         }
 
         setListings(payload.requests.map(publicRequestRowToBounty));
+        setRequestNotFound(isUuid(requestId) && payload.requests.length === 0);
+        setResolvedRequestId(isUuid(requestId) ? requestId : "");
       } catch {
         if (!mounted) {
           return;
@@ -1602,6 +1673,8 @@ function usePublicRequestListings(enabled = true) {
 
         setError("Live request feed is not ready yet.");
         setListings([]);
+        setRequestNotFound(false);
+        setResolvedRequestId(isUuid(requestId) ? requestId : "");
       }
 
       setLoading(false);
@@ -1612,9 +1685,9 @@ function usePublicRequestListings(enabled = true) {
     return () => {
       mounted = false;
     };
-  }, [enabled]);
+  }, [enabled, requestId]);
 
-  return { listings, loading, error };
+  return { listings, loading, error, requestNotFound, resolvedRequestId };
 }
 
 function hashPublicHelperSeed(seed: string) {
@@ -1797,7 +1870,8 @@ function useRequestComments(bounty: BountyListing) {
       setError("");
 
       try {
-        const response = await fetch(`/api/requests/${encodeURIComponent(bounty.id)}/comments`, {
+        const params = new URLSearchParams({ resource: "comments", request_id: bounty.id });
+        const response = await fetch(`/api/requests/public?${params.toString()}`, {
           headers: {
             Accept: "application/json",
           },
@@ -1865,7 +1939,8 @@ function useRequestComments(bounty: BountyListing) {
       return localComment;
     }
 
-    const response = await fetch(`/api/requests/${encodeURIComponent(bounty.id)}/comments`, {
+    const params = new URLSearchParams({ resource: "comments", request_id: bounty.id });
+    const response = await fetch(`/api/requests/public?${params.toString()}`, {
       method: "POST",
       headers: {
         Accept: "application/json",
@@ -2749,6 +2824,17 @@ function slugify(value: string) {
     .slice(0, 80);
 }
 
+function getShareSubject(itemName: string) {
+  const normalized = itemName
+    .trim()
+    .replace(/^help\s+me\s+find\s+/i, "")
+    .replace(/^find\s+/i, "")
+    .replace(/^does\s+anyone\s+know\s+/i, "")
+    .replace(/[?.!]+$/, "")
+    .trim();
+  return normalized || itemName.trim() || "this exact item";
+}
+
 function getBountyPath(bountyId: string, bountyName = "") {
   const slug = slugify(bountyName);
   return `/requests/${encodeURIComponent(bountyId)}${slug ? `/${slug}` : ""}`;
@@ -2950,6 +3036,211 @@ function clearStoredPostDraft() {
   }
 }
 
+function dataUrlToFile(dataUrl: string, name: string, lastModified = Date.now()) {
+  const [metadata, encodedData = ""] = dataUrl.split(",", 2);
+  const mimeType = metadata.match(/^data:([^;]+);base64$/)?.[1] || "image/jpeg";
+  const binary = window.atob(encodedData);
+  const bytes = new Uint8Array(binary.length);
+
+  for (let index = 0; index < binary.length; index += 1) {
+    bytes[index] = binary.charCodeAt(index);
+  }
+
+  return new File([bytes], name, { type: mimeType, lastModified });
+}
+
+function readStoredPostReferenceImageDrafts(): PostReferenceImageDraft[] {
+  try {
+    const raw = window.sessionStorage.getItem(postReferenceImagesStorageKey);
+    if (!raw || raw.length > maxPersistedReferenceImagesTotalLength + 20_000) {
+      return [];
+    }
+
+    const parsed = JSON.parse(raw) as unknown;
+    if (!Array.isArray(parsed)) {
+      return [];
+    }
+
+    let totalLength = 0;
+    return parsed.slice(0, maxPersistedReferenceImages).flatMap((entry) => {
+      const candidate = entry as Partial<StoredPostReferenceImageDraft>;
+      if (
+        typeof candidate.name !== "string" ||
+        typeof candidate.type !== "string" ||
+        typeof candidate.lastModified !== "number" ||
+        typeof candidate.dataUrl !== "string" ||
+        !candidate.dataUrl.startsWith("data:image/") ||
+        candidate.dataUrl.length > maxPersistedReferenceImageDataUrlLength
+      ) {
+        return [];
+      }
+
+      totalLength += candidate.dataUrl.length;
+      if (totalLength > maxPersistedReferenceImagesTotalLength) {
+        return [];
+      }
+
+      try {
+        return [{
+          file: dataUrlToFile(candidate.dataUrl, candidate.name.slice(0, 160), candidate.lastModified),
+          name: candidate.name.slice(0, 160),
+          dataUrl: candidate.dataUrl,
+        }];
+      } catch {
+        return [];
+      }
+    });
+  } catch {
+    return [];
+  }
+}
+
+function writeStoredPostReferenceImageDrafts(drafts: PostReferenceImageDraft[]) {
+  try {
+    const storedDrafts: StoredPostReferenceImageDraft[] = drafts.slice(0, maxPersistedReferenceImages).map((draft) => ({
+      name: draft.name.slice(0, 160),
+      type: draft.file.type || "image/jpeg",
+      lastModified: draft.file.lastModified,
+      dataUrl: draft.dataUrl,
+    }));
+    const totalLength = storedDrafts.reduce((total, draft) => total + draft.dataUrl.length, 0);
+
+    if (
+      storedDrafts.some((draft) => !draft.dataUrl.startsWith("data:image/") || draft.dataUrl.length > maxPersistedReferenceImageDataUrlLength) ||
+      totalLength > maxPersistedReferenceImagesTotalLength
+    ) {
+      return false;
+    }
+
+    if (storedDrafts.length) {
+      window.sessionStorage.setItem(postReferenceImagesStorageKey, JSON.stringify(storedDrafts));
+    } else {
+      window.sessionStorage.removeItem(postReferenceImagesStorageKey);
+    }
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+function clearStoredPostReferenceImageDrafts() {
+  try {
+    window.sessionStorage.removeItem(postReferenceImagesStorageKey);
+  } catch {
+    // Clearing an image draft is best-effort only.
+  }
+}
+
+function readFileAsDataUrl(file: File) {
+  return new Promise<string>((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => (typeof reader.result === "string" ? resolve(reader.result) : reject(new Error("Could not read this photo.")));
+    reader.onerror = () => reject(new Error("Could not read this photo."));
+    reader.readAsDataURL(file);
+  });
+}
+
+function loadDraftImage(dataUrl: string) {
+  return new Promise<HTMLImageElement>((resolve, reject) => {
+    const image = new Image();
+    image.onload = () => resolve(image);
+    image.onerror = () => reject(new Error("This photo format cannot be prepared for sign-in. Try a JPEG, PNG, or WebP image."));
+    image.src = dataUrl;
+  });
+}
+
+async function preparePostReferenceImageDraft(file: File): Promise<PostReferenceImageDraft> {
+  if (!file.type.startsWith("image/")) {
+    throw new Error(`${file.name || "This file"} is not a supported photo.`);
+  }
+
+  const originalDataUrl = await readFileAsDataUrl(file);
+  if (originalDataUrl.length <= maxPersistedReferenceImageDataUrlLength) {
+    return { file, name: file.name, dataUrl: originalDataUrl };
+  }
+
+  const image = await loadDraftImage(originalDataUrl);
+  const canvas = document.createElement("canvas");
+  const context = canvas.getContext("2d");
+  if (!context) {
+    throw new Error("This browser could not prepare the photo. Try a smaller image.");
+  }
+
+  let scale = Math.min(1, 1440 / Math.max(image.naturalWidth, image.naturalHeight));
+  let quality = 0.84;
+  let dataUrl = "";
+
+  for (let attempt = 0; attempt < 10; attempt += 1) {
+    canvas.width = Math.max(1, Math.round(image.naturalWidth * scale));
+    canvas.height = Math.max(1, Math.round(image.naturalHeight * scale));
+    context.clearRect(0, 0, canvas.width, canvas.height);
+    context.drawImage(image, 0, 0, canvas.width, canvas.height);
+    dataUrl = canvas.toDataURL("image/jpeg", quality);
+
+    if (dataUrl.length <= maxPersistedReferenceImageDataUrlLength) {
+      const safeName = `${file.name.replace(/\.[^.]+$/, "") || "request-photo"}.jpg`;
+      return {
+        file: dataUrlToFile(dataUrl, safeName, file.lastModified),
+        name: safeName,
+        dataUrl,
+      };
+    }
+
+    if (quality > 0.54) {
+      quality -= 0.1;
+    } else {
+      scale *= 0.78;
+      quality = 0.76;
+    }
+  }
+
+  throw new Error(`${file.name || "This photo"} is still too large to carry safely through sign-in. Try a smaller image.`);
+}
+
+function readStoredPublishedRequest(): PublishedRequestSnapshot | null {
+  try {
+    const raw = window.sessionStorage.getItem(publishedRequestStorageKey);
+    if (!raw) {
+      return null;
+    }
+
+    const parsed = JSON.parse(raw) as Partial<PublishedRequestSnapshot>;
+    if (
+      typeof parsed.requestId !== "string" ||
+      typeof parsed.itemName !== "string" ||
+      typeof parsed.category !== "string" ||
+      typeof parsed.details !== "string" ||
+      typeof parsed.image !== "string" ||
+      typeof parsed.createdAt !== "string" ||
+      !isRequestDuration(parsed.durationDays)
+    ) {
+      return null;
+    }
+
+    return {
+      requestId: parsed.requestId,
+      itemName: parsed.itemName.slice(0, 120),
+      category: parsed.category.slice(0, 80),
+      details: parsed.details.slice(0, 5000),
+      image: parsed.image.startsWith("data:image/")
+        ? parsed.image.slice(0, maxPersistedReferenceImageDataUrlLength)
+        : parsed.image.slice(0, 1000),
+      durationDays: parsed.durationDays,
+      createdAt: parsed.createdAt,
+    };
+  } catch {
+    return null;
+  }
+}
+
+function writeStoredPublishedRequest(snapshot: PublishedRequestSnapshot) {
+  try {
+    window.sessionStorage.setItem(publishedRequestStorageKey, JSON.stringify(snapshot));
+  } catch {
+    // The share screen still works from in-memory state when storage is unavailable.
+  }
+}
+
 function getDefaultAccountProfile(): AccountProfile {
   const email = window.sessionStorage.getItem(authEmailStorageKey) ?? "";
 
@@ -3087,7 +3378,7 @@ function getSeoMeta(page: Page, activeBounty?: BountyListing): SeoMeta {
       description: description.slice(0, 240),
       path: getBountyPath(activeBounty.id, activeBounty.name),
       robots: activeBounty.live ? "index,follow" : "noindex,follow",
-      image: toAbsoluteUrl(activeBounty.image),
+      image: activeBounty.image.startsWith("data:image/") ? defaultSeoImage : toAbsoluteUrl(activeBounty.image),
     };
   }
 
@@ -3139,7 +3430,7 @@ function createItemListSchema(bounties: BountyListing[], pagePath: string): Json
         "@type": "Thing",
         name: bounty.name,
         description: bounty.description,
-        image: toAbsoluteUrl(bounty.image),
+        image: bounty.image.startsWith("data:image/") ? defaultSeoImage : toAbsoluteUrl(bounty.image),
         url: getCanonicalUrl(getBountyPath(bounty.id, bounty.name)),
         additionalType: bounty.category,
       },
@@ -3172,7 +3463,7 @@ function createMarketplaceServiceSchema(organizationId: string): JsonLdNode {
       "@type": "AggregateOffer",
       priceCurrency: "USD",
       lowPrice: 0,
-      description: "Posting is free. Paid visibility tools are not live yet.",
+      description: "Posting is free. Add clear details, publish, and share the public request.",
     },
     termsOfService: `${siteOrigin}/terms`,
   };
@@ -3291,7 +3582,7 @@ function createStructuredData(page: Page, meta: SeoMeta, bounties: BountyListing
       url: canonicalUrl,
       name: activeBounty.name,
       description: activeBounty.description,
-      image: toAbsoluteUrl(activeBounty.image),
+      image: activeBounty.image.startsWith("data:image/") ? defaultSeoImage : toAbsoluteUrl(activeBounty.image),
       additionalType: activeBounty.category,
     });
   }
@@ -3444,7 +3735,9 @@ function App() {
   const [authMessage, setAuthMessage] = useState("");
   const [emailOtpSentTo, setEmailOtpSentTo] = useState("");
   const [postDraft, setPostDraft] = useState<PostDraft>(() => getInitialPostDraft());
-  const [postReferenceImageDrafts, setPostReferenceImageDrafts] = useState<PostReferenceImageDraft[]>([]);
+  const [postReferenceImageDrafts, setPostReferenceImageDrafts] = useState<PostReferenceImageDraft[]>(() => readStoredPostReferenceImageDrafts());
+  const [postReferenceImagePersistenceError, setPostReferenceImagePersistenceError] = useState("");
+  const [publishedRequest, setPublishedRequest] = useState<PublishedRequestSnapshot | null>(() => readStoredPublishedRequest());
   const [activeBountyId, setActiveBountyId] = useState(() => getBountyIdFromCurrentRoute() || bountyListings[0].id);
   const visibleRoute = !signedIn && protectedPages.has(route) ? "auth" : route;
   const currencyPreference = useViewerCurrencyPreference(routeUsesCurrency(visibleRoute));
@@ -3452,13 +3745,25 @@ function App() {
     listings: liveBounties,
     loading: publicRequestsLoading,
     error: publicRequestsError,
-  } = usePublicRequestListings(routeUsesPublicRequestFeed(visibleRoute));
+    requestNotFound: publicRequestNotFound,
+    resolvedRequestId: resolvedPublicRequestId,
+  } = usePublicRequestListings(routeUsesPublicRequestFeed(visibleRoute), visibleRoute === "bounty-detail" ? activeBountyId : "");
   const marketplaceBounties = useMemo(() => mergeBounties(liveBounties, bountyListings), [liveBounties]);
+  const marketplaceIsExamples = liveBounties.length === 0;
   const acquisitionStarter = getAcquisitionStarterFromUrl();
 
   useEffect(() => {
     initializeGoogleAnalytics();
   }, []);
+
+  useEffect(() => {
+    const didPersist = writeStoredPostReferenceImageDrafts(postReferenceImageDrafts);
+    setPostReferenceImagePersistenceError(
+      didPersist || !postReferenceImageDrafts.length
+        ? ""
+        : "These photos could not be saved for the sign-in handoff. Remove some photos or choose smaller files before continuing.",
+    );
+  }, [postReferenceImageDrafts]);
 
   useEffect(() => {
     const syncRoute = () => {
@@ -3480,20 +3785,45 @@ function App() {
     };
   }, []);
 
+  const requestedDetailBounty = useMemo(() => {
+    if (visibleRoute !== "bounty-detail") {
+      return null;
+    }
+
+    if (isUuid(activeBountyId)) {
+      return liveBounties.find((bounty) => bounty.id === activeBountyId) ?? null;
+    }
+
+    return bountyListings.find((bounty) => bounty.id === activeBountyId) ?? null;
+  }, [activeBountyId, liveBounties, visibleRoute]);
   const activeBounty = useMemo(
-    () => marketplaceBounties.find((bounty) => bounty.id === activeBountyId) ?? marketplaceBounties[0] ?? bountyListings[0],
-    [activeBountyId, marketplaceBounties],
+    () => requestedDetailBounty ?? marketplaceBounties.find((bounty) => bounty.id === activeBountyId) ?? marketplaceBounties[0] ?? bountyListings[0],
+    [activeBountyId, marketplaceBounties, requestedDetailBounty],
   );
+  const exactRequestLoading =
+    visibleRoute === "bounty-detail" &&
+    isUuid(activeBountyId) &&
+    (publicRequestsLoading || resolvedPublicRequestId !== activeBountyId);
+  const exactRequestUnavailable =
+    visibleRoute === "bounty-detail" &&
+    isUuid(activeBountyId) &&
+    !exactRequestLoading &&
+    resolvedPublicRequestId === activeBountyId &&
+    Boolean(publicRequestsError);
+  const requestedBountyMissing =
+    visibleRoute === "bounty-detail" &&
+    ((isUuid(activeBountyId) && !exactRequestLoading && !publicRequestsError && publicRequestNotFound) ||
+      (!isUuid(activeBountyId) && !requestedDetailBounty));
 
   useEffect(() => {
-    updateDocumentSeo(visibleRoute, marketplaceBounties, activeBounty);
-  }, [activeBounty, marketplaceBounties, visibleRoute]);
+    updateDocumentSeo(visibleRoute, marketplaceBounties, visibleRoute === "bounty-detail" ? requestedDetailBounty ?? undefined : activeBounty);
+  }, [activeBounty, marketplaceBounties, requestedDetailBounty, visibleRoute]);
 
   useEffect(() => {
     trackPageView({
       route: visibleRoute,
-      bounty_id: visibleRoute === "bounty-detail" ? activeBounty.id : undefined,
-      category: visibleRoute === "bounty-detail" ? activeBounty.category : undefined,
+      bounty_id: visibleRoute === "bounty-detail" ? activeBountyId : undefined,
+      category: visibleRoute === "bounty-detail" ? requestedDetailBounty?.category : undefined,
       signed_in: signedIn,
     });
 
@@ -3502,7 +3832,30 @@ function App() {
         signed_in: signedIn,
       });
     }
-  }, [activeBounty.category, activeBounty.id, signedIn, visibleRoute]);
+  }, [activeBountyId, requestedDetailBounty?.category, signedIn, visibleRoute]);
+
+  useEffect(() => {
+    if (visibleRoute !== "bounty-detail") {
+      return;
+    }
+
+    const params = getCurrentSearchParams();
+    if (params.get("utm_source") !== "product_share") {
+      return;
+    }
+
+    const eventKey = `pleasefindmethis-shared-landing-${activeBountyId}`;
+    if (window.sessionStorage.getItem(eventKey)) {
+      return;
+    }
+
+    window.sessionStorage.setItem(eventKey, "true");
+    trackAcquisitionEvent("shared_request_landed", {
+      bounty_id: activeBountyId,
+      category: requestedDetailBounty?.category,
+      share_channel: params.get("share_channel") ?? undefined,
+    });
+  }, [activeBountyId, requestedDetailBounty?.category, visibleRoute]);
 
   useEffect(() => {
     const starter = getAcquisitionStarterFromUrl();
@@ -3773,6 +4126,7 @@ function App() {
 
     if (!selectedPrompt) {
       setPostReferenceImageDrafts([]);
+      clearStoredPostReferenceImageDrafts();
     }
 
     if (selectedPrompt) {
@@ -3788,6 +4142,7 @@ function App() {
       setPostDraft(nextDraft);
       writeStoredPostDraft(nextDraft);
       setPostReferenceImageDrafts([]);
+      clearStoredPostReferenceImageDrafts();
     }
 
     trackAcquisitionEvent("start_request", {
@@ -3797,23 +4152,43 @@ function App() {
       starter_id: selectedPrompt?.id,
       from_starter_link: Boolean(urlStarter),
     });
-    requireAuth("post-describe");
+    if (location === "shared_request_cta") {
+      trackAcquisitionEvent("referred_request_started", {
+        referral_request_id: activeBountyId,
+      });
+    }
+    navigate("post-describe");
   };
 
   const continueFromDescribe = () => {
-  trackAcquisitionEvent("post_describe_completed", {
-    category: getCategoryLabel(postDraft.category),
-    has_item_name: Boolean(postDraft.itemName.trim()),
-    duration_days: postDraft.durationDays,
-  });
-  navigate("post-reward");
-};
+    const brief = getRequestBriefFields(postDraft.details);
+    trackAcquisitionEvent("post_describe_completed", {
+      category: getCategoryLabel(postDraft.category),
+      has_item_name: Boolean(postDraft.itemName.trim()),
+      has_must_match: Boolean(brief.mustMatch.trim()),
+      has_buying_limits: Boolean(brief.buyingLimits.trim()),
+      duration_days: postDraft.durationDays,
+    });
+
+    if (postReferenceImageDrafts.length && !writeStoredPostReferenceImageDrafts(postReferenceImageDrafts)) {
+      setPostReferenceImagePersistenceError(
+        "These photos could not be saved for the sign-in handoff. Remove some photos or choose smaller files before continuing.",
+      );
+      return;
+    }
+
+    if (signedIn) {
+      navigate("post-pay");
+      return;
+    }
+
+    requireAuth("post-pay");
+  };
 
   const continueFromReward = () => {
-    trackAcquisitionEvent("choose_visibility", {
+    trackAcquisitionEvent("choose_request_window", {
       category: getCategoryLabel(postDraft.category),
       duration_days: postDraft.durationDays,
-      visibility_plan: "free",
     });
     navigate("post-pay");
   };
@@ -3914,6 +4289,7 @@ function App() {
           onPost={(location) => startPostRequest(location)}
           acquisitionStarterPrompt={acquisitionStarter?.prompt ?? null}
           setMenuOpen={setMenuOpen}
+          showingExamples={marketplaceIsExamples}
           signedIn={signedIn}
         />
       ) : (
@@ -3942,6 +4318,7 @@ function App() {
               onNext={continueFromDescribe}
               referenceImageFiles={postReferenceImageDrafts}
               onReferenceImageFilesChange={setPostReferenceImageDrafts}
+              referenceImagePersistenceError={postReferenceImagePersistenceError}
             />
           ) : null}
           {visibleRoute === "post-reward" ? (
@@ -3952,12 +4329,23 @@ function App() {
               checkoutReturnStatus={checkoutReturnStatus}
               draft={postDraft}
               referenceImageFiles={postReferenceImageDrafts}
-              onBack={() => navigate("post-reward")}
-              onPublished={() => {
+              onBack={() => navigate("post-describe")}
+              onPublished={(snapshot) => {
+                setPublishedRequest(snapshot);
+                writeStoredPublishedRequest(snapshot);
+                setActiveBountyId(snapshot.requestId);
                 setPostReferenceImageDrafts([]);
+                clearStoredPostReferenceImageDrafts();
                 clearStoredPostDraft();
-                navigate("poster-dashboard");
+                navigate("share-request");
               }}
+            />
+          ) : null}
+          {visibleRoute === "share-request" ? (
+            <ShareRequestPage
+              publishedRequest={publishedRequest}
+              onDashboard={() => navigate("poster-dashboard")}
+              onOpenRequest={(request) => goToDetail(request.requestId)}
             />
           ) : null}
           {visibleRoute === "browse" ? (
@@ -3968,6 +4356,7 @@ function App() {
               onBrowseAll={() => navigate("browse-all")}
               onDetail={goToDetail}
               onPost={() => startPostRequest("browse_featured")}
+              showingExamples={marketplaceIsExamples}
             />
           ) : null}
           {visibleRoute === "browse-all" ? (
@@ -3977,21 +4366,42 @@ function App() {
               dataLoading={publicRequestsLoading}
               onDetail={goToDetail}
               onPost={() => startPostRequest("browse_all")}
+              showingExamples={marketplaceIsExamples}
             />
           ) : null}
           {visibleRoute === "bounty-detail" ? (
-            <BountyDetailPage
-              bounty={activeBounty}
-              onBrowse={() => navigate("browse")}
-              onPosterProfile={() => navigate("profile")}
-              onSubmit={() => requireAuth("submit-find")}
-            />
+            exactRequestLoading ? (
+              <RequestDetailStatusPage status="loading" onBrowse={() => navigate("browse")} />
+            ) : exactRequestUnavailable ? (
+              <RequestDetailStatusPage status="unavailable" onBrowse={() => navigate("browse")} />
+            ) : requestedBountyMissing ? (
+              <NotFoundPage onBrowse={() => navigate("browse")} onHome={() => navigate("landing")} />
+            ) : (
+              <BountyDetailPage
+                bounty={activeBounty}
+                onBrowse={() => navigate("browse")}
+                onStartSearch={() => startPostRequest("shared_request_cta")}
+                onSubmit={() => requireAuth("submit-find")}
+              />
+            )
           ) : null}
           {visibleRoute === "submit-find" ? (
             <SubmitFindPage bounty={activeBounty} onBack={() => navigate("bounty-detail")} onDashboard={() => navigate("finder-dashboard")} />
           ) : null}
           {visibleRoute === "poster-dashboard" ? (
-            <PosterDashboardPage checkoutReturnStatus={checkoutReturnStatus} onDispute={() => navigate("dispute")} onProfile={() => navigate("profile")} />
+            <PosterDashboardPage
+              checkoutReturnStatus={checkoutReturnStatus}
+              onDispute={() => navigate("dispute")}
+              onOpenRequest={goToDetail}
+              onProfile={() => navigate("profile")}
+              onShareRequest={(request) => {
+                const snapshot = requestRowToPublishedSnapshot(request);
+                setPublishedRequest(snapshot);
+                writeStoredPublishedRequest(snapshot);
+                setActiveBountyId(snapshot.requestId);
+                navigate("share-request");
+              }}
+            />
           ) : null}
           {visibleRoute === "finder-dashboard" ? (
             <FinderDashboardPage
@@ -4045,10 +4455,11 @@ function PageChrome({
   signedIn: boolean;
 }) {
   const navItems: Array<[string, Page, boolean]> = [
-    ["Browse requests", "browse", false],
-    ["Trust", "profile", false],
-    ...(signedIn ? ([["Messages", "messages", true]] as Array<[string, Page, boolean]>) : []),
-    [signedIn ? "Dashboard" : "Post a request", signedIn ? "poster-dashboard" : "post-describe", true],
+    ["Open requests", "browse", false],
+    ...(signedIn ? ([
+      ["Dashboard", "poster-dashboard", true],
+      ["Messages", "messages", true],
+    ] as Array<[string, Page, boolean]>) : []),
   ];
   const handleNavItem = (page: Page, gated: boolean) => {
     if (page === "browse") {
@@ -4118,6 +4529,7 @@ function PageChrome({
               Log in
             </a>
           )}
+          <button className="app-header-post" type="button" onClick={onPostRequest}>Post a request</button>
           <button
             className="icon-button mobile-menu-button"
             type="button"
@@ -4156,6 +4568,7 @@ function PageChrome({
                 Log in
               </a>
             )}
+            <button type="button" onClick={onPostRequest}>Post a request</button>
           </nav>
         ) : null}
       </header>
@@ -4208,6 +4621,7 @@ function LandingPage({
   onNavigate,
   onPost,
   setMenuOpen,
+  showingExamples,
   signedIn,
 }: {
   acquisitionStarterPrompt: PostStarterPrompt | null;
@@ -4222,141 +4636,16 @@ function LandingPage({
   onNavigate: (page: Page) => void;
   onPost: (location: string) => void;
   setMenuOpen: React.Dispatch<React.SetStateAction<boolean>>;
+  showingExamples: boolean;
   signedIn: boolean;
 }) {
-  const [heroSearch, setHeroSearch] = useState("");
-  const [heroPlaceholder, setHeroPlaceholder] = useState(heroPlaceholderExamples[0]);
-  const railBounties = useMemo(() => {
-    const source = bounties.length ? bounties : bountyListings;
-    const doubled = [...source, ...source];
-    return doubled.slice(0, Math.min(8, doubled.length));
-  }, [bounties]);
-  const tickerBounties = useMemo(() => [...railBounties, ...railBounties], [railBounties]);
-
-  useEffect(() => {
-    const reduceMotionQuery = window.matchMedia("(prefers-reduced-motion: reduce)");
-
-    if (reduceMotionQuery.matches) {
-      setHeroPlaceholder(heroPlaceholderExamples[0]);
-      return undefined;
-    }
-
-    let phraseIndex = 0;
-    let characterIndex = 0;
-    let deleting = false;
-    let timeoutId = 0;
-
-    const tick = () => {
-      const currentPhrase = heroPlaceholderExamples[phraseIndex];
-
-      characterIndex = deleting
-        ? Math.max(0, characterIndex - 1)
-        : Math.min(currentPhrase.length, characterIndex + 1);
-
-      setHeroPlaceholder(currentPhrase.slice(0, characterIndex));
-
-      if (!deleting && characterIndex === currentPhrase.length) {
-        deleting = true;
-        timeoutId = window.setTimeout(tick, 3600);
-        return;
-      }
-
-      if (deleting && characterIndex === 0) {
-        deleting = false;
-        phraseIndex = (phraseIndex + 1) % heroPlaceholderExamples.length;
-        timeoutId = window.setTimeout(tick, 420);
-        return;
-      }
-
-      timeoutId = window.setTimeout(tick, deleting ? 34 : 72);
-    };
-
-    setHeroPlaceholder("");
-    timeoutId = window.setTimeout(tick, 240);
-
-    return () => window.clearTimeout(timeoutId);
-  }, []);
-
-  const submitHeroSearch = (event: React.FormEvent<HTMLFormElement>) => {
-    event.preventDefault();
-    const normalizedQuery = heroSearch.trim().toLowerCase();
-
-    if (!normalizedQuery) {
-      onBrowse();
-      return;
-    }
-
-    const match = bounties.find((bounty) => `${bounty.name} ${bounty.detail} ${bounty.category}`.toLowerCase().includes(normalizedQuery));
-
-    if (match) {
-      onDetail(match.id);
-      return;
-    }
-
-    onBrowse();
-  };
+  const featuredRequests = (bounties.length ? bounties : bountyListings).slice(0, 4);
+  const heroRequest = featuredRequests[0] ?? bountyListings[0];
 
   return (
-    <main id="top" className="landing-page">
-      {tickerBounties.length ? (
-        <>
-          <aside className="mobile-find-ticker mobile-find-ticker-top" aria-hidden="true">
-            <div className="mobile-find-ticker-track mobile-find-ticker-track-left">
-              {tickerBounties.map((bounty, index) => (
-                <article className="mobile-find-ticker-card" key={`mobile-rail-top-${bounty.id}-${index}`}>
-                  <img src={bounty.image} alt="" />
-                  <span>
-                    <strong>{bounty.name}</strong>
-                    <small>{bounty.location}</small>
-                  </span>
-                </article>
-              ))}
-            </div>
-          </aside>
-          <aside className="mobile-find-ticker mobile-find-ticker-bottom" aria-hidden="true">
-            <div className="mobile-find-ticker-track mobile-find-ticker-track-right">
-              {tickerBounties.map((bounty, index) => (
-                <article className="mobile-find-ticker-card" key={`mobile-rail-bottom-${bounty.id}-${index}`}>
-                  <img src={bounty.image} alt="" />
-                  <span>
-                    <strong>{bounty.name}</strong>
-                    <small>{bounty.reward} bounty</small>
-                  </span>
-                </article>
-              ))}
-            </div>
-          </aside>
-        </>
-      ) : null}
-      <section className="hero-section">
-        {railBounties.length ? (
-          <>
-            <aside className="side-find-rail" aria-hidden="true">
-              <div className="side-find-track side-find-track-down">
-                {railBounties.map((bounty, index) => (
-                  <article className="side-find-card" key={`landing-rail-top-${bounty.id}-${index}`}>
-                    <strong>{bounty.name}</strong>
-                    <p>{bounty.location}</p>
-                    <img className="side-find-image" src={bounty.image} alt={bounty.name} />
-                  </article>
-                ))}
-              </div>
-            </aside>
-            <aside className="side-find-rail side-find-rail-right side-find-rail-bottom" aria-hidden="true">
-              <div className="side-find-track side-find-track-up">
-                {railBounties.map((bounty, index) => (
-                  <article className="side-find-card" key={`landing-rail-bottom-${bounty.id}-${index}`}>
-                    <strong>{bounty.name}</strong>
-                    <p>{bounty.category}</p>
-                    <img className="side-find-image" src={bounty.image} alt={bounty.name} />
-                  </article>
-                ))}
-              </div>
-            </aside>
-          </>
-        ) : null}
-
-        <div className="canvas-nav">
+    <main id="top" className="landing-page viral-landing">
+      <header className="viral-header">
+        <div className="viral-header-inner">
           <a
             className="brand brand-button"
             href={routeHref("landing")}
@@ -4374,11 +4663,9 @@ function LandingPage({
           </a>
           <nav className="desktop-nav" aria-label="Primary navigation">
             <a href={routeHref("browse")} onClick={(event) => handleRoutedAnchorClick(event, onBrowse)}>
-              Browse requests
+              Open requests
             </a>
-            <a href={routeHref("post-describe")} onClick={(event) => handleRoutedAnchorClick(event, onPost)}>
-              Post request
-            </a>
+            <a href="#how-it-works">How it works</a>
           </nav>
           <div className="canvas-actions">
             {signedIn ? (
@@ -4396,6 +4683,7 @@ function LandingPage({
                 Log in
               </a>
             )}
+            <button className="viral-header-cta" type="button" onClick={() => onPost("header_primary")}>Post a request</button>
             <button
               className="icon-button mobile-menu-button"
               type="button"
@@ -4409,11 +4697,10 @@ function LandingPage({
           {menuOpen ? (
             <nav className="mobile-nav" aria-label="Mobile navigation">
               <a href={routeHref("browse")} onClick={(event) => handleRoutedAnchorClick(event, onBrowse)}>
-                Browse requests
+                Open requests
               </a>
-              <a href={routeHref("post-describe")} onClick={(event) => handleRoutedAnchorClick(event, onPost)}>
-                Post request
-              </a>
+              <a href="#how-it-works" onClick={() => setMenuOpen(false)}>How it works</a>
+              <button type="button" onClick={() => onPost("mobile_menu")}>Post a request</button>
               {signedIn ? (
                 <>
                   <a href={routeHref("poster-dashboard")} onClick={(event) => handleRoutedAnchorClick(event, onAccount)}>
@@ -4431,53 +4718,98 @@ function LandingPage({
             </nav>
           ) : null}
         </div>
+      </header>
 
-        <div className="hero-copy">
-          <p className="hero-site-tag">{siteName}</p>
-          <h1>Where can I buy this exact item now?</h1>
-          <p className="mobile-hero-title" aria-hidden="true">
-            Where can I buy this exact item now?
-          </p>
-          <form className="hero-search-form" onSubmit={submitHeroSearch}>
-            <Search size={20} aria-hidden="true" />
-            <input value={heroSearch} aria-label="Search requests" onChange={(event) => setHeroSearch(event.target.value)} placeholder={heroPlaceholder} />
-            <button type="submit">Search requests</button>
-          </form>
-          <div className="mobile-hero-actions" aria-label="Hero actions">
-            <button className="primary-button mobile-post-button hero-plus-button" type="button" onClick={() => onPost("hero_mobile")}>
-              <span aria-hidden="true">+</span>
-              Post a request
-            </button>
-            <a className="mobile-browse-button" href={routeHref("browse-all")} onClick={(event) => handleRoutedAnchorClick(event, onBrowseAll)}>
-              Browse open requests <ArrowRight size={14} />
-            </a>
+      <section className="viral-hero">
+        <div className="viral-hero-copy">
+          <h1>Someone out there knows where it is.</h1>
+          <p>Post a photo of the exact thing you’re looking for. Share the request. Anyone can leave a clue—no signup needed.</p>
+          <div className="viral-hero-actions">
+            <button type="button" onClick={() => onPost("hero_primary")}>Start a free search</button>
+            <button type="button" onClick={onBrowse}>Help find something</button>
           </div>
-        </div>
-
-        <div className="hero-lower">
-          <p className="hero-subline">Add photos. Post in a few clicks.</p>
-          <button className="primary-button hero-cta" type="button" onClick={() => onPost("hero_primary")}>
-            Post a request
-          </button>
+          <ul className="viral-trust-line">
+            <li><LockKeyhole size={17} /> Free to post</li>
+            <li><Users size={17} /> Public by default</li>
+            <li><ShieldCheck size={17} /> You verify every lead</li>
+          </ul>
           {acquisitionStarterPrompt ? (
             <div className="starter-link-panel">
-            <span>
-              <strong>{acquisitionStarterPrompt.label}</strong>
-              {acquisitionStarterPrompt.title}
-            </span>
-            <button className="starter-link-button" type="button" onClick={() => onPost("starter_link")}>
-              Start this request <ArrowRight size={16} />
-            </button>
-          </div>
+              <span><strong>{acquisitionStarterPrompt.label}</strong>{acquisitionStarterPrompt.title}</span>
+              <button className="starter-link-button" type="button" onClick={() => onPost("starter_link")}>Start this request <ArrowRight size={16} /></button>
+            </div>
           ) : null}
-          <p className="trust-line">
-            <LockKeyhole size={18} />
-            Free to post. No hidden fees.
-          </p>
+        </div>
+
+        <article className="viral-request-preview">
+          <header>
+            <h2>{heroRequest.name}</h2>
+            <span className="hunt-corner-tab" aria-hidden="true" />
+          </header>
+          <div className="viral-request-preview-body">
+            <img src={heroRequest.image} alt={`${heroRequest.name} reference`} />
+            <div>
+              <h3>{heroRequest.description}</h3>
+              <span>Must match:</span>
+              <ul>{heroRequest.mustHaves.slice(0, 4).map((item) => <li key={item}><CheckCircle2 size={15} /> {item}</li>)}</ul>
+              <div className="viral-clue-preview">
+                <MessageSquare size={18} />
+                <span><strong>Public clue page</strong>Anyone can leave a clue or source link without signing up.</span>
+              </div>
+            </div>
+          </div>
+          <footer>
+            <strong>{showingExamples ? "Example request" : `${heroRequest.submissions} clue${heroRequest.submissions === 1 ? "" : "s"}`}</strong>
+            <button type="button" onClick={() => onDetail(heroRequest.id)}>View request <ArrowRight size={16} /></button>
+          </footer>
+          <span className="viral-thread-line" aria-hidden="true" />
+        </article>
+      </section>
+
+      <section className="viral-open-section" aria-labelledby="open-searches-title">
+        <div className="viral-section-head">
+          <h2 id="open-searches-title">{showingExamples ? "See what a strong search looks like." : "Open searches need another pair of eyes."}</h2>
+          <a href={routeHref("browse-all")} onClick={(event) => handleRoutedAnchorClick(event, onBrowseAll)}>View all open requests <ArrowRight size={17} /></a>
+        </div>
+        <div className="viral-request-rail">
+          {featuredRequests.map((bounty, index) => (
+            <article className={`viral-request-card viral-request-card-${(index % 4) + 1}`} key={bounty.id}>
+              <span className="hunt-corner-tab" aria-hidden="true" />
+              <h3>{bounty.name}</h3>
+              <img src={bounty.image} alt={`${bounty.name} reference`} loading="lazy" decoding="async" />
+              <div><strong>{showingExamples ? "Example search" : `${bounty.submissions} clues`}</strong><span>{bounty.category}</span></div>
+              <button type="button" onClick={() => onDetail(bounty.id)}>I know something</button>
+            </article>
+          ))}
         </div>
       </section>
 
-      <SiteFooter navigate={onNavigate} />
+      <section id="how-it-works" className="viral-how-section" aria-labelledby="how-title">
+        <h2 id="how-title">Turn one photo into a search party.</h2>
+        <div className="viral-steps">
+          <article><span>01</span><i><Camera size={30} /></i><h3>Post the exact item</h3><p>Add a photo and the details that must match.</p></article>
+          <article><span>02</span><i><Users size={30} /></i><h3>Share the search</h3><p>Send one link to friends, groups, or communities.</p></article>
+          <article><span>03</span><i><MessageSquare size={30} /></i><h3>Collect useful clues</h3><p>Anyone can reply. You decide which lead is right.</p></article>
+          <span className="viral-step-thread" aria-hidden="true" />
+        </div>
+      </section>
+
+      <section className="viral-final-cta">
+        <div><h2>Still looking?<br />Put more eyes on it.</h2><p>Your first search is free.</p></div>
+        <div><button type="button" onClick={() => onPost("landing_final")}>Start a free search</button><button type="button" onClick={onBrowse}>Browse open requests <ArrowRight size={17} /></button></div>
+      </section>
+
+      <footer className="viral-footer">
+        <a className="brand brand-button" href={routeHref("landing")} onClick={(event) => handleRoutedAnchorClick(event, () => window.scrollTo({ top: 0, behavior: "smooth" }))}>
+          <span className="brand-mark" aria-hidden="true"><img className="brand-mark-image" src="/magnifying-glass.png" alt="" /></span>{siteName}
+        </a>
+        <nav aria-label="Footer navigation">
+          <a href="#how-it-works">How it works</a>
+          <a href={routeHref("terms")} onClick={(event) => handleRoutedAnchorClick(event, () => onNavigate("terms"))}>Safety</a>
+          <a href={routeHref("terms")} onClick={(event) => handleRoutedAnchorClick(event, () => onNavigate("terms"))}>Terms</a>
+          <a href={routeHref("privacy")} onClick={(event) => handleRoutedAnchorClick(event, () => onNavigate("privacy"))}>Privacy</a>
+        </nav>
+      </footer>
     </main>
   );
 }
@@ -4507,7 +4839,7 @@ function AuthPage({
 }) {
   const [email, setEmail] = useState("");
   const [verificationCode, setVerificationCode] = useState("");
-  const [accountType, setAccountType] = useState<AuthAccountType>("both");
+  const accountType: AuthAccountType = "both";
   const authBusy = authBusyAction !== null;
   const emailBusy = authBusyAction === "email";
   const googleBusy = authBusyAction === "google";
@@ -4532,10 +4864,9 @@ function AuthPage({
     <main className="route-page auth-route" aria-labelledby="auth-title">
       <section className="route-hero auth-hero">
         <div>
-          <p className="route-kicker">Find and post</p>
           <h1 id="auth-title">{mode === "signup" ? "Create an account to continue." : "Log in to continue."}</h1>
           <p>
-            Browse live requests, post new ones, and share leads with one account.
+            Publish your search, share it, and keep every clue in one place.
           </p>
         </div>
         <div className="auth-panel">
@@ -4593,15 +4924,6 @@ function AuthPage({
                   onChange={(event) => setVerificationCode(event.target.value.replace(/\D/g, "").slice(0, 6))}
                 />
               </label>
-            ) : mode === "signup" ? (
-              <label>
-                Account type
-                <select value={accountType} disabled={authBusy} onChange={(event) => setAccountType(event.target.value as AuthAccountType)}>
-                  <option value="both">Post requests and submit sources</option>
-                  <option value="poster">Post requests only</option>
-                  <option value="finder">Submit sources only</option>
-                </select>
-              </label>
             ) : null}
             <button className="primary-button wide-button" type="submit" disabled={authBusy}>
               {codeSent
@@ -4634,147 +4956,220 @@ function AuthPage({
   );
 }
 
-function PostProgress({ current }: { current: 1 | 2 | 3 }) {
-  const steps = ["Details", "Visibility", "Publish"] as const;
-
-  return (
-    <div className="post-progress" aria-label="Post request progress">
-      {steps.map((step, index) => (
-        <div className={current === index + 1 ? "active" : current > index + 1 ? "done" : ""} key={step}>
-          <span>{index + 1}</span>
-          <strong>{step}</strong>
-        </div>
-      ))}
-    </div>
-  );
-}
-
 function PostDescribePage({
   draft,
   onDraftChange,
   onNext,
   referenceImageFiles,
   onReferenceImageFilesChange,
+  referenceImagePersistenceError,
 }: {
   draft: PostDraft;
   onDraftChange: (updates: Partial<PostDraft>) => void;
   onNext: () => void;
   referenceImageFiles: PostReferenceImageDraft[];
   onReferenceImageFilesChange: React.Dispatch<React.SetStateAction<PostReferenceImageDraft[]>>;
+  referenceImagePersistenceError: string;
 }) {
-  const [referenceImagePreviewUrls, setReferenceImagePreviewUrls] = useState<string[]>([]);
-  const maxReferenceImageFiles = 4;
-
-  useEffect(() => {
-    const urls = referenceImageFiles.map((item) => URL.createObjectURL(item.file));
-    setReferenceImagePreviewUrls(urls);
-
-    return () => {
-      urls.forEach((url) => URL.revokeObjectURL(url));
-    };
-  }, [referenceImageFiles]);
+  const [draftSaved, setDraftSaved] = useState(false);
+  const [photoPreparationError, setPhotoPreparationError] = useState("");
+  const [photosPreparing, setPhotosPreparing] = useState(false);
+  const maxReferenceImageFiles = maxPersistedReferenceImages;
+  const briefFields = useMemo(() => getRequestBriefFields(draft.details), [draft.details]);
+  const previewMustHaves = getMustHaves(draft.details).slice(0, 3);
+  const canContinue = !photosPreparing && !referenceImagePersistenceError && draft.itemName.trim().length >= 3 && briefFields.mustMatch.trim().length >= 3;
 
   const continueWithDetails = (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
 
-    if (!draft.itemName.trim()) {
+    if (!canContinue) {
       return;
     }
 
     onNext();
   };
 
-  const handleReferenceImageSelection = (event: React.ChangeEvent<HTMLInputElement>) => {
+  const handleReferenceImageSelection = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const selectedFiles = Array.from(event.target.files ?? []);
+    event.target.value = "";
     if (!selectedFiles.length) {
       return;
     }
 
-    const nextFiles = selectedFiles.slice(0, maxReferenceImageFiles).map((file) => ({ file, name: file.name }));
-    onReferenceImageFilesChange((previous) => {
-      const merged = [...previous, ...nextFiles].filter((item, index, all) => {
-        return all.findIndex((entry) => entry.name === item.name && entry.file.size === item.file.size && entry.file.lastModified === item.file.lastModified) === index;
-      });
+    setPhotosPreparing(true);
+    setPhotoPreparationError("");
+    try {
+      const nextFiles: PostReferenceImageDraft[] = [];
+      for (const file of selectedFiles.slice(0, maxReferenceImageFiles)) {
+        nextFiles.push(await preparePostReferenceImageDraft(file));
+      }
 
-      return merged.slice(0, maxReferenceImageFiles);
-    });
-    event.target.value = "";
+      onReferenceImageFilesChange((previous) => {
+        const merged = [...previous, ...nextFiles].filter((item, index, all) => {
+          return all.findIndex((entry) => entry.name === item.name && entry.file.size === item.file.size && entry.file.lastModified === item.file.lastModified) === index;
+        });
+
+        return merged.slice(0, maxReferenceImageFiles);
+      });
+    } catch (error) {
+      setPhotoPreparationError(error instanceof Error ? error.message : "One of these photos could not be prepared. Try a smaller JPEG or PNG.");
+    } finally {
+      setPhotosPreparing(false);
+    }
   };
 
   const removeReferenceImage = (index: number) => {
     onReferenceImageFilesChange((previous) => previous.filter((_, currentIndex) => currentIndex !== index));
   };
 
-  const handleTitleKeyDown = (event: React.KeyboardEvent<HTMLTextAreaElement>) => {
-    if (event.key === "Enter" && !event.shiftKey) {
-      event.preventDefault();
-      if (!draft.itemName.trim()) {
-        return;
-      }
+  const updateBriefField = (key: RequestBriefFieldKey, value: string) => {
+    onDraftChange({
+      details: formatRequestBriefDetails({
+        ...briefFields,
+        [key]: value,
+      }),
+    });
+  };
 
-      onNext();
-    }
+  const saveDraft = () => {
+    writeStoredPostDraft(draft);
+    setDraftSaved(true);
+    window.setTimeout(() => setDraftSaved(false), 1800);
   };
 
   return (
-    <main className="route-page post-wizard-page" aria-labelledby="describe-title">
-      <section className="two-column-page">
-        <form className="form-panel post-flow-panel" onSubmit={continueWithDetails}>
-          <h1 id="describe-title">What are you trying to find ?</h1>
-          <textarea
-            aria-label="What are you trying to find?"
-            value={draft.itemName}
-            rows={4}
-            placeholder="Help me find this exact item"
-            onChange={(event) => onDraftChange({ itemName: event.target.value })}
-            onKeyDown={handleTitleKeyDown}
-          />
-          <div className="post-question-card">
-            <span className="post-question-label">
-              <Upload size={24} /> Add a photo reference
-            </span>
-            <div className="photo-source-grid">
-              <label className="photo-source-card">
-                <input className="sr-only-file-input" type="file" accept="image/*" onChange={handleReferenceImageSelection} />
-                <div className="photo-source-icon">
-                  <ImagePlus size={25} />
-                </div>
-                <div>
-                  <strong>From gallery</strong>
-                  <small>Pick image files from your photos</small>
-                </div>
-              </label>
-              <label className="photo-source-card">
-                <input className="sr-only-file-input" type="file" accept="image/*" capture="environment" onChange={handleReferenceImageSelection} />
-                <div className="photo-source-icon">
-                  <Upload size={25} />
-                </div>
-                <div>
-                  <strong>From camera</strong>
-                  <small>Take a new photo now</small>
-                </div>
-              </label>
-            </div>
-            {referenceImagePreviewUrls.length ? (
-              <div className="upload-preview-grid">
-                {referenceImagePreviewUrls.map((imageUrl, index) => (
-                  <figure key={`${imageUrl}-${index}`} className="upload-preview-card">
-                    <img src={imageUrl} alt={`Request photo ${index + 1}`} />
-                    <figcaption>
-                      <span>{referenceImageFiles[index]?.name ?? `Photo ${index + 1}`}</span>
-                      <button type="button" className="section-link" onClick={() => removeReferenceImage(index)}>
-                        Remove
-                      </button>
-                    </figcaption>
+    <main className="route-page hunt-composer-page" aria-labelledby="describe-title">
+      <header className="hunt-composer-intro">
+        <h1 id="describe-title">Show us the thing you can’t find.</h1>
+        <p>A clear photo and three good clues give the internet something useful to work with.</p>
+      </header>
+
+      <form className="hunt-composer-layout" onSubmit={continueWithDetails}>
+        <section className="hunt-photo-column" aria-labelledby="photo-upload-title">
+          <h2 id="photo-upload-title" className="sr-only">Request photos</h2>
+          <div className="hunt-upload-shell">
+            <label className="hunt-photo-dropzone">
+              <input className="sr-only-file-input" type="file" accept="image/*" multiple onChange={handleReferenceImageSelection} />
+              <span className="hunt-upload-icon" aria-hidden="true">
+                <Upload size={28} />
+              </span>
+              <strong>{photosPreparing ? "Preparing photos…" : "Drop photos here or choose files"}</strong>
+              <small>Up to 4 photos · compressed for the sign-in handoff</small>
+            </label>
+            {referenceImageFiles.length ? (
+              <div className="hunt-thumbnail-rail" aria-label="Selected photos">
+                {referenceImageFiles.map((imageDraft, index) => (
+                  <figure key={`${imageDraft.name}-${imageDraft.file.lastModified}-${index}`} className="hunt-thumbnail">
+                    <img src={imageDraft.dataUrl} alt={`Request photo ${index + 1}`} />
+                    <button type="button" onClick={() => removeReferenceImage(index)} aria-label={`Remove photo ${index + 1}`}>
+                      <X size={14} />
+                    </button>
                   </figure>
                 ))}
               </div>
             ) : null}
           </div>
-          <button className="primary-button" type="submit">
-            Next <ArrowRight size={17} />
-          </button>
-        </form>
+          {photoPreparationError || referenceImagePersistenceError ? (
+            <p className="hunt-photo-error" role="alert">{photoPreparationError || referenceImagePersistenceError}</p>
+          ) : referenceImageFiles.length ? (
+            <p className="hunt-photo-saved" role="status"><CheckCircle2 size={15} /> Photos are ready for the sign-in handoff.</p>
+          ) : null}
+
+          <div className="hunt-preview-head">
+            <div>
+              <strong>Preview</strong>
+              <span>This is how your request will look to others.</span>
+            </div>
+            <span>Public hunt card</span>
+          </div>
+          <article className="hunt-card-preview">
+            {referenceImageFiles[0] ? (
+              <img src={referenceImageFiles[0].dataUrl} alt="Request preview" />
+            ) : (
+              <span className="hunt-card-placeholder" aria-hidden="true">
+                <Camera size={28} />
+              </span>
+            )}
+            <div>
+              <strong>{draft.itemName.trim() || "Your exact item"}</strong>
+              <p>{previewMustHaves.join(" · ")}</p>
+            </div>
+            <span className="hunt-corner-tab" aria-hidden="true" />
+          </article>
+        </section>
+
+        <section className="hunt-fields-column" aria-label="Request details">
+          <label className="hunt-field">
+            <span>What are you looking for?</span>
+            <input
+              value={draft.itemName}
+              maxLength={120}
+              placeholder="Pink rose childhood blanket"
+              onChange={(event) => onDraftChange({ itemName: event.target.value })}
+            />
+            <small>Be specific so others instantly know what to look for.</small>
+          </label>
+
+          <label className="hunt-field">
+            <span>Category</span>
+            <select value={draft.category} onChange={(event) => onDraftChange({ category: event.target.value as RequestCategory })}>
+              {requestCategories.map((category) => (
+                <option key={category.value} value={category.value}>{category.label}</option>
+              ))}
+            </select>
+            <small>Pick the closest match to reach people with the right context.</small>
+          </label>
+
+          <label className="hunt-field">
+            <span>What must match?</span>
+            <textarea
+              value={briefFields.mustMatch}
+              rows={3}
+              placeholder="Pattern, brand, size, label, model number…"
+              onChange={(event) => updateBriefField("mustMatch", event.target.value)}
+            />
+            <small>List the non-negotiable details.</small>
+          </label>
+
+          <label className="hunt-field">
+            <span>Where have you already looked?</span>
+            <textarea
+              value={briefFields.alreadyTried}
+              rows={3}
+              placeholder="Google Lens, eBay, local shops…"
+              onChange={(event) => updateBriefField("alreadyTried", event.target.value)}
+            />
+            <small>Share what you’ve tried so helpers can go further.</small>
+          </label>
+
+          <label className="hunt-field">
+            <span>Budget, region, or condition limits</span>
+            <textarea
+              value={briefFields.buyingLimits}
+              rows={3}
+              placeholder="Ships to India, under $150, used is fine…"
+              onChange={(event) => updateBriefField("buyingLimits", event.target.value)}
+            />
+            <small>Add any limits to focus the search.</small>
+          </label>
+
+          <div className="hunt-publish-row">
+            <p><LockKeyhole size={15} /> Your draft stays private until you publish.</p>
+            <button className="primary-button" type="submit" disabled={!canContinue}>
+              Continue to publish <ArrowRight size={17} />
+            </button>
+            <div>
+              <button className="hunt-save-button" type="button" onClick={saveDraft}>{draftSaved ? "Draft saved" : "Save and come back later"}</button>
+              <span>Next: sign in and publish free</span>
+            </div>
+          </div>
+        </section>
+      </form>
+
+      <section className="hunt-quality-row" aria-label="Strong request checklist">
+        <div><Camera size={20} /><span><strong>Photo is recognizable</strong><small>Clear photos help others spot the exact match.</small></span></div>
+        <div><FileText size={20} /><span><strong>Must-match details are specific</strong><small>Name the pattern, model, size, or label.</small></span></div>
+        <div><MapPin size={20} /><span><strong>Buying limits are clear</strong><small>Share your region, budget, or condition limits.</small></span></div>
       </section>
     </main>
   );
@@ -4792,15 +5187,14 @@ function PostRewardPage({
   onNext: () => void;
 }) {
   return (
-    <main className="route-page post-wizard-page" aria-labelledby="visibility-title">
-      <PostProgress current={2} />
+    <main className="route-page post-wizard-page" aria-labelledby="duration-title">
       <section className="two-column-page">
         <div className="form-panel reward-form-panel post-flow-panel">
           <button className="back-button" type="button" onClick={onBack}>
             <ArrowLeft size={17} /> Describe
           </button>
           <div className="post-flow-intro">
-            <h1 id="visibility-title">Pick how long it stays open.</h1>
+            <h1 id="duration-title">Pick how long it stays open.</h1>
             <p>Your request stays public and searchable.</p>
           </div>
           <div className="post-question-card">
@@ -4846,7 +5240,7 @@ function PostPayPage({
   checkoutReturnStatus: CheckoutReturnStatus;
   draft: PostDraft;
   onBack: () => void;
-  onPublished: () => void;
+  onPublished: (snapshot: PublishedRequestSnapshot) => void;
   referenceImageFiles: PostReferenceImageDraft[];
 }) {
   const [publishStatus, setPublishStatus] = useState<"idle" | "loading" | "error" | "success">("idle");
@@ -4876,7 +5270,7 @@ function PostPayPage({
     trackAcquisitionEvent("publish_request_started", {
       category: categoryName,
       duration_days: draft.durationDays,
-      visibility_plan: "free",
+      request_type: "free",
     });
     setPublishStatus("loading");
     setPublishMessage("");
@@ -4945,11 +5339,20 @@ function PostPayPage({
         category: categoryName,
         duration_days: draft.durationDays,
         reference_image_count: uploadResult.referenceImages.length,
-        visibility_plan: "free",
+        request_type: "free",
       });
+      const snapshot: PublishedRequestSnapshot = {
+        requestId,
+        itemName,
+        category: categoryName,
+        details: detailsText,
+        image: uploadResult.referenceImages[0]?.url || referenceImageFiles[0]?.dataUrl || neutralRequestImage,
+        durationDays: draft.durationDays,
+        createdAt: new Date().toISOString(),
+      };
       setPublishStatus("success");
-      setPublishMessage("Request published. Opening your dashboard...");
-      window.setTimeout(onPublished, 700);
+      setPublishMessage("Request published. Opening the share page...");
+      window.setTimeout(() => onPublished(snapshot), 700);
     } catch (error) {
       if (supabase && uploadedPaths.length) {
         await supabase.storage.from(requestReferenceImagesBucket).remove(uploadedPaths);
@@ -4958,7 +5361,7 @@ function PostPayPage({
       trackAcquisitionEvent("request_publish_failed", {
         category: categoryName,
         error_type: error instanceof Error ? error.name || "error" : "unknown",
-        visibility_plan: "free",
+        request_type: "free",
       });
       setPublishStatus("error");
       if (error instanceof Error) {
@@ -4979,11 +5382,10 @@ function PostPayPage({
 
   return (
     <main className="route-page post-wizard-page" aria-labelledby="pay-title">
-      <PostProgress current={3} />
       <section className="two-column-page pay-layout">
         <div className="form-panel payment-form-panel">
           <button className="back-button" type="button" onClick={onBack}>
-            <ArrowLeft size={17} /> Visibility
+            <ArrowLeft size={17} /> Details
           </button>
           <h1 id="pay-title">Publish the request.</h1>
           <p>
@@ -5026,6 +5428,199 @@ function PostPayPage({
   );
 }
 
+function RedditMark() {
+  return (
+    <svg viewBox="0 0 24 24" aria-hidden="true">
+      <circle cx="12" cy="13" r="7" fill="none" stroke="currentColor" strokeWidth="1.8" />
+      <circle cx="9.2" cy="12.4" r="1" fill="currentColor" />
+      <circle cx="14.8" cy="12.4" r="1" fill="currentColor" />
+      <path d="M8.8 15.4c1.8 1.2 4.6 1.2 6.4 0M15.3 7.3l1.1-4 3.1.8" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
+      <circle cx="20" cy="5" r="1.4" fill="none" stroke="currentColor" strokeWidth="1.6" />
+    </svg>
+  );
+}
+
+function XChannelMark() {
+  return (
+    <svg viewBox="0 0 24 24" aria-hidden="true">
+      <path d="M5 4.5h3.8L19 19.5h-3.8L5 4.5Zm.3 15L18.7 4.5" fill="none" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
+  );
+}
+
+function ShareRequestPage({
+  onDashboard,
+  onOpenRequest,
+  publishedRequest,
+}: {
+  onDashboard: () => void;
+  onOpenRequest: (request: PublishedRequestSnapshot) => void;
+  publishedRequest: PublishedRequestSnapshot | null;
+}) {
+  const shareStorageKey = publishedRequest ? `pleasefindmethis-share-count-${publishedRequest.requestId}` : "";
+  const [shareCount, setShareCount] = useState(() => {
+    if (!shareStorageKey) {
+      return 0;
+    }
+    return Math.max(0, Number(window.sessionStorage.getItem(shareStorageKey)) || 0);
+  });
+  const [copied, setCopied] = useState(false);
+  const [shareMessage, setShareMessage] = useState("");
+
+  useEffect(() => {
+    if (!publishedRequest) {
+      return;
+    }
+
+    trackAcquisitionEvent("share_prompt_viewed", {
+      bounty_id: publishedRequest.requestId,
+      category: publishedRequest.category,
+    });
+  }, [publishedRequest]);
+
+  if (!publishedRequest) {
+    return (
+      <main className="route-page share-page share-page-empty">
+        <h1>Your latest search is already live.</h1>
+        <p>Open your dashboard to copy its public link and review new clues.</p>
+        <button className="primary-button" type="button" onClick={onDashboard}>Go to dashboard <ArrowRight size={17} /></button>
+      </main>
+    );
+  }
+
+  const requestPath = getBountyPath(publishedRequest.requestId, publishedRequest.itemName);
+  const requestUrl = new URL(requestPath, window.location.origin);
+  requestUrl.searchParams.set("utm_source", "product_share");
+  requestUrl.searchParams.set("utm_medium", "referral");
+  requestUrl.searchParams.set("utm_campaign", "request_help");
+  const trackedRequestUrl = requestUrl.toString();
+  const publicRequestUrl = new URL(requestPath, window.location.origin).toString();
+  const message = `I’ve searched everywhere for ${getShareSubject(publishedRequest.itemName)}. Do you recognize it? Leave a clue—no signup needed.`;
+  const encodedMessage = encodeURIComponent(message);
+  const getChannelShareUrl = (channel: string) => {
+    const channelUrl = new URL(trackedRequestUrl);
+    channelUrl.searchParams.set("share_channel", channel);
+    return channelUrl.toString();
+  };
+  const whatsappShareUrl = encodeURIComponent(getChannelShareUrl("whatsapp"));
+  const redditShareUrl = encodeURIComponent(getChannelShareUrl("reddit"));
+  const xShareUrl = encodeURIComponent(getChannelShareUrl("x"));
+  const description = getRequestDescription(publishedRequest.itemName, publishedRequest.details);
+  const progress = Math.min(shareCount, 3);
+
+  const recordShare = (channel: string) => {
+    setShareCount((current) => {
+      const next = current + 1;
+      if (shareStorageKey) {
+        window.sessionStorage.setItem(shareStorageKey, String(next));
+      }
+      return next;
+    });
+    trackAcquisitionEvent("request_share_started", {
+      bounty_id: publishedRequest.requestId,
+      category: publishedRequest.category,
+      share_channel: channel,
+    });
+  };
+
+  const copyShareLink = async () => {
+    try {
+      await copyTextToClipboard(getChannelShareUrl("copy_link"));
+      recordShare("copy_link");
+      setCopied(true);
+      setShareMessage("Link copied. Send it to someone with a sharp memory.");
+      window.setTimeout(() => setCopied(false), 2000);
+    } catch {
+      setShareMessage("Could not copy the link. Open the live request and copy it from your browser.");
+    }
+  };
+
+  const nativeShare = async () => {
+    if (typeof navigator.share !== "function") {
+      await copyShareLink();
+      return;
+    }
+
+    try {
+      await navigator.share({ title: publishedRequest.itemName, text: message, url: getChannelShareUrl("native_share") });
+      recordShare("native_share");
+      setShareMessage("Shared. The right person may be one forward away.");
+    } catch (error) {
+      if (error instanceof Error && error.name === "AbortError") {
+        return;
+      }
+      setShareMessage("Sharing did not open. Copy the link instead.");
+    }
+  };
+
+  return (
+    <main className="route-page share-page" aria-labelledby="share-page-title">
+      <header className="share-page-intro">
+        <h1 id="share-page-title">Your search is live. Give it a head start.</h1>
+        <p>The fastest finds start with one person saying, “wait—I know that.”</p>
+      </header>
+
+      <section className="share-page-grid">
+        <article className="share-preview-card">
+          <div className="share-preview-body">
+            <img src={publishedRequest.image} alt={`${publishedRequest.itemName} reference`} />
+            <div>
+              <h2>{publishedRequest.itemName}</h2>
+              <span>{description}</span>
+              <p>{message}</p>
+            </div>
+            <span className="hunt-corner-tab" aria-hidden="true" />
+          </div>
+          <div className="share-preview-link">
+            <LinkIcon size={18} />
+            <span>{publicRequestUrl.replace(/^https?:\/\//, "")}</span>
+            <button type="button" onClick={() => onOpenRequest(publishedRequest)}>Open request <ExternalLink size={15} /></button>
+          </div>
+        </article>
+
+        <aside className="share-actions-panel" aria-label="Share options">
+          <h2>Put it in front of the right person.</h2>
+          <button className="share-native-button" type="button" onClick={() => void nativeShare()}>
+            <Share2 size={21} /> Share this search
+          </button>
+          <div className="share-channel-grid">
+            <a href={`https://wa.me/?text=${encodedMessage}%20${whatsappShareUrl}`} target="_blank" rel="noreferrer" onClick={() => recordShare("whatsapp")}>
+              <MessageCircle size={20} /> WhatsApp
+            </a>
+            <a href={`https://www.reddit.com/submit?url=${redditShareUrl}&title=${encodedMessage}`} target="_blank" rel="noreferrer" onClick={() => recordShare("reddit")}>
+              <RedditMark /> Reddit
+            </a>
+            <a href={`https://twitter.com/intent/tweet?text=${encodedMessage}&url=${xShareUrl}`} target="_blank" rel="noreferrer" onClick={() => recordShare("x")}>
+              <XChannelMark /> X
+            </a>
+          </div>
+          <button className={copied ? "share-copy-button is-copied" : "share-copy-button"} type="button" onClick={() => void copyShareLink()}>
+            {copied ? <CheckCircle2 size={20} /> : <Copy size={20} />} {copied ? "Link copied" : "Copy link"}
+          </button>
+          <p>Every share opens the same public clue page.</p>
+          {shareMessage ? <span className="share-action-message" role="status">{shareMessage}</span> : null}
+        </aside>
+      </section>
+
+      <section className="share-progress" aria-label="Search launch progress">
+        <div className="is-complete"><span><CheckCircle2 size={19} /></span><p><strong>1&nbsp; Posted</strong><small>Your search is live and public.</small></p></div>
+        <div className="is-current"><span>2</span><p><strong>Share with 3 people</strong><small>{progress} of 3</small></p></div>
+        <div><span>3</span><p><strong>Watch clues arrive</strong><small>Hear from people who recognize it.</small></p></div>
+        <div className="share-progress-meter" role="progressbar" aria-valuemin={0} aria-valuemax={3} aria-valuenow={progress}>
+          <span style={{ width: `${(progress / 3) * 100}%` }} />
+        </div>
+        <p className="share-progress-note">This progress only counts share actions from this page.</p>
+      </section>
+
+      <footer className="share-page-footer">
+        <button className="share-view-button" type="button" onClick={() => onOpenRequest(publishedRequest)}>View live request</button>
+        <button className="hunt-save-button" type="button" onClick={onDashboard}>Go to dashboard</button>
+        <strong>The right person may be one forward away.</strong>
+      </footer>
+    </main>
+  );
+}
+
 function BrowsePage({
   bounties,
   dataError,
@@ -5033,6 +5628,7 @@ function BrowsePage({
   onBrowseAll,
   onDetail,
   onPost,
+  showingExamples,
 }: {
   bounties: BountyListing[];
   dataError: string;
@@ -5040,6 +5636,7 @@ function BrowsePage({
   onBrowseAll: () => void;
   onDetail: (bountyId: string) => void;
   onPost: () => void;
+  showingExamples: boolean;
 }) {
   const openRequests = useMemo(() => [...bounties].sort((left, right) => new Date(right.createdAt ?? 0).getTime() - new Date(left.createdAt ?? 0).getTime()), [bounties]);
   const featured = openRequests.slice(0, 4);
@@ -5047,8 +5644,8 @@ function BrowsePage({
   return (
     <main className="route-page bounty-gallery-page" aria-labelledby="browse-title">
       <section className="gallery-hero">
-        <h1 id="browse-title">Open requests</h1>
-        <p>Search item, seller, or location and share a lead.</p>
+        <h1 id="browse-title">{showingExamples ? "Example searches" : "Open requests"}</h1>
+        <p>{showingExamples ? "See what a useful public request looks like while the live board gets started." : "Recognize something? Leave a clue or share it with someone who might."}</p>
         {dataLoading ? <p className="dialog-note">Loading open requests...</p> : null}
         {dataError ? <p className="dialog-error" role="status">{dataError} Showing example requests until the live board is ready.</p> : null}
         <div className="gallery-hero-actions">
@@ -5077,12 +5674,14 @@ function BrowseAllPage({
   dataLoading,
   onDetail,
   onPost,
+  showingExamples,
 }: {
   bounties: BountyListing[];
   dataError: string;
   dataLoading: boolean;
   onDetail: (bountyId: string) => void;
   onPost: () => void;
+  showingExamples: boolean;
 }) {
   const [filter, setFilter] = useState("All");
   const [query, setQuery] = useState("");
@@ -5123,8 +5722,8 @@ function BrowseAllPage({
     <main className="route-page bounty-gallery-page browse-all-page" aria-labelledby="browse-all-title">
       <section className="gallery-hero compact-gallery-hero">
         <div>
-          <h1 id="browse-all-title">Browse all open requests</h1>
-          <p>Search by item, seller, or category.</p>
+          <h1 id="browse-all-title">{showingExamples ? "Browse example searches" : "Browse all open requests"}</h1>
+          <p>{showingExamples ? "These examples show the detail that helps strangers recognize an exact item." : "Search by item, seller, or category."}</p>
           {dataLoading ? <p className="dialog-note">Loading open requests...</p> : null}
           {dataError ? <p className="dialog-error" role="status">{dataError} Showing example requests until the live board is ready.</p> : null}
         </div>
@@ -5191,7 +5790,7 @@ function BountySquareCard({
   variant?: "square" | "request";
 }) {
   const requestVariant = variant === "request";
-  const visibilityLabel = bounty.reward || (bounty.rewardValue > 0 ? "Featured" : "Free");
+  const requestTypeLabel = bounty.live ? bounty.reward || (bounty.rewardValue > 0 ? "Featured" : "Free") : "Example";
 
   return (
     <article className={`bounty-square-card tone-${rank ? ((rank - 1) % 5) + 1 : (bounty.rewardValue % 5) + 1} ${compact ? "compact" : ""} ${featured ? "featured" : ""} ${requestVariant ? "request-card" : ""}`}>
@@ -5208,7 +5807,7 @@ function BountySquareCard({
         ) : (
           <>
             <span className="square-rank">{rank ? `#${rank}` : bounty.category}</span>
-            <span className="square-price">{visibilityLabel}</span>
+            <span className="square-price">{requestTypeLabel}</span>
           </>
         )}
         <span className="square-image-wrap">
@@ -5221,8 +5820,8 @@ function BountySquareCard({
         {requestVariant ? (
           <span className="square-meta request-card-meta">
             <span>
-              <small>Visibility</small>
-              <b>{visibilityLabel}</b>
+              <small>Request type</small>
+              <b>{requestTypeLabel}</b>
             </span>
             <span>
               <small>Closes in</small>
@@ -5247,12 +5846,12 @@ function BountySquareCard({
 function BountyDetailPage({
   bounty,
   onBrowse,
-  onPosterProfile,
+  onStartSearch,
   onSubmit,
 }: {
   bounty: BountyListing;
   onBrowse: () => void;
-  onPosterProfile: () => void;
+  onStartSearch: () => void;
   onSubmit: () => void;
 }) {
   const requestComments = useRequestComments(bounty);
@@ -5261,23 +5860,46 @@ function BountyDetailPage({
   const [commentLink, setCommentLink] = useState("");
   const [commentStatus, setCommentStatus] = useState<"idle" | "posting" | "posted" | "error">("idle");
   const [commentError, setCommentError] = useState("");
-  const [linkCopied, setLinkCopied] = useState(false);
+  const [shareCopied, setShareCopied] = useState(false);
   const visibleComments = requestComments.comments.slice(0, 24);
+  const brief = bounty.brief ?? getRequestBriefFields(bounty.description);
+  const isExample = !bounty.live;
 
-  const handleCopyRequestLink = async () => {
-    const requestUrl = new URL(getBountyPath(bounty.id, bounty.name), window.location.origin).toString();
+  const getShareRequestUrl = () => {
+    const requestUrl = new URL(getBountyPath(bounty.id, bounty.name), window.location.origin);
+    requestUrl.searchParams.set("utm_source", "product_share");
+    requestUrl.searchParams.set("utm_medium", "referral");
+    requestUrl.searchParams.set("utm_campaign", "request_help");
+    return requestUrl.toString();
+  };
+
+  const handleShareRequest = async () => {
+    const requestUrl = getShareRequestUrl();
+    const shareText = `Do you recognize ${getShareSubject(bounty.name)}? Leave a clue—no signup needed.`;
+
+    if (typeof navigator.share === "function") {
+      try {
+        await navigator.share({ title: bounty.name, text: shareText, url: requestUrl });
+        trackAcquisitionEvent("helper_reshare", { bounty_id: bounty.id, category: bounty.category, share_channel: "native_share" });
+        return;
+      } catch (error) {
+        if (error instanceof Error && error.name === "AbortError") {
+          return;
+        }
+      }
+    }
 
     try {
       await copyTextToClipboard(requestUrl);
-      setLinkCopied(true);
+      setShareCopied(true);
       setCommentError("");
       trackAcquisitionEvent("request_link_copied", {
         bounty_id: bounty.id,
         category: bounty.category,
       });
-      window.setTimeout(() => setLinkCopied(false), 1800);
+      window.setTimeout(() => setShareCopied(false), 1800);
     } catch {
-      setLinkCopied(false);
+      setShareCopied(false);
       setCommentStatus("error");
       setCommentError("Could not copy the request link.");
     }
@@ -5305,97 +5927,85 @@ function BountyDetailPage({
   };
 
   return (
-    <main className="route-page" aria-labelledby="detail-title">
+    <main className="route-page public-request-page" aria-labelledby="detail-title">
       <button className="back-button page-back" type="button" onClick={onBrowse}>
-        <ArrowLeft size={17} /> Browse requests
+        <ArrowLeft size={17} /> Open requests
       </button>
-      <section className="detail-layout" style={{ gridTemplateColumns: "minmax(0, 1fr)" }}>
-        <article className="detail-main">
-          <img className="detail-image" src={bounty.image} alt={bounty.name} decoding="async" />
-          <div className="detail-copy">
-            <div className="status-strip">
-              <span>{bounty.status}</span>
-              <span>{bounty.category}</span>
-              <span>{bounty.posted}</span>
-            </div>
-            <h1 id="detail-title">{bounty.name}</h1>
-            <p>{bounty.description}</p>
-            <h2>Must match</h2>
-            <ul className="check-list detail-list">
-              {bounty.mustHaves.map((item) => (
-                <li key={item}>
-                  <CheckCircle2 size={18} /> {item}
-                </li>
-              ))}
-            </ul>
-            <button className="primary-button wide-button" type="button" onClick={onSubmit}>
-              Share a source suggestion <Send size={18} />
-            </button>
-            <a className="section-link section-button center-link" href={routeHref("profile")} onClick={(event) => handleRoutedAnchorClick(event, onPosterProfile)}>
-              View requester trust page <ArrowRight size={17} />
-            </a>
+      <section className="public-request-layout">
+        <article className="request-story-column">
+          <div className="request-image-frame">
+            <img src={bounty.image} alt={bounty.name} decoding="async" />
+            <span className="hunt-corner-tab" aria-hidden="true" />
           </div>
+          <div className="request-status-line">
+            <span>{isExample ? "Example" : bounty.status}</span><i aria-hidden="true" />
+            <span>{bounty.category}</span><i aria-hidden="true" />
+            <span>{bounty.posted}</span>
+          </div>
+          <h1 id="detail-title">{bounty.name}</h1>
+          <p className="request-story-copy">{bounty.description}</p>
+          <h2>Must match</h2>
+          <ul className="request-match-list">
+            {bounty.mustHaves.map((item) => <li key={item}><CheckCircle2 size={18} /> {item}</li>)}
+          </ul>
+          {brief.alreadyTried || brief.buyingLimits ? (
+            <dl className="request-brief-notes">
+              {brief.alreadyTried ? <div><dt>Already searched</dt><dd>{brief.alreadyTried}</dd></div> : null}
+              {brief.buyingLimits ? <div><dt>Buying limits</dt><dd>{brief.buyingLimits}</dd></div> : null}
+            </dl>
+          ) : null}
         </article>
-      </section>
-      <section className="request-comments-panel" aria-labelledby="request-comments-title">
-        <div className="request-comments-head">
-          <div>
-            <span className="request-comments-kicker">
-              <MessageSquare size={15} /> Public thread
-            </span>
-            <h2 id="request-comments-title">Comments and source clues</h2>
-            <p>Post a clue, ask a detail question, or leave a public source link.</p>
-          </div>
-          <button className="section-link section-button comment-share-button" type="button" onClick={() => void handleCopyRequestLink()}>
-            <LinkIcon size={16} /> {linkCopied ? "Copied" : "Copy request link"}
-          </button>
-        </div>
 
-        <div className="comment-composer-card">
-          <span className={`comment-avatar tone-${commentVisitor.avatarTone}`} aria-hidden="true">
-            {getAliasInitials(commentVisitor.alias)}
-          </span>
-          <form className="comment-composer" onSubmit={handleCommentSubmit}>
-            <div className="comment-identity-row">
-              <strong>{commentVisitor.alias}</strong>
-              <span>public helper</span>
-            </div>
-            <label className="comment-textarea-label" htmlFor="request-comment-body">
-              Comment
+        <aside className="request-clue-panel" aria-labelledby="clue-panel-title">
+          <h2 id="clue-panel-title">Do you recognize this?</h2>
+          <p>Leave a clue or a link. No account needed.</p>
+          {isExample ? <span className="example-thread-note">Preview mode: comments here stay on this device.</span> : null}
+          <form onSubmit={handleCommentSubmit}>
+            <label htmlFor="request-comment-body">Your clue</label>
+            <div className="request-clue-textarea">
               <textarea
                 id="request-comment-body"
                 value={commentBody}
                 maxLength={requestCommentMaxLength}
-                placeholder="Found a possible match, seller clue, size question, or search lead..."
+                placeholder="I remember this from…"
                 onChange={(event) => {
                   setCommentBody(event.target.value);
                   setCommentStatus("idle");
                   setCommentError("");
                 }}
               />
-            </label>
-            <label className="comment-link-label" htmlFor="request-comment-link">
-              <LinkIcon size={16} />
-              <input
-                id="request-comment-link"
-                value={commentLink}
-                placeholder="Optional source link"
-                onChange={(event) => {
-                  setCommentLink(event.target.value);
-                  setCommentStatus("idle");
-                  setCommentError("");
-                }}
-              />
-            </label>
-            <div className="comment-composer-footer">
-              <span>{requestCommentMaxLength - commentBody.length} characters left</span>
-              <button className="primary-button" type="submit" disabled={commentStatus === "posting" || !commentBody.trim()}>
-                {commentStatus === "posting" ? "Posting" : "Post comment"} <Send size={17} />
-              </button>
+              <span>{commentBody.length}/{requestCommentMaxLength}</span>
             </div>
-            {commentStatus === "posted" ? <p className="comment-status success">Comment posted.</p> : null}
+            <label htmlFor="request-comment-link">Optional link to seller or source</label>
+            <input
+              id="request-comment-link"
+              value={commentLink}
+              placeholder="https://…"
+              onChange={(event) => {
+                setCommentLink(event.target.value);
+                setCommentStatus("idle");
+                setCommentError("");
+              }}
+            />
+            <button className="request-clue-submit" type="submit" disabled={commentStatus === "posting" || commentBody.trim().length < 2}>
+              {commentStatus === "posting" ? "Posting…" : "Leave a clue"}
+            </button>
+            <small className="request-alias-note"><LockKeyhole size={14} /> You’ll appear as {commentVisitor.alias}, a private helper alias.</small>
+            {commentStatus === "posted" ? <p className="comment-status success">Clue posted. Thank you for moving the search forward.</p> : null}
             {commentStatus === "error" && commentError ? <p className="comment-status error">{commentError}</p> : null}
           </form>
+          <button className="request-private-source" type="button" onClick={onSubmit}>Share a private source instead <ArrowRight size={15} /></button>
+          <div className="request-share-block">
+            <button type="button" onClick={() => void handleShareRequest()}><Share2 size={18} /> {shareCopied ? "Link copied" : "Ask someone who might know"}</button>
+            <span>One good forward can reach the right person.</span>
+          </div>
+        </aside>
+      </section>
+
+      <section className="request-thread-section" aria-labelledby="request-comments-title">
+        <div className="request-thread-head">
+          <h2 id="request-comments-title">The search so far</h2>
+          <span>{visibleComments.length} clue{visibleComments.length === 1 ? "" : "s"}</span>
         </div>
 
         <div className="request-comment-list" aria-live="polite">
@@ -5424,11 +6034,21 @@ function BountyDetailPage({
           ) : !requestComments.loading ? (
             <div className="request-comment-empty">
               <MessageSquare size={22} />
-              <strong>No public comments yet.</strong>
-              <span>Be first with a useful clue or question.</span>
+              <strong>No clues yet.</strong>
+              <span>Be the first person to move this search forward.</span>
             </div>
           ) : null}
         </div>
+        <div className="request-thread-share">
+          <div><Share2 size={20} /><span><strong>Know someone with a sharp memory?</strong><small>The right person might recognize this instantly.</small></span></div>
+          <button type="button" onClick={() => void handleShareRequest()}>Share this search <Share2 size={16} /></button>
+        </div>
+      </section>
+
+      <section className="request-recipient-cta">
+        <h2>Looking for something too?<br />Start a free search.</h2>
+        <button type="button" onClick={onStartSearch}>Start a free search</button>
+        <a href="#top" onClick={(event) => { event.preventDefault(); onBrowse(); }}>See how it works <ArrowRight size={16} /></a>
       </section>
     </main>
   );
@@ -5702,11 +6322,15 @@ function SubmitFindPage({
 function PosterDashboardPage({
   checkoutReturnStatus,
   onDispute,
+  onOpenRequest,
   onProfile,
+  onShareRequest,
 }: {
   checkoutReturnStatus: CheckoutReturnStatus;
   onDispute: () => void;
+  onOpenRequest: (requestId: string) => void;
   onProfile: () => void;
+  onShareRequest: (request: RequestRow) => void;
 }) {
   const checkoutSnapshot = readStoredCheckoutSnapshot();
   const [requests, setRequests] = useState<RequestRow[]>([]);
@@ -5822,7 +6446,7 @@ function PosterDashboardPage({
   }, [submissions]);
   const dashboardBounties = requests.length
     ? requests.map((request) => requestRowToBounty(request, submissionsByRequest.get(request.id) ?? 0))
-    : bountyListings.slice(0, 4);
+    : [];
   const selectedSubmission = submissions.find((submission) => submission.id === selectedSubmissionId) ?? submissions[0] ?? null;
   const selectedRequest = selectedSubmission ? requests.find((request) => request.id === selectedSubmission.request_id) ?? null : null;
   const selectedReveal = selectedSubmission ? revealedSources.find((source) => source.id === selectedSubmission.id) ?? null : null;
@@ -5927,10 +6551,10 @@ function PosterDashboardPage({
       {dashboardError ? <p className="dialog-error" role="alert">{dashboardError}</p> : null}
       {actionMessage ? <p className="dialog-success" role="status">{actionMessage}</p> : null}
       <section className="metric-grid">
-        <Metric icon={LockKeyhole} label="Open requests" value={String(openRequestCount || requests.length || 2)} />
-        <Metric icon={MessageSquare} label="Sources awaiting review" value={String(awaitingReviewCount || 4)} />
-        <Metric icon={PackageCheck} label="Source suggestions" value={String(submissions.length || 6)} />
-        <Metric icon={CheckCircle2} label="Marked useful" value={String(acceptedSuggestionCount || 3)} />
+        <Metric icon={LockKeyhole} label="Open requests" value={String(openRequestCount)} />
+        <Metric icon={MessageSquare} label="Sources awaiting review" value={String(awaitingReviewCount)} />
+        <Metric icon={PackageCheck} label="Source suggestions" value={String(submissions.length)} />
+        <Metric icon={CheckCircle2} label="Marked useful" value={String(acceptedSuggestionCount)} />
       </section>
       <section className="dashboard-grid">
         <div className="dashboard-panel">
@@ -5938,16 +6562,27 @@ function PosterDashboardPage({
             <h2>Sources to review</h2>
             <Filter size={18} />
           </div>
-          {dashboardBounties.map((bounty) => (
-            <button className="review-row" key={bounty.id} type="button" onClick={() => selectRequest(bounty.id)}>
-              <img src={bounty.image} alt={`${bounty.name} reference`} loading="lazy" decoding="async" />
-              <span>
-                <strong>{bounty.name}</strong>
-                <small>{bounty.submissions} submissions · {bounty.status}</small>
-              </span>
-              <em>{bounty.reward || "Free request"}</em>
-            </button>
-          ))}
+          {dashboardBounties.length ? dashboardBounties.map((bounty) => {
+            const request = requests.find((entry) => entry.id === bounty.id);
+            return (
+              <div className="request-review-row" key={bounty.id}>
+                <button className="review-row" type="button" onClick={() => selectRequest(bounty.id)}>
+                  <img src={bounty.image} alt={`${bounty.name} reference`} loading="lazy" decoding="async" />
+                  <span>
+                    <strong>{bounty.name}</strong>
+                    <small>{bounty.submissions} submissions · {bounty.status}</small>
+                  </span>
+                  <em>{bounty.reward || "Free request"}</em>
+                </button>
+                <div className="request-review-row-actions" aria-label={`${bounty.name} actions`}>
+                  <button type="button" onClick={() => onOpenRequest(bounty.id)}><ExternalLink size={14} /> Open public page</button>
+                  {request ? <button type="button" onClick={() => onShareRequest(request)}><Share2 size={14} /> Share request</button> : null}
+                </div>
+              </div>
+            );
+          }) : (
+            <div className="empty-state"><Search size={25} /><strong>No searches yet</strong><span>Post a request to start collecting clues.</span></div>
+          )}
         </div>
         <div className="dashboard-panel active-review">
           <div className="panel-header">
@@ -6055,7 +6690,7 @@ function PostSuccessConfirmation({
   const durationText = checkoutSnapshot?.durationDays ? `${checkoutSnapshot.durationDays} days` : "Active window";
   const categoryText = checkoutSnapshot?.category ?? "Public request";
   const paidTodayText = checkoutSnapshot ? formatUsdMoney(checkoutSnapshot.total, currencyPreference) : "No payment due";
-  const visibilityText = checkoutSnapshot?.total ? "Digital visibility" : "Free request";
+  const requestTypeText = checkoutSnapshot?.total ? "Featured request" : "Free request";
   const receiptTarget = checkoutSnapshot?.email ? `Receipt sent to ${checkoutSnapshot.email}` : "Receipt saved to your account";
   const platformShareText = checkoutSnapshot
     ? "Your free request was created successfully."
@@ -6089,8 +6724,8 @@ function PostSuccessConfirmation({
             <strong>{paidTodayText}</strong>
           </div>
           <div>
-            <span>Visibility</span>
-            <strong>{visibilityText}</strong>
+            <span>Request type</span>
+            <strong>{requestTypeText}</strong>
           </div>
           <div>
             <span>Live for</span>
@@ -7038,7 +7673,7 @@ function AccountSettingsPage() {
             <select value={profile.identityStatus} onChange={(event) => updateProfile({ identityStatus: event.target.value as FinderIdentityStatus })}>
               <option value="not_started">Not started</option>
               <option value="review_requested">Review requested</option>
-              <option value="verified">Verified</option>
+              <option value="verified" disabled>Verified by review</option>
             </select>
           </label>
           <label>
@@ -7474,6 +8109,31 @@ function NotFoundPage({ onBrowse, onHome }: { onBrowse: () => void; onHome: () =
           <a className="section-link section-button" href={routeHref("landing")} onClick={(event) => handleRoutedAnchorClick(event, onHome)}>
             Go home <ArrowRight size={17} />
           </a>
+        </div>
+      </section>
+    </main>
+  );
+}
+
+function RequestDetailStatusPage({ status, onBrowse }: { status: "loading" | "unavailable"; onBrowse: () => void }) {
+  const loading = status === "loading";
+
+  return (
+    <main className="route-page request-route-state" aria-labelledby="request-route-state-title" aria-busy={loading}>
+      <section>
+        <span className={loading ? "request-route-state-icon is-loading" : "request-route-state-icon"} aria-hidden="true">
+          {loading ? <Search size={30} /> : <WifiOff size={30} />}
+        </span>
+        <p>{loading ? "Opening public request" : "Temporary connection issue"}</p>
+        <h1 id="request-route-state-title">{loading ? "Loading this search…" : "This search is temporarily unavailable."}</h1>
+        <span>
+          {loading
+            ? "We’re loading the exact request from its public link."
+            : "The request service did not respond, so we have not treated this link as missing. Try again in a moment."}
+        </span>
+        <div>
+          {!loading ? <button className="primary-button" type="button" onClick={() => window.location.reload()}>Try again</button> : null}
+          <button className="hunt-save-button" type="button" onClick={onBrowse}>Browse open requests</button>
         </div>
       </section>
     </main>
