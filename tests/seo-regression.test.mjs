@@ -124,6 +124,23 @@ test("canonical redirects are declared for duplicate host and static slash varia
   assert.ok(redirects.some((redirect) => redirect.source === "/requests/:slug" && redirect.destination === "/requests/:slug/"), "request category URLs redirect to trailing slash");
 });
 
+test("landing headline excludes the removed title and rotates every six seconds", () => {
+  const source = fs.readFileSync(path.join(root, "src/main.tsx"), "utf8");
+  const headlineExamples = source.match(/const heroHeadlineExamples = \[([\s\S]*?)\];/)?.[1] ?? "";
+
+  assert.doesNotMatch(headlineExamples, /["']Help me find this\.["']/);
+  assert.match(headlineExamples, /["']Please help me find this\.["']/);
+  assert.match(headlineExamples, /["']Where can I buy this\?["']/);
+  assert.match(headlineExamples, /["']Anyone know where this is\?["']/);
+  assert.match(source, /const heroHeadlineHoldMs = 6_000;/);
+  assert.equal(
+    [...source.matchAll(/window\.setTimeout\(tick, heroHeadlineHoldMs\)/g)].length,
+    2,
+    "initial and between-title holds both use the six-second interval",
+  );
+  assert.doesNotMatch(source, /<h1 aria-label="Help me find this\.">/);
+});
+
 function readBuiltHtml(pathname) {
   const relative = pathname === "/" ? "index.html" : path.join(pathname.replace(/^\/+|\/+$/g, ""), "index.html");
   const filePath = path.join(distRoot, relative);

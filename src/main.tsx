@@ -636,11 +636,11 @@ const googleClientId = import.meta.env.VITE_GOOGLE_CLIENT_ID;
 const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const uuidPattern = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 const heroHeadlineExamples = [
-  "Help me find this.",
   "Please help me find this.",
   "Where can I buy this?",
   "Anyone know where this is?",
 ];
+const heroHeadlineHoldMs = 6_000;
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value);
@@ -3628,7 +3628,7 @@ function LandingPage({
 
       if (!deleting && characterIndex === currentPhrase.length) {
         deleting = true;
-        timeoutId = window.setTimeout(tick, 12000);
+        timeoutId = window.setTimeout(tick, heroHeadlineHoldMs);
         return;
       }
 
@@ -3642,7 +3642,7 @@ function LandingPage({
       timeoutId = window.setTimeout(tick, deleting ? 18 : 34);
     };
 
-    timeoutId = window.setTimeout(tick, 12000);
+    timeoutId = window.setTimeout(tick, heroHeadlineHoldMs);
     return () => window.clearTimeout(timeoutId);
   }, []);
 
@@ -3779,7 +3779,7 @@ function LandingPage({
 
         <div className="hero-copy">
           <p className="hero-site-tag">{siteName}</p>
-          <h1 aria-label="Help me find this.">
+          <h1 aria-label={heroHeadlineExamples[0]}>
             <span className="hero-headline-text" aria-hidden="true">
               {heroHeadline}
               <span className="hero-headline-caret" />
