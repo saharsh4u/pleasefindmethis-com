@@ -4,13 +4,14 @@ import { test } from "node:test";
 import { authenticatedRequestPages, canLoadRequestData } from "../src/lib/request-access.mjs";
 import { mergeRequestListings } from "../src/lib/request-listings.mjs";
 
-test("every route that renders posted request data requires a resolved authenticated session", () => {
+test("homepage is public while browse and request-detail routes require authentication", () => {
   assert.deepEqual(authenticatedRequestPages, [
-    "landing",
     "browse",
     "browse-all",
     "request-detail",
   ]);
+
+  assert.equal(canLoadRequestData("landing", { authResolved: true, signedIn: false }), true);
 
   for (const page of authenticatedRequestPages) {
     assert.equal(canLoadRequestData(page, { authResolved: false, signedIn: false }), false);

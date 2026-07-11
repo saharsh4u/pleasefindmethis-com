@@ -2854,7 +2854,7 @@ function App() {
   const [postReferenceImagePersistenceError, setPostReferenceImagePersistenceError] = useState("");
   const [publishedRequest, setPublishedRequest] = useState<PublishedRequestSnapshot | null>(() => readStoredPublishedRequest());
   const [activeRequestId, setActiveRequestId] = useState(() => getRequestIdFromCurrentRoute() || exampleRequestListings[0].id);
-  const requestDataAccessAllowed = canLoadRequestData(route, { authResolved, signedIn });
+  const requestDataAccessAllowed = authResolved && signedIn && canLoadRequestData(route, { authResolved, signedIn });
   const visibleRoute = protectedPages.has(route) && (!authResolved || !signedIn) ? "auth" : route;
   const {
     listings: liveRequests,

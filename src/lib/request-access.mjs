@@ -1,5 +1,4 @@
 export const authenticatedRequestPages = Object.freeze([
-  "landing",
   "browse",
   "browse-all",
   "request-detail",

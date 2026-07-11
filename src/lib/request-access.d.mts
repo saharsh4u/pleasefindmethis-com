@@ -1,4 +1,4 @@
-export type AuthenticatedRequestPage = "landing" | "browse" | "browse-all" | "request-detail";
+export type AuthenticatedRequestPage = "browse" | "browse-all" | "request-detail";
 
 export const authenticatedRequestPages: readonly AuthenticatedRequestPage[];
 
