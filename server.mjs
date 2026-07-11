@@ -25,10 +25,13 @@ const dataFastBotWebsiteId = parseString(
 ) || "dfid_oKAGjqAhs9HTD5Ic9yvxt";
 const uuidPattern = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 const requestCommentMaxLength = 700;
+const requestNotificationPreviewMaxLength = 220;
 const requestFingerprintSecret = parseString(
   process.env.REQUEST_FINGERPRINT_SECRET || process.env.SUPABASE_SERVICE_ROLE_KEY,
   500,
 );
+const resendApiKey = parseString(process.env.RESEND_API_KEY, 500);
+const requestNotificationFrom = getRequestNotificationFromAddress();
 const vite = isProduction ? null : await createDevViteServer();
 
 class RequestCommentApiError extends Error {
@@ -490,7 +493,7 @@ async function handlePublicRequestComments(req, res, rawRequestId) {
   }
 
   try {
-    await requireAuthenticatedRequestUser(
+    const authenticatedUser = await requireAuthenticatedRequestUser(
       req,
       req.method === "POST" ? "Log in to post a comment." : "Log in to view requests.",
     );
@@ -516,7 +519,14 @@ async function handlePublicRequestComments(req, res, rawRequestId) {
       throw new RequestCommentApiError("Request body must be valid JSON.", 400);
     }
 
-    const comment = await createPublicRequestComment(req, requestId, body);
+    const { comment, commentStatus } = await createPublicRequestComment(req, requestId, body);
+    if (commentStatus === "visible") {
+      await sendRequestClueNotification({
+        comment,
+        commenterId: authenticatedUser.id,
+        request: publicRequest,
+      });
+    }
     sendJson(res, 201, { comment });
   } catch (error) {
     const statusCode = Number(error?.statusCode) || 500;
@@ -551,7 +561,7 @@ async function requireAuthenticatedRequestUser(req, errorMessage) {
 async function loadPublicRequestForComments(requestId) {
   const { data, error } = await supabaseAdmin
     .from("requests")
-    .select("id,status,duration_days,created_at")
+    .select("id,user_id,item_name,status,duration_days,email_clue_notifications,created_at")
     .eq("id", requestId)
     .maybeSingle();
 
@@ -598,6 +608,10 @@ async function createPublicRequestComment(req, requestId, body) {
     throw new RequestCommentApiError("Add a valid http or https source link.", 400);
   }
 
+  if (isLikelySpamClue({ body: commentBody, source_url: sourceUrl })) {
+    throw new RequestCommentApiError("This clue could not be posted.", 400);
+  }
+
   const requestFingerprintHash = getPublicRequestCommentFingerprint(req, requestId);
 
   if (!requestFingerprintHash) {
@@ -634,7 +648,175 @@ async function createPublicRequestComment(req, requestId, body) {
     throw new RequestCommentApiError("Could not post this comment.", 503);
   }
 
-  return toPublicRequestComment(data);
+  return {
+    comment: toPublicRequestComment(data),
+    commentStatus: parseString(data?.status, 20),
+  };
+}
+
+function isLikelySpamClue(comment) {
+  const commentBody = parseString(comment?.body, requestCommentMaxLength);
+  const sourceUrl = parseString(comment?.source_url, 1000);
+  const combinedText = `${commentBody} ${sourceUrl}`;
+  const urlCount = (combinedText.match(/https?:\/\/|www\./gi) ?? []).length;
+  const hasSpamPhrase = /\b(?:buy|cheap|get)\s+(?:followers|likes|subscribers)\b|\bguaranteed\s+(?:returns|results)\b|\bcrypto\s+giveaway\b|\bonline\s+casino\b/i.test(commentBody);
+
+  return urlCount >= 3 || hasSpamPhrase;
+}
+
+async function sendRequestClueNotification({ comment, commenterId, request }) {
+  const ownerId = parseString(request?.user_id, 80);
+
+  if (
+    !resendApiKey
+    || !requestNotificationFrom
+    || !isUuid(ownerId)
+    || request?.email_clue_notifications !== true
+    || ownerId === parseString(commenterId, 80)
+  ) {
+    return false;
+  }
+
+  try {
+    const { data, error } = await supabaseAdmin.auth.admin.getUserById(ownerId);
+    const ownerEmail = normalizeNotificationEmail(data?.user?.email);
+
+    if (error || !ownerEmail) {
+      console.error("Could not resolve request owner for clue notification", {
+        requestId: request.id,
+        errorCode: error?.code ?? "owner_email_missing",
+      });
+      return false;
+    }
+
+    const email = buildRequestClueNotification({ comment, ownerEmail, request });
+    const response = await fetchWithTimeout("https://api.resend.com/emails", {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${resendApiKey}`,
+        "Content-Type": "application/json",
+        "Idempotency-Key": `request-clue/${comment.id}`,
+      },
+      body: JSON.stringify(email),
+    }, 5_000);
+
+    if (!response.ok) {
+      console.error("Could not send request clue notification", {
+        requestId: request.id,
+        commentId: comment.id,
+        statusCode: response.status,
+      });
+      return false;
+    }
+
+    return true;
+  } catch (error) {
+    console.error("Request clue notification failed", {
+      requestId: request?.id,
+      commentId: comment?.id,
+      errorName: error instanceof Error ? error.name : "UnknownError",
+    });
+    return false;
+  }
+}
+
+function buildRequestClueNotification({ comment, ownerEmail, request }) {
+  const itemName = parseString(request?.item_name, 120) || "your find request";
+  const helperAlias = parseString(comment?.helper_alias, 60) || "Someone";
+  const commentBody = getRequestCluePreview(comment?.body);
+  const sourceUrl = normalizePublicCommentSourceUrl(comment?.source_url);
+  const requestUrl = `${publicAppUrl || deploymentPublicAppUrl || "https://pleasefindmethis.com"}${getPublicRequestPath(request?.id, itemName)}`;
+  const escapedItemName = escapeHtml(itemName);
+  const escapedAlias = escapeHtml(helperAlias);
+  const escapedBody = escapeHtml(commentBody).replace(/\n/g, "<br>");
+  const escapedRequestUrl = escapeHtml(requestUrl);
+  const sourceBlock = sourceUrl
+    ? `<p style="margin:16px 0 0"><a href="${escapeHtml(sourceUrl)}" style="color:#087343;font-weight:700">Open the source they shared</a></p>`
+    : "";
+  const textSource = sourceUrl ? `\nSource: ${sourceUrl}` : "";
+
+  return {
+    from: requestNotificationFrom,
+    to: [ownerEmail],
+    subject: `New clue for ${itemName}`.slice(0, 180),
+    text: `${helperAlias} left a new clue on your request “${itemName}”.\n\n${commentBody}${textSource}\n\nReview the clue: ${requestUrl}\n\nYou’re receiving this because you posted this request on pleasefindmethis.com.`,
+    html: `<!doctype html>
+<html lang="en">
+  <body style="margin:0;background:#f5f7f5;color:#121714;font-family:Arial,sans-serif">
+    <div style="max-width:560px;margin:0 auto;padding:32px 18px">
+      <div style="background:#ffffff;border:1px solid #dfe6e1;border-radius:16px;padding:28px">
+        <p style="margin:0 0 8px;color:#087343;font-size:13px;font-weight:800;letter-spacing:.04em;text-transform:uppercase">New clue</p>
+        <h1 style="margin:0 0 18px;font-size:25px;line-height:1.25">Someone responded to “${escapedItemName}”</h1>
+        <p style="margin:0 0 12px;color:#525d56;font-size:15px"><strong style="color:#121714">${escapedAlias}</strong> left this clue:</p>
+        <div style="padding:16px;border-radius:12px;background:#f3f7f4;font-size:16px;line-height:1.55">${escapedBody}</div>
+        ${sourceBlock}
+        <p style="margin:24px 0 0"><a href="${escapedRequestUrl}" style="display:inline-block;border-radius:999px;background:#087343;color:#ffffff;padding:13px 20px;text-decoration:none;font-weight:800">View New Clue</a></p>
+      </div>
+      <p style="margin:16px 8px 0;color:#68736c;font-size:12px;line-height:1.5">You’re receiving this because you posted this request on pleasefindmethis.com.</p>
+    </div>
+  </body>
+</html>`,
+  };
+}
+
+function getRequestNotificationFromAddress() {
+  const configuredSender = parseString(
+    process.env.REQUEST_NOTIFICATION_FROM_EMAIL || process.env.WAITLIST_FROM_EMAIL,
+    320,
+  );
+
+  if (isSafeEmailSender(configuredSender)) {
+    return configuredSender;
+  }
+
+  const emailDomain = parseString(process.env.RESEND_EMAIL_DOMAIN, 253)
+    .replace(/^@/, "")
+    .toLowerCase();
+
+  return /^(?:[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?\.)+[a-z]{2,}$/.test(emailDomain)
+    ? `Please Find Me This <notifications@${emailDomain}>`
+    : "";
+}
+
+function isSafeEmailSender(value) {
+  return Boolean(value)
+    && !/[\r\n]/.test(value)
+    && /^(?:[^<>]+\s*)?<[^\s@<>]+@[^\s@<>]+\.[^\s@<>]+>$|^[^\s@<>]+@[^\s@<>]+\.[^\s@<>]+$/.test(value);
+}
+
+function normalizeNotificationEmail(value) {
+  const email = parseString(value, 254).toLowerCase();
+  return /^[^\s@<>]+@[^\s@<>]+\.[^\s@<>]+$/.test(email) ? email : "";
+}
+
+function getRequestCluePreview(value) {
+  const commentBody = parseString(value, requestCommentMaxLength);
+
+  if (commentBody.length <= requestNotificationPreviewMaxLength) {
+    return commentBody;
+  }
+
+  return `${commentBody.slice(0, requestNotificationPreviewMaxLength - 1).trimEnd()}…`;
+}
+
+function getPublicRequestPath(requestId, itemName) {
+  const requestSlug = parseString(itemName, 120)
+    .toLowerCase()
+    .replace(/&/g, " and ")
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/(^-|-$)/g, "")
+    .slice(0, 80) || "find-request";
+
+  return `/requests/${requestId}/${requestSlug}/`;
+}
+
+function escapeHtml(value) {
+  return String(value ?? "")
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#39;");
 }
 
 function sanitizePublicCommentBody(value) {

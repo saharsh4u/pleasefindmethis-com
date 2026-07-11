@@ -515,6 +515,444 @@ test("public comment posts use one server-fingerprinted RPC without sending raw 
   }
 });
 
+test("posting a clue emails the request owner once through Resend", async () => {
+  const originalFetch = globalThis.fetch;
+  const requestId = "11111111-1111-4111-8111-111111111111";
+  const ownerId = "bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb";
+  const commentId = "22222222-2222-4222-8222-222222222222";
+  const clueBody = `I found a possible match. ${"Useful matching details. ".repeat(20)}PRIVATE_TAIL`;
+  const calls = [];
+
+  globalThis.fetch = async (url, options = {}) => {
+    const requestUrl = new URL(String(url));
+    calls.push({ url: requestUrl, options });
+
+    if (requestUrl.pathname.endsWith("/auth/v1/user")) {
+      return authenticatedUserResponse();
+    }
+
+    if (requestUrl.pathname.endsWith(`/auth/v1/admin/users/${ownerId}`)) {
+      return new Response(JSON.stringify({
+        id: ownerId,
+        email: "owner@example.com",
+        is_anonymous: false,
+      }), {
+        status: 200,
+        headers: { "Content-Type": "application/json" },
+      });
+    }
+
+    if (requestUrl.pathname.endsWith("/requests")) {
+      return new Response(JSON.stringify({
+        id: requestId,
+        user_id: ownerId,
+        item_name: "Rose & star blanket",
+        status: "open",
+        duration_days: 30,
+        email_clue_notifications: true,
+        created_at: new Date().toISOString(),
+      }), {
+        status: 200,
+        headers: { "Content-Type": "application/json" },
+      });
+    }
+
+    if (requestUrl.pathname.endsWith("/rpc/create_public_request_comment")) {
+      return new Response(JSON.stringify({
+        id: commentId,
+        request_id: requestId,
+        body: clueBody,
+        source_url: "https://example.com/item",
+        helper_alias: "amber trout",
+        helper_avatar_tone: 2,
+        status: "visible",
+        created_at: new Date().toISOString(),
+      }), {
+        status: 200,
+        headers: { "Content-Type": "application/json" },
+      });
+    }
+
+    if (requestUrl.origin === "https://api.resend.com" && requestUrl.pathname === "/emails") {
+      return new Response(JSON.stringify({ id: "email_123" }), {
+        status: 200,
+        headers: { "Content-Type": "application/json" },
+      });
+    }
+
+    throw new Error(`Unexpected request: ${requestUrl}`);
+  };
+
+  try {
+    const { handleRequest } = await loadServer({
+      PUBLIC_APP_URL: "https://pleasefindmethis.com",
+      REQUEST_FINGERPRINT_SECRET: "fingerprint-secret",
+      RESEND_API_KEY: "resend-test-key",
+      RESEND_EMAIL_DOMAIN: "pleasefindmethis.com",
+      SUPABASE_SERVICE_ROLE_KEY: "service-role-key",
+      SUPABASE_URL: "https://example.supabase.co",
+    });
+    const req = fakeRequest(
+      {
+        authorization: "Bearer valid-comment-token",
+        host: "pleasefindmethis.com",
+        "x-vercel-forwarded-for": "203.0.113.42",
+      },
+      JSON.stringify({
+        body: clueBody,
+        sourceUrl: "https://example.com/item",
+        visitorSeed: "visitor-seed-123",
+      }),
+    );
+    const res = fakeResponse();
+
+    req.method = "POST";
+    req.url = `/api/requests/${requestId}/comments`;
+
+    await handleRequest(req, res);
+
+    assert.equal(res.statusCode, 201);
+    const resendCalls = calls.filter(({ url }) => url.origin === "https://api.resend.com");
+    assert.equal(resendCalls.length, 1);
+    assert.equal(resendCalls[0].options.headers["Idempotency-Key"], `request-clue/${commentId}`);
+    assert.equal(resendCalls[0].options.headers.Authorization, "Bearer resend-test-key");
+
+    const email = JSON.parse(resendCalls[0].options.body);
+    assert.equal(email.from, "Please Find Me This <notifications@pleasefindmethis.com>");
+    assert.deepEqual(email.to, ["owner@example.com"]);
+    assert.equal(email.subject, "New clue for Rose & star blanket");
+    assert.match(email.text, /^amber trout left a new clue/);
+    assert.match(email.text, /I found a possible match\./);
+    assert.match(email.text, /…/);
+    assert.doesNotMatch(email.text, /PRIVATE_TAIL/);
+    assert.match(email.text, /https:\/\/pleasefindmethis\.com\/requests\/11111111-1111-4111-8111-111111111111\/rose-and-star-blanket\//);
+    assert.match(email.html, />View New Clue<\/a>/);
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
+});
+
+test("posting a clue does not email an owner who left request updates off", async () => {
+  const originalFetch = globalThis.fetch;
+  const requestId = "11111111-1111-4111-8111-111111111111";
+  const ownerId = "bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb";
+  const paths = [];
+
+  globalThis.fetch = async (url) => {
+    const requestUrl = new URL(String(url));
+    paths.push(`${requestUrl.origin}${requestUrl.pathname}`);
+
+    if (requestUrl.pathname.endsWith("/auth/v1/user")) {
+      return authenticatedUserResponse();
+    }
+
+    if (requestUrl.pathname.endsWith("/requests")) {
+      return new Response(JSON.stringify({
+        id: requestId,
+        user_id: ownerId,
+        item_name: "Quiet request",
+        status: "open",
+        duration_days: 30,
+        email_clue_notifications: false,
+        created_at: new Date().toISOString(),
+      }), {
+        status: 200,
+        headers: { "Content-Type": "application/json" },
+      });
+    }
+
+    if (requestUrl.pathname.endsWith("/rpc/create_public_request_comment")) {
+      return new Response(JSON.stringify({
+        id: "22222222-2222-4222-8222-222222222222",
+        request_id: requestId,
+        body: "A new clue",
+        source_url: null,
+        helper_alias: "amber trout",
+        helper_avatar_tone: 2,
+        status: "visible",
+        created_at: new Date().toISOString(),
+      }), {
+        status: 200,
+        headers: { "Content-Type": "application/json" },
+      });
+    }
+
+    throw new Error(`Opted-out requests must not trigger notification lookups: ${requestUrl}`);
+  };
+
+  try {
+    const { handleRequest } = await loadServer({
+      PUBLIC_APP_URL: "https://pleasefindmethis.com",
+      REQUEST_FINGERPRINT_SECRET: "fingerprint-secret",
+      RESEND_API_KEY: "resend-test-key",
+      RESEND_EMAIL_DOMAIN: "pleasefindmethis.com",
+      SUPABASE_SERVICE_ROLE_KEY: "service-role-key",
+      SUPABASE_URL: "https://example.supabase.co",
+    });
+    const req = fakeRequest(
+      {
+        authorization: "Bearer valid-comment-token",
+        host: "pleasefindmethis.com",
+        "x-vercel-forwarded-for": "203.0.113.42",
+      },
+      JSON.stringify({ body: "A new clue", visitorSeed: "visitor-seed-123" }),
+    );
+    const res = fakeResponse();
+
+    req.method = "POST";
+    req.url = `/api/requests/${requestId}/comments`;
+
+    await handleRequest(req, res);
+
+    assert.equal(res.statusCode, 201);
+    assert.equal(paths.some((path) => path.includes("/auth/v1/admin/users/")), false);
+    assert.equal(paths.some((path) => path.startsWith("https://api.resend.com/")), false);
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
+});
+
+test("flagged clues do not trigger request notification emails", async () => {
+  const originalFetch = globalThis.fetch;
+  const requestId = "11111111-1111-4111-8111-111111111111";
+  const ownerId = "bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb";
+  const paths = [];
+
+  globalThis.fetch = async (url) => {
+    const requestUrl = new URL(String(url));
+    paths.push(`${requestUrl.origin}${requestUrl.pathname}`);
+
+    if (requestUrl.pathname.endsWith("/auth/v1/user")) {
+      return authenticatedUserResponse();
+    }
+
+    if (requestUrl.pathname.endsWith("/requests")) {
+      return new Response(JSON.stringify({
+        id: requestId,
+        user_id: ownerId,
+        item_name: "Moderated request",
+        status: "open",
+        duration_days: 30,
+        email_clue_notifications: true,
+        created_at: new Date().toISOString(),
+      }), {
+        status: 200,
+        headers: { "Content-Type": "application/json" },
+      });
+    }
+
+    if (requestUrl.pathname.endsWith("/rpc/create_public_request_comment")) {
+      return new Response(JSON.stringify({
+        id: "22222222-2222-4222-8222-222222222222",
+        request_id: requestId,
+        body: "Suspicious clue",
+        source_url: null,
+        helper_alias: "amber trout",
+        helper_avatar_tone: 2,
+        status: "flagged",
+        created_at: new Date().toISOString(),
+      }), {
+        status: 200,
+        headers: { "Content-Type": "application/json" },
+      });
+    }
+
+    throw new Error(`Flagged clues must not trigger notification lookups: ${requestUrl}`);
+  };
+
+  try {
+    const { handleRequest } = await loadServer({
+      PUBLIC_APP_URL: "https://pleasefindmethis.com",
+      REQUEST_FINGERPRINT_SECRET: "fingerprint-secret",
+      RESEND_API_KEY: "resend-test-key",
+      RESEND_EMAIL_DOMAIN: "pleasefindmethis.com",
+      SUPABASE_SERVICE_ROLE_KEY: "service-role-key",
+      SUPABASE_URL: "https://example.supabase.co",
+    });
+    const req = fakeRequest(
+      {
+        authorization: "Bearer valid-comment-token",
+        host: "pleasefindmethis.com",
+        "x-vercel-forwarded-for": "203.0.113.42",
+      },
+      JSON.stringify({ body: "Suspicious clue", visitorSeed: "visitor-seed-123" }),
+    );
+    const res = fakeResponse();
+
+    req.method = "POST";
+    req.url = `/api/requests/${requestId}/comments`;
+
+    await handleRequest(req, res);
+
+    assert.equal(res.statusCode, 201);
+    assert.equal(paths.some((path) => path.includes("/auth/v1/admin/users/")), false);
+    assert.equal(paths.some((path) => path.startsWith("https://api.resend.com/")), false);
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
+});
+
+test("obvious spam clues are rejected before request notification emails", async () => {
+  const originalFetch = globalThis.fetch;
+  const requestId = "11111111-1111-4111-8111-111111111111";
+  const ownerId = "bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb";
+  const paths = [];
+  const spamBody = "Buy followers and likes now for guaranteed results.";
+
+  globalThis.fetch = async (url) => {
+    const requestUrl = new URL(String(url));
+    paths.push(`${requestUrl.origin}${requestUrl.pathname}`);
+
+    if (requestUrl.pathname.endsWith("/auth/v1/user")) {
+      return authenticatedUserResponse();
+    }
+
+    if (requestUrl.pathname.endsWith("/requests")) {
+      return new Response(JSON.stringify({
+        id: requestId,
+        user_id: ownerId,
+        item_name: "Spam-targeted request",
+        status: "open",
+        duration_days: 30,
+        email_clue_notifications: true,
+        created_at: new Date().toISOString(),
+      }), {
+        status: 200,
+        headers: { "Content-Type": "application/json" },
+      });
+    }
+
+    if (requestUrl.pathname.endsWith("/rpc/create_public_request_comment")) {
+      return new Response(JSON.stringify({
+        id: "22222222-2222-4222-8222-222222222222",
+        request_id: requestId,
+        body: spamBody,
+        source_url: null,
+        helper_alias: "amber trout",
+        helper_avatar_tone: 2,
+        status: "visible",
+        created_at: new Date().toISOString(),
+      }), {
+        status: 200,
+        headers: { "Content-Type": "application/json" },
+      });
+    }
+
+    throw new Error(`Obvious spam clues must not trigger notification lookups: ${requestUrl}`);
+  };
+
+  try {
+    const { handleRequest } = await loadServer({
+      PUBLIC_APP_URL: "https://pleasefindmethis.com",
+      REQUEST_FINGERPRINT_SECRET: "fingerprint-secret",
+      RESEND_API_KEY: "resend-test-key",
+      RESEND_EMAIL_DOMAIN: "pleasefindmethis.com",
+      SUPABASE_SERVICE_ROLE_KEY: "service-role-key",
+      SUPABASE_URL: "https://example.supabase.co",
+    });
+    const req = fakeRequest(
+      {
+        authorization: "Bearer valid-comment-token",
+        host: "pleasefindmethis.com",
+        "x-vercel-forwarded-for": "203.0.113.42",
+      },
+      JSON.stringify({ body: spamBody, visitorSeed: "visitor-seed-123" }),
+    );
+    const res = fakeResponse();
+
+    req.method = "POST";
+    req.url = `/api/requests/${requestId}/comments`;
+
+    await handleRequest(req, res);
+
+    assert.equal(res.statusCode, 400);
+    assert.equal(paths.some((path) => path.includes("/auth/v1/admin/users/")), false);
+    assert.equal(paths.some((path) => path.startsWith("https://api.resend.com/")), false);
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
+});
+
+test("request owners do not receive an email for their own comments", async () => {
+  const originalFetch = globalThis.fetch;
+  const requestId = "11111111-1111-4111-8111-111111111111";
+  const ownerId = "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa";
+  const paths = [];
+
+  globalThis.fetch = async (url) => {
+    const requestUrl = new URL(String(url));
+    paths.push(`${requestUrl.origin}${requestUrl.pathname}`);
+
+    if (requestUrl.pathname.endsWith("/auth/v1/user")) {
+      return authenticatedUserResponse();
+    }
+
+    if (requestUrl.pathname.endsWith("/requests")) {
+      return new Response(JSON.stringify({
+        id: requestId,
+        user_id: ownerId,
+        item_name: "My own request",
+        status: "open",
+        duration_days: 30,
+        email_clue_notifications: true,
+        created_at: new Date().toISOString(),
+      }), {
+        status: 200,
+        headers: { "Content-Type": "application/json" },
+      });
+    }
+
+    if (requestUrl.pathname.endsWith("/rpc/create_public_request_comment")) {
+      return new Response(JSON.stringify({
+        id: "22222222-2222-4222-8222-222222222222",
+        request_id: requestId,
+        body: "An update from the owner",
+        source_url: null,
+        helper_alias: "amber trout",
+        helper_avatar_tone: 2,
+        status: "visible",
+        created_at: new Date().toISOString(),
+      }), {
+        status: 200,
+        headers: { "Content-Type": "application/json" },
+      });
+    }
+
+    throw new Error(`Self-comments must not trigger notification lookups: ${requestUrl}`);
+  };
+
+  try {
+    const { handleRequest } = await loadServer({
+      PUBLIC_APP_URL: "https://pleasefindmethis.com",
+      REQUEST_FINGERPRINT_SECRET: "fingerprint-secret",
+      RESEND_API_KEY: "resend-test-key",
+      RESEND_EMAIL_DOMAIN: "pleasefindmethis.com",
+      SUPABASE_SERVICE_ROLE_KEY: "service-role-key",
+      SUPABASE_URL: "https://example.supabase.co",
+    });
+    const req = fakeRequest(
+      {
+        authorization: "Bearer valid-comment-token",
+        host: "pleasefindmethis.com",
+        "x-vercel-forwarded-for": "203.0.113.42",
+      },
+      JSON.stringify({ body: "An update from the owner", visitorSeed: "owner-seed" }),
+    );
+    const res = fakeResponse();
+
+    req.method = "POST";
+    req.url = `/api/requests/${requestId}/comments`;
+
+    await handleRequest(req, res);
+
+    assert.equal(res.statusCode, 201);
+    assert.equal(paths.some((path) => path.includes("/auth/v1/admin/users/")), false);
+    assert.equal(paths.some((path) => path.startsWith("https://api.resend.com/")), false);
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
+});
+
 test("rotated or missing visitor seeds cannot rotate a request-scoped fingerprint", async () => {
   const originalFetch = globalThis.fetch;
   const requestId = "11111111-1111-4111-8111-111111111111";
@@ -990,6 +1428,10 @@ async function loadSecurityHelpers(env) {
 async function loadServer(env) {
   process.env = {
     ...originalEnv,
+    REQUEST_NOTIFICATION_FROM_EMAIL: "",
+    RESEND_API_KEY: "",
+    RESEND_EMAIL_DOMAIN: "",
+    WAITLIST_FROM_EMAIL: "",
     ...env,
     NODE_ENV: "production",
     VERCEL: "1",

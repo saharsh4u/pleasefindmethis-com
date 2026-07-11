@@ -166,6 +166,7 @@ type PostDraft = {
   category: RequestCategory;
   details: string;
   durationDays: RequestDuration;
+  emailClueNotifications: boolean;
 };
 
 type PostReferenceImageDraft = {
@@ -186,6 +187,7 @@ type StoredPostDraft = {
   category: RequestCategory;
   details: string;
   durationDays: RequestDuration;
+  emailClueNotifications: boolean;
 };
 
 type PostStarterPrompt = {
@@ -260,6 +262,7 @@ const initialPostDraft: PostDraft = {
   category: "home",
   details: "",
   durationDays: 30,
+  emailClueNotifications: false,
 };
 
 const posterStarterPrompts: PostStarterPrompt[] = [
@@ -2226,6 +2229,7 @@ function getAcquisitionStarterFromUrl() {
       category: prompt.category,
       details: context ? `${prompt.details}\n\nContext: ${context}` : prompt.details,
       durationDays: prompt.durationDays,
+      emailClueNotifications: false,
     } satisfies PostDraft,
   };
 }
@@ -2244,6 +2248,7 @@ function postDraftToStoredDraft(draft: PostDraft): StoredPostDraft {
     category: draft.category,
     details: draft.details,
     durationDays: draft.durationDays,
+    emailClueNotifications: draft.emailClueNotifications,
   };
 }
 
@@ -2270,6 +2275,7 @@ function readStoredPostDraft(): PostDraft | null {
       category,
       details,
       durationDays,
+      emailClueNotifications: parsed.emailClueNotifications === true,
     });
   } catch {
     return null;
@@ -3357,6 +3363,7 @@ function App() {
           category: selectedPrompt.category,
           details: selectedPrompt.details,
           durationDays: selectedPrompt.durationDays,
+          emailClueNotifications: false,
         };
 
       setPostDraft(nextDraft);
@@ -4367,6 +4374,22 @@ function PostDescribePage({
             ) : null}
           </div>
 
+          <label className={`email-updates-toggle${draft.emailClueNotifications ? " is-enabled" : ""}`}>
+            <span className="email-updates-switch">
+              <input
+                type="checkbox"
+                role="switch"
+                checked={draft.emailClueNotifications}
+                onChange={(event) => onDraftChange({ emailClueNotifications: event.target.checked })}
+              />
+              <span aria-hidden="true" />
+            </span>
+            <span className="email-updates-copy">
+              <strong>Get email updates when someone leaves a clue</strong>
+              <small>We’ll email you whenever someone comments on your request.</small>
+            </span>
+          </label>
+
           <div className="legacy-composer-actions">
             <p><LockKeyhole size={15} /> Your draft stays private until you publish.</p>
             <button className="primary-button" type="submit" disabled={!canContinue}>Continue to publish <ArrowRight size={17} /></button>
@@ -4468,6 +4491,7 @@ function PostPublishPage({
         details: detailsText.slice(0, 5000),
         duration_days: draft.durationDays,
         reference_images: uploadResult.referenceImages,
+        email_clue_notifications: draft.emailClueNotifications,
       });
 
       if (insertError) {
