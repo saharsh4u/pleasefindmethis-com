@@ -232,13 +232,22 @@ async function handlePublicRequests(req, res, requestUrl) {
     return;
   }
 
+  try {
+    await requireAuthenticatedRequestUser(req, "Log in to view requests.");
+  } catch (error) {
+    sendJson(res, Number(error?.statusCode) || 401, {
+      error: error instanceof Error ? error.message : "Log in to view requests.",
+    });
+    return;
+  }
+
   let publicRequestsQuery = supabaseAdmin
     .from("public_request_cards")
     .select("id,item_name,category,details,duration_days,status,created_at,closes_at,days_remaining,primary_image_url,submission_count");
 
   publicRequestsQuery = requestId
     ? publicRequestsQuery.eq("id", requestId).limit(1)
-    : publicRequestsQuery.order("created_at", { ascending: false }).limit(24);
+    : publicRequestsQuery.order("created_at", { ascending: false });
 
   const { data, error } = await publicRequestsQuery;
 
@@ -264,52 +273,20 @@ async function handlePublicRequests(req, res, requestUrl) {
   }
 }
 
-async function handlePublicRequestDocument(req, res, rawRequestId) {
+async function handlePublicRequestDocument(req, res, _rawRequestId) {
   if (req.method !== "GET" && req.method !== "HEAD") {
     sendJson(res, 405, { error: "Method not allowed." });
     return;
   }
 
-  const requestId = parseString(rawRequestId, 80);
   const template = await loadPublicRequestDocumentTemplate(req);
-  let html = template;
-
-  if (isUuid(requestId) && supabaseAdmin) {
-    try {
-      const requestCard = await loadExactPublicRequestCard(requestId);
-      if (requestCard) {
-        html = injectPublicRequestDocumentMetadata(template, requestCard, req);
-      }
-    } catch (error) {
-      console.error("Could not render request-specific social metadata", error);
-    }
-  }
 
   res.writeHead(200, {
     "Content-Type": "text/html; charset=utf-8",
-    "Cache-Control": "public, s-maxage=60, stale-while-revalidate=300",
-    "X-Robots-Tag": "index, follow",
+    "Cache-Control": "private, no-store",
+    "X-Robots-Tag": "noindex, nofollow",
   });
-  res.end(req.method === "HEAD" ? "" : html);
-}
-
-async function loadExactPublicRequestCard(requestId) {
-  const { data, error } = await supabaseAdmin
-    .from("public_request_cards")
-    .select("id,item_name,category,details,duration_days,status,created_at,closes_at,days_remaining,primary_image_url,submission_count")
-    .eq("id", requestId)
-    .limit(1);
-
-  if (!error) {
-    return data?.[0] ?? null;
-  }
-
-  if (isMissingPublicFeedError(error)) {
-    const fallback = await loadPublicRequestsFallback(requestId);
-    return fallback[0] ?? null;
-  }
-
-  throw error;
+  res.end(req.method === "HEAD" ? "" : template);
 }
 
 async function loadPublicRequestDocumentTemplate(req) {
@@ -348,167 +325,6 @@ async function loadPublicRequestDocumentTemplate(req) {
   return '<!doctype html><html lang="en"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>pleasefindmethis.com</title></head><body><p>Loading this public request…</p><script>fetch("/index.html").then(function(r){return r.text()}).then(function(h){document.open();document.write(h);document.close()})</script></body></html>';
 }
 
-function injectPublicRequestDocumentMetadata(template, requestCard, req) {
-  const itemName = parseString(requestCard.item_name, 120) || "Help find this exact item";
-  const subject = getPublicRequestShareSubject(itemName);
-  const detailText = parseString(requestCard.details, 1000).replace(/\s+/g, " ");
-  const description = truncateMetaText(
-    `Do you recognize ${subject}? ${detailText || "Someone is searching for this exact item."} Log in to leave a clue.`,
-    180,
-  );
-  const title = truncateMetaText(`${itemName} | pleasefindmethis`, 65);
-  const origin = publicAppUrl || deploymentPublicAppUrl || getRequestOrigin(req);
-  const slug = slugifyPublicRequestItem(itemName);
-  const canonicalUrl = new URL(`/requests/${requestCard.id}${slug ? `/${slug}` : ""}`, origin).toString();
-  const imageUrl = normalizePublicRequestImageUrl(requestCard.primary_image_url, origin);
-  const imageAlt = truncateMetaText(`${itemName} reference photo`, 160);
-
-  let html = template;
-  html = replaceDocumentTitle(html, title);
-  html = replaceMetaContent(html, "name", "description", description);
-  html = replaceMetaContent(html, "property", "og:type", "website");
-  html = replaceMetaContent(html, "property", "og:title", title);
-  html = replaceMetaContent(html, "property", "og:description", description);
-  html = replaceMetaContent(html, "property", "og:url", canonicalUrl);
-  html = replaceMetaContent(html, "property", "og:image", imageUrl);
-  html = replaceMetaContent(html, "property", "og:image:secure_url", imageUrl);
-  const imageMimeType = getPublicRequestImageMimeType(imageUrl);
-  html = imageMimeType
-    ? replaceMetaContent(html, "property", "og:image:type", imageMimeType)
-    : removeMetaTag(html, "property", "og:image:type");
-  html = removeMetaTag(html, "property", "og:image:width");
-  html = removeMetaTag(html, "property", "og:image:height");
-  html = replaceMetaContent(html, "property", "og:image:alt", imageAlt);
-  html = replaceMetaContent(html, "name", "twitter:title", title);
-  html = replaceMetaContent(html, "name", "twitter:description", description);
-  html = replaceMetaContent(html, "name", "twitter:image", imageUrl);
-  html = replaceMetaContent(html, "name", "twitter:image:alt", imageAlt);
-  html = replaceCanonicalLink(html, canonicalUrl);
-  html = replaceRequestJsonLd(html, {
-    canonicalUrl,
-    description,
-    imageAlt,
-    imageUrl,
-    itemName,
-    origin,
-  });
-  return html;
-}
-
-function getPublicRequestShareSubject(itemName) {
-  return itemName
-    .replace(/^help\s+me\s+find\s+/i, "")
-    .replace(/^find\s+/i, "")
-    .replace(/^does\s+anyone\s+know\s+/i, "")
-    .replace(/[?.!]+$/, "")
-    .trim() || "this exact item";
-}
-
-function slugifyPublicRequestItem(value) {
-  return parseString(value, 160)
-    .toLowerCase()
-    .replace(/&/g, " and ")
-    .replace(/[^a-z0-9]+/g, "-")
-    .replace(/(^-|-$)/g, "")
-    .slice(0, 80);
-}
-
-function normalizePublicRequestImageUrl(value, origin) {
-  try {
-    const imageUrl = new URL(parseString(value, 1000) || "/og/pleasefindmethis-request-board.png", origin);
-    return imageUrl.protocol === "http:" || imageUrl.protocol === "https:"
-      ? imageUrl.toString()
-      : new URL("/og/pleasefindmethis-request-board.png", origin).toString();
-  } catch {
-    return new URL("/og/pleasefindmethis-request-board.png", origin).toString();
-  }
-}
-
-function getPublicRequestImageMimeType(value) {
-  try {
-    const pathname = new URL(value).pathname.toLowerCase();
-    if (pathname.endsWith(".png")) return "image/png";
-    if (pathname.endsWith(".webp")) return "image/webp";
-    if (pathname.endsWith(".jpg") || pathname.endsWith(".jpeg")) return "image/jpeg";
-  } catch {
-    // Unknown image types work without an explicit Open Graph MIME tag.
-  }
-  return "";
-}
-
-function truncateMetaText(value, maxLength) {
-  const normalized = String(value).replace(/\s+/g, " ").trim();
-  if (normalized.length <= maxLength) {
-    return normalized;
-  }
-  return `${normalized.slice(0, Math.max(1, maxLength - 1)).trimEnd()}…`;
-}
-
-function replaceDocumentTitle(html, value) {
-  const tag = `<title>${escapeHtmlText(value)}</title>`;
-  return /<title\b[^>]*>[\s\S]*?<\/title>/i.test(html)
-    ? html.replace(/<title\b[^>]*>[\s\S]*?<\/title>/i, tag)
-    : html.replace(/<\/head>/i, `  ${tag}\n</head>`);
-}
-
-function replaceMetaContent(html, attribute, name, value) {
-  const selector = new RegExp(`<meta\\b[^>]*\\b${escapeRegExp(attribute)}=["']${escapeRegExp(name)}["'][^>]*>`, "i");
-  const tag = `<meta ${attribute}="${escapeHtmlAttribute(name)}" content="${escapeHtmlAttribute(value)}" />`;
-  return selector.test(html) ? html.replace(selector, tag) : html.replace(/<\/head>/i, `  ${tag}\n</head>`);
-}
-
-function removeMetaTag(html, attribute, name) {
-  const selector = new RegExp(`\\s*<meta\\b[^>]*\\b${escapeRegExp(attribute)}=["']${escapeRegExp(name)}["'][^>]*>`, "i");
-  return html.replace(selector, "");
-}
-
-function replaceCanonicalLink(html, value) {
-  const selector = /<link\b[^>]*\brel=["']canonical["'][^>]*>/i;
-  const tag = `<link rel="canonical" href="${escapeHtmlAttribute(value)}" />`;
-  return selector.test(html) ? html.replace(selector, tag) : html.replace(/<\/head>/i, `  ${tag}\n</head>`);
-}
-
-function replaceRequestJsonLd(html, { canonicalUrl, description, imageAlt, imageUrl, itemName, origin }) {
-  const schema = {
-    "@context": "https://schema.org",
-    "@type": "WebPage",
-    "@id": `${canonicalUrl}#webpage`,
-    url: canonicalUrl,
-    name: itemName,
-    description,
-    isPartOf: {
-      "@type": "WebSite",
-      name: "pleasefindmethis.com",
-      url: origin,
-    },
-    primaryImageOfPage: {
-      "@type": "ImageObject",
-      contentUrl: imageUrl,
-      caption: imageAlt,
-    },
-    potentialAction: {
-      "@type": "CommentAction",
-      target: canonicalUrl,
-    },
-  };
-  const serialized = JSON.stringify(schema).replace(/</g, "\\u003c");
-  const tag = `<script type="application/ld+json" data-seo-schema="request">${serialized}</script>`;
-  const selector = /<script\b[^>]*\btype=["']application\/ld\+json["'][^>]*>[\s\S]*?<\/script>/i;
-  return selector.test(html) ? html.replace(selector, tag) : html.replace(/<\/head>/i, `  ${tag}\n</head>`);
-}
-
-function escapeHtmlText(value) {
-  return String(value).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
-}
-
-function escapeHtmlAttribute(value) {
-  return escapeHtmlText(value).replace(/"/g, "&quot;").replace(/'/g, "&#39;");
-}
-
-function escapeRegExp(value) {
-  return String(value).replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-}
-
 async function loadPublicRequestsFallback(requestId = "") {
   let requestsQuery = supabaseAdmin
     .from("requests")
@@ -517,7 +333,7 @@ async function loadPublicRequestsFallback(requestId = "") {
 
   requestsQuery = requestId
     ? requestsQuery.eq("id", requestId).limit(1)
-    : requestsQuery.order("created_at", { ascending: false }).limit(48);
+    : requestsQuery.order("created_at", { ascending: false });
 
   const { data: requestRows, error: requestError } = await requestsQuery;
 
@@ -531,8 +347,7 @@ async function loadPublicRequestsFallback(requestId = "") {
       const createdAt = Date.parse(parseString(request.created_at, 80));
       const closesAt = createdAt + parseDuration(request.duration_days) * 24 * 60 * 60 * 1000;
       return Number.isFinite(createdAt) && closesAt > Date.now();
-    })
-    .slice(0, 24);
+    });
   const requestIds = requests.map((request) => request.id).filter(Boolean);
   const clueCounts = await loadClueCounts(requestIds);
 
@@ -605,9 +420,10 @@ async function handlePublicRequestComments(req, res, rawRequestId) {
   }
 
   try {
-    if (req.method === "POST") {
-      await requireAuthenticatedCommentUser(req);
-    }
+    await requireAuthenticatedRequestUser(
+      req,
+      req.method === "POST" ? "Log in to post a comment." : "Log in to view requests.",
+    );
 
     const publicRequest = await loadPublicRequestForComments(requestId);
 
@@ -645,18 +461,18 @@ async function handlePublicRequestComments(req, res, rawRequestId) {
   }
 }
 
-async function requireAuthenticatedCommentUser(req) {
+async function requireAuthenticatedRequestUser(req, errorMessage) {
   const authorization = parseString(req?.headers?.authorization, 4096);
   const token = authorization.match(/^Bearer\s+(.+)$/i)?.[1]?.trim() ?? "";
 
   if (!token) {
-    throw new RequestCommentApiError("Log in to post a comment.", 401);
+    throw new RequestCommentApiError(errorMessage, 401);
   }
 
   const { data, error } = await supabaseAdmin.auth.getUser(token);
 
   if (error || !data.user || data.user.is_anonymous) {
-    throw new RequestCommentApiError("Log in to post a comment.", 401);
+    throw new RequestCommentApiError(errorMessage, 401);
   }
 
   return data.user;

@@ -36,6 +36,7 @@ import {
   X,
 } from "lucide-react";
 import { hasSupabaseEnv, supabase } from "./lib/supabase";
+import { authenticatedRequestPages, canLoadRequestData } from "./lib/request-access.mjs";
 import { mergeRequestListings } from "./lib/request-listings.mjs";
 import {
   initializeGoogleAnalytics,
@@ -495,6 +496,7 @@ function hasUsefulRequestBrief(fields: RequestBriefFields) {
 }
 
 const protectedPages = new Set<Page>([
+  ...authenticatedRequestPages,
   "post-publish",
   "share-request",
   "poster-dashboard",
@@ -631,6 +633,8 @@ const authEmailStorageKey = "pleasefindmethis-auth-email";
 const postDraftStorageKey = "pleasefindmethis-post-draft";
 const postReferenceImagesStorageKey = "pleasefindmethis-post-reference-images";
 const publishedRequestStorageKey = "pleasefindmethis-published-request";
+const requestFeedRefreshStorageKey = "pleasefindmethis-request-feed-refresh";
+const requestFeedRefreshEvent = "pleasefindmethis:request-feed-refresh";
 const accountProfileStorageKey = "pleasefindmethis-account-profile";
 const requestReferenceImagesBucket = "request-reference-images";
 const maxPersistedReferenceImages = 4;
@@ -645,6 +649,11 @@ const heroHeadlineExamples = [
   "Anyone know where this is?",
 ];
 const heroHeadlineHoldMs = 6_000;
+
+function notifyRequestFeedChanged() {
+  window.localStorage.setItem(requestFeedRefreshStorageKey, String(Date.now()));
+  window.dispatchEvent(new Event(requestFeedRefreshEvent));
+}
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value);
@@ -837,6 +846,7 @@ function usePublicRequestListings(enabled = true, requestId = "") {
   const [error, setError] = useState("");
   const [requestNotFound, setRequestNotFound] = useState(false);
   const [resolvedRequestId, setResolvedRequestId] = useState("");
+  const [authenticationRequired, setAuthenticationRequired] = useState(false);
 
   useEffect(() => {
     if (!enabled) {
@@ -845,6 +855,7 @@ function usePublicRequestListings(enabled = true, requestId = "") {
       setError("");
       setRequestNotFound(false);
       setResolvedRequestId("");
+      setAuthenticationRequired(false);
       return undefined;
     }
 
@@ -855,8 +866,20 @@ function usePublicRequestListings(enabled = true, requestId = "") {
       setError("");
       setRequestNotFound(false);
       setResolvedRequestId("");
+      setAuthenticationRequired(false);
 
       try {
+        if (!supabase) {
+          throw new RequestAuthenticationRequiredError();
+        }
+
+        const { data: sessionData, error: sessionError } = await supabase.auth.getSession();
+        const accessToken = sessionData.session?.access_token;
+
+        if (sessionError || !accessToken || sessionData.session?.user.is_anonymous) {
+          throw new RequestAuthenticationRequiredError();
+        }
+
         const params = new URLSearchParams();
         if (isUuid(requestId)) {
           params.set("request_id", requestId);
@@ -865,12 +888,17 @@ function usePublicRequestListings(enabled = true, requestId = "") {
         const response = await fetch(endpoint, {
           headers: {
             Accept: "application/json",
+            Authorization: `Bearer ${accessToken}`,
           },
         });
         const payload = (await response.json()) as { requests?: PublicRequestCardRow[]; error?: string };
 
         if (!mounted) {
           return;
+        }
+
+        if (response.status === 401) {
+          throw new RequestAuthenticationRequiredError();
         }
 
         if (response.status === 404 && isUuid(requestId)) {
@@ -888,8 +916,18 @@ function usePublicRequestListings(enabled = true, requestId = "") {
         setListings(payload.requests.map(publicRequestRowToListing));
         setRequestNotFound(isUuid(requestId) && payload.requests.length === 0);
         setResolvedRequestId(isUuid(requestId) ? requestId : "");
-      } catch {
+      } catch (error) {
         if (!mounted) {
+          return;
+        }
+
+        if (error instanceof RequestAuthenticationRequiredError) {
+          setAuthenticationRequired(true);
+          setError("");
+          setListings([]);
+          setRequestNotFound(false);
+          setResolvedRequestId("");
+          setLoading(false);
           return;
         }
 
@@ -902,14 +940,34 @@ function usePublicRequestListings(enabled = true, requestId = "") {
       setLoading(false);
     };
 
-    loadRequests();
+    const refreshRequests = () => {
+      void loadRequests();
+    };
+    const refreshRequestsFromStorage = (event: StorageEvent) => {
+      if (event.key === requestFeedRefreshStorageKey) {
+        refreshRequests();
+      }
+    };
+
+    window.addEventListener(requestFeedRefreshEvent, refreshRequests);
+    window.addEventListener("storage", refreshRequestsFromStorage);
+    refreshRequests();
 
     return () => {
       mounted = false;
+      window.removeEventListener(requestFeedRefreshEvent, refreshRequests);
+      window.removeEventListener("storage", refreshRequestsFromStorage);
     };
   }, [enabled, requestId]);
 
-  return { listings, loading, error, requestNotFound, resolvedRequestId };
+  return { listings, loading, error, requestNotFound, resolvedRequestId, authenticationRequired };
+}
+
+class RequestAuthenticationRequiredError extends Error {
+  constructor() {
+    super("Log in to view requests.");
+    this.name = "RequestAuthenticationRequiredError";
+  }
 }
 
 function hashPublicHelperSeed(seed: string) {
@@ -1195,16 +1253,32 @@ function useRequestComments(request: RequestListing) {
       setError("");
 
       try {
+        if (!supabase) {
+          throw new CommentAuthenticationRequiredError();
+        }
+
+        const { data: sessionData, error: sessionError } = await supabase.auth.getSession();
+        const accessToken = sessionData.session?.access_token;
+
+        if (sessionError || !accessToken || sessionData.session?.user.is_anonymous) {
+          throw new CommentAuthenticationRequiredError();
+        }
+
         const params = new URLSearchParams({ resource: "comments", request_id: request.id });
         const response = await fetch(`/api/requests/public?${params.toString()}`, {
           headers: {
             Accept: "application/json",
+            Authorization: `Bearer ${accessToken}`,
           },
         });
         const payload = (await response.json()) as { comments?: PublicRequestCommentRow[]; error?: string };
 
         if (!mounted) {
           return;
+        }
+
+        if (response.status === 401) {
+          throw new CommentAuthenticationRequiredError();
         }
 
         if (!response.ok || !Array.isArray(payload.comments)) {
@@ -2768,7 +2842,8 @@ function getCategoryLabel(category: RequestCategory) {
 function App() {
   const [route, setRoute] = useState<Page>(() => getInitialRoute());
   const [menuOpen, setMenuOpen] = useState(false);
-  const [signedIn, setSignedIn] = useState(() => window.sessionStorage.getItem(signedInStorageKey) === "true");
+  const [signedIn, setSignedIn] = useState(() => !supabase && window.sessionStorage.getItem(signedInStorageKey) === "true");
+  const [authResolved, setAuthResolved] = useState(() => !supabase);
   const [pendingRoute, setPendingRoute] = useState<Page>(() => readStoredPendingRoute());
   const [authMode, setAuthMode] = useState<AuthMode>("signup");
   const [authBusyAction, setAuthBusyAction] = useState<AuthBusyAction>(null);
@@ -2779,14 +2854,19 @@ function App() {
   const [postReferenceImagePersistenceError, setPostReferenceImagePersistenceError] = useState("");
   const [publishedRequest, setPublishedRequest] = useState<PublishedRequestSnapshot | null>(() => readStoredPublishedRequest());
   const [activeRequestId, setActiveRequestId] = useState(() => getRequestIdFromCurrentRoute() || exampleRequestListings[0].id);
-  const visibleRoute = !signedIn && protectedPages.has(route) ? "auth" : route;
+  const requestDataAccessAllowed = canLoadRequestData(route, { authResolved, signedIn });
+  const visibleRoute = protectedPages.has(route) && (!authResolved || !signedIn) ? "auth" : route;
   const {
     listings: liveRequests,
     loading: publicRequestsLoading,
     error: publicRequestsError,
     requestNotFound: publicRequestNotFound,
     resolvedRequestId: resolvedPublicRequestId,
-  } = usePublicRequestListings(routeUsesPublicRequestFeed(visibleRoute), visibleRoute === "request-detail" ? activeRequestId : "");
+    authenticationRequired: publicRequestAuthenticationRequired,
+  } = usePublicRequestListings(
+    requestDataAccessAllowed && routeUsesPublicRequestFeed(visibleRoute),
+    visibleRoute === "request-detail" ? activeRequestId : "",
+  );
   const requestListings = useMemo(() => mergeRequestListings(liveRequests, exampleRequestListings), [liveRequests]);
   const requestListingsAreExamples = liveRequests.length === 0;
   const acquisitionStarter = getAcquisitionStarterFromUrl();
@@ -2794,6 +2874,19 @@ function App() {
   useEffect(() => {
     initializeGoogleAnalytics();
   }, []);
+
+  useEffect(() => {
+    if (!publicRequestAuthenticationRequired) {
+      return;
+    }
+
+    window.sessionStorage.removeItem(signedInStorageKey);
+    setSignedIn(false);
+    setAuthResolved(true);
+    if (supabase) {
+      void supabase.auth.signOut({ scope: "local" });
+    }
+  }, [publicRequestAuthenticationRequired]);
 
   useEffect(() => {
     const didPersist = writeStoredPostReferenceImageDrafts(postReferenceImageDrafts);
@@ -2966,6 +3059,7 @@ function App() {
     setEmailOtpSentTo("");
     setAuthMessage("");
     setSignedIn(true);
+    setAuthResolved(true);
     trackAcquisitionEvent("auth_completed", {
       provider,
       pending_route: pendingRoute,
@@ -3103,6 +3197,7 @@ function App() {
     window.sessionStorage.removeItem(pendingRequestNameStorageKey);
     setPendingRoute("post-describe");
     setAuthMode("login");
+    setAuthResolved(true);
 
     if (shouldReturnHome) {
       window.history.replaceState(null, "", routeHref("landing"));
@@ -3231,16 +3326,24 @@ function App() {
   };
 
   useEffect(() => {
-    if (!signedIn && protectedPages.has(route)) {
+    if (authResolved && !signedIn && protectedPages.has(route)) {
+      const intendedRequestId = route === "request-detail" ? getRequestIdFromCurrentRoute() || activeRequestId : "";
+
       setPendingRoute(route);
-      setAuthMode("signup");
+      setAuthMode("login");
       window.sessionStorage.setItem(pendingRouteStorageKey, route);
+      if (intendedRequestId) {
+        window.sessionStorage.setItem(pendingRequestIdStorageKey, intendedRequestId);
+      } else {
+        window.sessionStorage.removeItem(pendingRequestIdStorageKey);
+        window.sessionStorage.removeItem(pendingRequestNameStorageKey);
+      }
       if (window.location.pathname !== routeHref("auth")) {
         window.history.replaceState(null, "", routeHref("auth"));
       }
       setRoute("auth");
     }
-  }, [route, signedIn]);
+  }, [activeRequestId, authResolved, route, signedIn]);
 
   useEffect(() => {
     if (!supabase) {
@@ -3248,6 +3351,12 @@ function App() {
     }
 
     let mounted = true;
+    const clearSupabaseSession = () => {
+      window.sessionStorage.removeItem(signedInStorageKey);
+      window.sessionStorage.removeItem(authProviderStorageKey);
+      setSignedIn(false);
+      setAuthResolved(true);
+    };
     const finishSupabaseSession = (session: Session) => {
       const storedRoute = readStoredPendingRoute();
       const hadPendingAuthRoute = Boolean(window.sessionStorage.getItem(pendingRouteStorageKey));
@@ -3266,6 +3375,7 @@ function App() {
       setEmailOtpSentTo("");
       setAuthMessage("");
       setSignedIn(true);
+      setAuthResolved(true);
       setPendingRoute(storedRoute);
       if (hadPendingAuthRoute) {
         trackAcquisitionEvent("auth_completed", {
@@ -3279,17 +3389,29 @@ function App() {
       }
     };
 
-    supabase.auth.getSession().then(({ data }) => {
-      if (!mounted || !data.session) {
+    supabase.auth.getSession().then(({ data, error }) => {
+      if (!mounted) {
+        return;
+      }
+      if (error || !data.session || data.session.user.is_anonymous) {
+        clearSupabaseSession();
         return;
       }
       finishSupabaseSession(data.session);
+    }).catch(() => {
+      if (mounted) {
+        clearSupabaseSession();
+      }
     });
 
     const {
       data: { subscription },
     } = supabase.auth.onAuthStateChange((_event, session) => {
-      if (!mounted || !session) {
+      if (!mounted) {
+        return;
+      }
+      if (!session || session.user.is_anonymous) {
+        clearSupabaseSession();
         return;
       }
       finishSupabaseSession(session);
@@ -3317,7 +3439,7 @@ function App() {
       {visibleRoute === "landing" ? (
         <LandingPage
           menuOpen={menuOpen}
-          requests={exampleRequestListings}
+          requests={requestListings}
           onBrowse={() => navigate("browse")}
           onBrowseAll={() => navigate("browse-all")}
           onLogin={() => {
@@ -3331,7 +3453,7 @@ function App() {
           onPost={(location) => startPostRequest(location)}
           acquisitionStarterPrompt={acquisitionStarter?.prompt ?? null}
           setMenuOpen={setMenuOpen}
-          showingExamples
+          showingExamples={requestListingsAreExamples}
           signedIn={signedIn}
         />
       ) : (
@@ -3350,7 +3472,6 @@ function App() {
               }}
               onGoogleAuth={signInWithGoogle}
               onModeChange={changeAuthMode}
-              onPublicBrowse={() => navigate("browse")}
             />
           ) : null}
           {visibleRoute === "post-describe" ? (
@@ -3869,7 +3990,6 @@ function AuthPage({
   onEmailAuthReset,
   onGoogleAuth,
   onModeChange,
-  onPublicBrowse,
 }: {
   authBusyAction: AuthBusyAction;
   authMessage: string;
@@ -3880,7 +4000,6 @@ function AuthPage({
   onEmailAuthReset: () => void;
   onGoogleAuth: () => void;
   onModeChange: (mode: AuthMode) => void;
-  onPublicBrowse: () => void;
 }) {
   const [email, setEmail] = useState("");
   const [verificationCode, setVerificationCode] = useState("");
@@ -3991,9 +4110,7 @@ function AuthPage({
               </button>
             </div>
           ) : null}
-          <a className="section-link section-button center-link" href={routeHref("browse")} onClick={(event) => handleRoutedAnchorClick(event, onPublicBrowse)}>
-            Browse public requests instead <ArrowRight size={17} />
-          </a>
+          <p className="dialog-note">Sign in is required to view requests and anonymous clues.</p>
         </div>
       </section>
     </main>
@@ -4241,6 +4358,8 @@ function PostPublishPage({
         }
         throw insertError;
       }
+
+      notifyRequestFeedChanged();
 
       trackAcquisitionEvent("request_published", {
         category: categoryName,
@@ -4546,7 +4665,6 @@ function BrowsePage({
   showingExamples: boolean;
 }) {
   const openRequests = useMemo(() => [...requests].sort((left, right) => new Date(right.createdAt ?? 0).getTime() - new Date(left.createdAt ?? 0).getTime()), [requests]);
-  const featured = openRequests.slice(0, 4);
 
   return (
     <main className="route-page request-gallery-page" aria-labelledby="browse-title">
@@ -4565,8 +4683,8 @@ function BrowsePage({
         </div>
       </section>
 
-      <section className="top-request-grid" aria-label="Featured requests">
-        {featured.map((request, index) => (
+      <section className="top-request-grid" aria-label="Open requests">
+        {openRequests.map((request, index) => (
           <RequestSquareCard request={request} featured={index === 0} key={request.id} onDetail={onDetail} rank={index + 1} />
         ))}
       </section>
@@ -4915,7 +5033,7 @@ function RequestDetailPage({
         <div className="request-comments-head">
           <div>
             <h2 id="request-comments-title">Comments &amp; clues</h2>
-            <p>Public suggestions from signed-in helpers.</p>
+            <p>Public suggestions from anonymous helpers.</p>
             {isExample ? <span className="example-thread-note">Example only — identities are illustrative and posts aren’t published.</span> : null}
           </div>
           <button className="section-link section-button comment-share-button" type="button" onClick={() => void handleShareRequest()}>
@@ -4960,7 +5078,7 @@ function RequestDetailPage({
             <div className={`comment-composer-card ${commentBody || commentLink || commentStatus !== "idle" ? "has-draft" : ""}`}>
               <CommentAvatar alias={commentVisitor.alias} eager />
               <form className="comment-composer" onSubmit={handleCommentSubmit}>
-                <div className="comment-identity-row"><strong>{commentVisitor.alias}</strong><span>your public helper name</span></div>
+                <div className="comment-identity-row"><strong>{commentVisitor.alias}</strong><span>your anonymous helper name</span></div>
                 <label className="comment-textarea-label" htmlFor="request-comment-body">
                   Your clue
                   <textarea
@@ -4996,7 +5114,7 @@ function RequestDetailPage({
               <LockKeyhole size={21} aria-hidden="true" />
               <div>
                 <strong>Log in to join this search.</strong>
-                <span>Your helper name stays public, while login helps prevent spam.</span>
+                <span>Your anonymous helper name stays public, while your account identity remains private.</span>
               </div>
               <button className="primary-button" type="button" onClick={onRequireAuth}>Log in to comment</button>
             </div>
@@ -5082,10 +5200,11 @@ function PosterDashboardPage({
       setDashboardError("");
 
       try {
-        await getCurrentSupabaseUser();
+        const user = await getCurrentSupabaseUser();
         const { data, error } = await client
           .from("requests")
           .select("id,user_id,item_name,category,details,duration_days,status,reference_images,created_at")
+          .eq("user_id", user.id)
           .order("created_at", { ascending: false });
 
         if (error) {
@@ -5162,6 +5281,7 @@ function PosterDashboardPage({
       }
 
       setRequests((current) => current.filter((item) => item.id !== request.id));
+      notifyRequestFeedChanged();
       if (readStoredPublishedRequest()?.requestId === request.id) {
         window.sessionStorage.removeItem(publishedRequestStorageKey);
       }

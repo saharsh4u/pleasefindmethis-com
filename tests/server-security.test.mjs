@@ -102,6 +102,48 @@ test("public request lookup rejects an explicitly empty request id", async () =>
   });
 });
 
+test("request feeds and comment threads reject signed-out access before reading request data", async () => {
+  const originalFetch = globalThis.fetch;
+  const requestId = "11111111-1111-4111-8111-111111111111";
+  let fetchCount = 0;
+
+  globalThis.fetch = async () => {
+    fetchCount += 1;
+    throw new Error("Signed-out request access must fail before Supabase is called.");
+  };
+
+  try {
+    const { handleRequest } = await loadServer({
+      PUBLIC_APP_URL: "https://pleasefindmethis.com",
+      SUPABASE_SERVICE_ROLE_KEY: "service-role-key",
+      SUPABASE_URL: "https://example.supabase.co",
+    });
+
+    for (const url of [
+      "/api/requests/public",
+      `/api/requests/public?request_id=${requestId}`,
+      `/api/requests/public?resource=comments&request_id=${requestId}`,
+    ]) {
+      const req = fakeRequest({ host: "pleasefindmethis.com" });
+      const res = fakeResponse();
+
+      req.method = "GET";
+      req.url = url;
+
+      await handleRequest(req, res);
+
+      assert.equal(res.statusCode, 401, url);
+      assert.deepEqual(JSON.parse(res.body), {
+        error: "Log in to view requests.",
+      });
+    }
+
+    assert.equal(fetchCount, 0);
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
+});
+
 test("public request lookup returns only the requested public card", async () => {
   const originalFetch = globalThis.fetch;
   const requestId = "11111111-1111-4111-8111-111111111111";
@@ -121,7 +163,13 @@ test("public request lookup returns only the requested public card", async () =>
   const calls = [];
 
   globalThis.fetch = async (url, options = {}) => {
-    calls.push({ url: String(url), options });
+    const requestUrl = new URL(String(url));
+    calls.push({ url: requestUrl, options });
+
+    if (requestUrl.pathname.endsWith("/auth/v1/user")) {
+      return authenticatedUserResponse();
+    }
+
     return new Response(JSON.stringify([matchingCard]), {
       status: 200,
       headers: { "Content-Type": "application/json" },
@@ -134,7 +182,7 @@ test("public request lookup returns only the requested public card", async () =>
       SUPABASE_SERVICE_ROLE_KEY: "service-role-key",
       SUPABASE_URL: "https://example.supabase.co",
     });
-    const req = fakeRequest({ host: "pleasefindmethis.com" });
+    const req = fakeRequest(authenticatedHeaders());
     const res = fakeResponse();
 
     req.method = "GET";
@@ -144,8 +192,9 @@ test("public request lookup returns only the requested public card", async () =>
 
     assert.equal(res.statusCode, 200);
     assert.deepEqual(JSON.parse(res.body), { requests: [matchingCard] });
-    assert.equal(calls.length, 1);
-    const requestUrl = new URL(calls[0].url);
+    assert.equal(calls.length, 2);
+    assert.equal(calls[0].url.pathname, "/auth/v1/user");
+    const requestUrl = calls[1].url;
     assert.equal(requestUrl.searchParams.get("id"), `eq.${requestId}`);
     assert.doesNotMatch(
       requestUrl.searchParams.get("select") ?? "",
@@ -157,41 +206,14 @@ test("public request lookup returns only the requested public card", async () =>
   }
 });
 
-test("shared request documents contain request-specific social metadata", async () => {
+test("signed-out shared request documents contain no request-specific data", async () => {
   const originalFetch = globalThis.fetch;
   const requestId = "11111111-1111-4111-8111-111111111111";
-  const sourceIndex = await readFile(new URL("../index.html", import.meta.url), "utf8");
+  let fetchCount = 0;
 
-  globalThis.fetch = async (url) => {
-    const requestUrl = new URL(String(url));
-
-    if (requestUrl.pathname.endsWith("/public_request_cards")) {
-      return new Response(JSON.stringify([{
-        id: requestId,
-        item_name: "Help me find this rose blanket",
-        category: "Home goods",
-        details: "Pink rose print & fringed edges. The exact pattern matters.",
-        duration_days: 14,
-        status: "open",
-        created_at: new Date().toISOString(),
-        closes_at: "2026-07-23T01:00:00.000Z",
-        days_remaining: 14,
-        primary_image_url: "https://cdn.example/rose-blanket.jpg",
-        submission_count: 2,
-      }]), {
-        status: 200,
-        headers: { "Content-Type": "application/json" },
-      });
-    }
-
-    if (requestUrl.hostname === "pleasefindmethis.com" && requestUrl.pathname === "/index.html") {
-      return new Response(sourceIndex, {
-        status: 200,
-        headers: { "Content-Type": "text/html" },
-      });
-    }
-
-    throw new Error(`Unexpected request document fetch: ${requestUrl}`);
+  globalThis.fetch = async () => {
+    fetchCount += 1;
+    throw new Error("A signed-out request document must not read request data.");
   };
 
   try {
@@ -209,14 +231,10 @@ test("shared request documents contain request-specific social metadata", async 
 
     assert.equal(res.statusCode, 200);
     assert.equal(res.headers["Content-Type"], "text/html; charset=utf-8");
-    assert.match(res.headers["Cache-Control"], /s-maxage=60/);
-    assert.match(res.body, /<title>Help me find this rose blanket \| pleasefindmethis<\/title>/);
-    assert.match(res.body, /property="og:title" content="Help me find this rose blanket \| pleasefindmethis"/);
-    assert.match(res.body, /property="og:description" content="[^"]*Pink rose print &amp; fringed edges/);
-    assert.match(res.body, /property="og:image" content="https:\/\/cdn\.example\/rose-blanket\.jpg"/);
-    assert.match(res.body, new RegExp(`property="og:url" content="https://pleasefindmethis\\.com/requests/${requestId}/help-me-find-this-rose-blanket"`));
-    assert.match(res.body, new RegExp(`rel="canonical" href="https://pleasefindmethis\\.com/requests/${requestId}/help-me-find-this-rose-blanket"`));
-    assert.doesNotMatch(res.body, /<title>Someone out there knows where it is \| pleasefindmethis<\/title>/);
+    assert.equal(res.headers["Cache-Control"], "private, no-store");
+    assert.equal(res.headers["X-Robots-Tag"], "noindex, nofollow");
+    assert.doesNotMatch(res.body, /Help me find this rose blanket|Pink rose print|rose-blanket\.jpg/);
+    assert.equal(fetchCount, 0);
   } finally {
     globalThis.fetch = originalFetch;
   }
@@ -288,7 +306,7 @@ test("public requests endpoint serves comments through its resource query", asyn
       SUPABASE_SERVICE_ROLE_KEY: "service-role-key",
       SUPABASE_URL: "https://example.supabase.co",
     });
-    const req = fakeRequest({ host: "pleasefindmethis.com" });
+    const req = fakeRequest(authenticatedHeaders());
     const res = fakeResponse();
 
     req.method = "GET";
@@ -299,6 +317,7 @@ test("public requests endpoint serves comments through its resource query", asyn
     assert.equal(res.statusCode, 200);
     assert.deepEqual(JSON.parse(res.body), { comments: [comment] });
     assert.deepEqual(calls.map(({ url }) => url.pathname), [
+      "/auth/v1/user",
       "/rest/v1/requests",
       "/rest/v1/request_comments",
     ]);
@@ -315,6 +334,10 @@ test("expired requests are not exposed as commentable", async () => {
   globalThis.fetch = async (url) => {
     const requestUrl = new URL(String(url));
     calls.push(requestUrl.pathname);
+
+    if (requestUrl.pathname.endsWith("/auth/v1/user")) {
+      return authenticatedUserResponse();
+    }
 
     if (requestUrl.pathname.endsWith("/requests")) {
       return new Response(JSON.stringify({
@@ -337,7 +360,7 @@ test("expired requests are not exposed as commentable", async () => {
       SUPABASE_SERVICE_ROLE_KEY: "service-role-key",
       SUPABASE_URL: "https://example.supabase.co",
     });
-    const req = fakeRequest({ host: "pleasefindmethis.com" });
+    const req = fakeRequest(authenticatedHeaders());
     const res = fakeResponse();
 
     req.method = "GET";
@@ -346,7 +369,7 @@ test("expired requests are not exposed as commentable", async () => {
     await handleRequest(req, res);
 
     assert.equal(res.statusCode, 404);
-    assert.deepEqual(calls, ["/rest/v1/requests"]);
+    assert.deepEqual(calls, ["/auth/v1/user", "/rest/v1/requests"]);
   } finally {
     globalThis.fetch = originalFetch;
   }
@@ -465,6 +488,7 @@ test("public comment posts use one server-fingerprinted RPC without sending raw 
 
     assert.equal(res.statusCode, 201);
     assert.equal(JSON.parse(res.body).comment.body, "A useful lead");
+    assert.doesNotMatch(res.body, /helper@example\.com|aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa/);
 
     const rpcCalls = calls.filter(({ url }) => url.pathname.endsWith("/rpc/create_public_request_comment"));
     assert.equal(rpcCalls.length, 1);
@@ -872,6 +896,25 @@ function fakeRequest(headers, body = "") {
       }
     },
   };
+}
+
+function authenticatedHeaders(headers = {}) {
+  return {
+    authorization: "Bearer valid-request-token",
+    host: "pleasefindmethis.com",
+    ...headers,
+  };
+}
+
+function authenticatedUserResponse() {
+  return new Response(JSON.stringify({
+    id: "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa",
+    email: "helper@example.com",
+    is_anonymous: false,
+  }), {
+    status: 200,
+    headers: { "Content-Type": "application/json" },
+  });
 }
 
 function fakeResponse() {

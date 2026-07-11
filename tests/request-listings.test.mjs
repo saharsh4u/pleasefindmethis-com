@@ -1,7 +1,23 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 
+import { authenticatedRequestPages, canLoadRequestData } from "../src/lib/request-access.mjs";
 import { mergeRequestListings } from "../src/lib/request-listings.mjs";
+
+test("every route that renders posted request data requires a resolved authenticated session", () => {
+  assert.deepEqual(authenticatedRequestPages, [
+    "landing",
+    "browse",
+    "browse-all",
+    "request-detail",
+  ]);
+
+  for (const page of authenticatedRequestPages) {
+    assert.equal(canLoadRequestData(page, { authResolved: false, signedIn: false }), false);
+    assert.equal(canLoadRequestData(page, { authResolved: true, signedIn: false }), false);
+    assert.equal(canLoadRequestData(page, { authResolved: true, signedIn: true }), true);
+  }
+});
 
 test("live requests are added ahead of homepage defaults without replacing them", () => {
   const live = [
