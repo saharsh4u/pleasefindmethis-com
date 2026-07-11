@@ -61,6 +61,12 @@ type Page =
   | "account-settings"
   | "not-found";
 
+type RequestListPage = Extract<Page, "browse" | "browse-all">;
+type AppHistoryState = {
+  scrollY?: number;
+  requestListReturnRoute?: RequestListPage;
+};
+
 type AuthMode = "signup" | "login";
 type AuthBusyAction = "email" | "google" | null;
 
@@ -2579,6 +2585,30 @@ function getInitialRoute(): Page {
   return parseRoute();
 }
 
+function getAppHistoryState(): AppHistoryState {
+  const state = window.history.state;
+  return state && typeof state === "object" ? (state as AppHistoryState) : {};
+}
+
+function saveCurrentHistoryScrollPosition() {
+  window.history.replaceState(
+    { ...getAppHistoryState(), scrollY: Math.max(0, Math.round(window.scrollY)) },
+    "",
+    window.location.href,
+  );
+}
+
+function restoreCurrentHistoryScrollPosition() {
+  const savedScrollY = getAppHistoryState().scrollY;
+  const scrollY = typeof savedScrollY === "number" && Number.isFinite(savedScrollY) ? Math.max(0, savedScrollY) : 0;
+
+  window.requestAnimationFrame(() => {
+    window.requestAnimationFrame(() => {
+      window.scrollTo({ top: scrollY, behavior: "auto" });
+    });
+  });
+}
+
 function getSeoMeta(page: Page, activeRequest?: RequestListing): SeoMeta {
   if (page === "request-detail" && activeRequest) {
     const description = `${activeRequest.description} ${activeRequest.category} request, ${activeRequest.closes} left. Visitors can add public links and clues.`;
@@ -2898,6 +2928,9 @@ function App() {
   }, [postReferenceImageDrafts]);
 
   useEffect(() => {
+    const previousScrollRestoration = window.history.scrollRestoration;
+    window.history.scrollRestoration = "manual";
+
     const syncRoute = () => {
       const routeRequestId = getRequestIdFromCurrentRoute();
       if (routeRequestId) {
@@ -2905,16 +2938,42 @@ function App() {
       }
       setRoute(parseRoute());
       setMenuOpen(false);
-      window.scrollTo({ top: 0, behavior: "smooth" });
+      restoreCurrentHistoryScrollPosition();
     };
 
     window.addEventListener("popstate", syncRoute);
     window.addEventListener("hashchange", syncRoute);
     return () => {
+      window.history.scrollRestoration = previousScrollRestoration;
       window.removeEventListener("popstate", syncRoute);
       window.removeEventListener("hashchange", syncRoute);
     };
   }, []);
+
+  useEffect(() => {
+    if (visibleRoute !== "browse" && visibleRoute !== "browse-all") {
+      return;
+    }
+
+    restoreCurrentHistoryScrollPosition();
+    let scrollFrame = 0;
+    const handleScroll = () => {
+      if (scrollFrame) {
+        return;
+      }
+
+      scrollFrame = window.requestAnimationFrame(() => {
+        saveCurrentHistoryScrollPosition();
+        scrollFrame = 0;
+      });
+    };
+
+    window.addEventListener("scroll", handleScroll, { passive: true });
+    return () => {
+      window.cancelAnimationFrame(scrollFrame);
+      window.removeEventListener("scroll", handleScroll);
+    };
+  }, [requestListings.length, visibleRoute]);
 
   const requestedDetailRequest = useMemo(() => {
     if (visibleRoute !== "request-detail") {
@@ -3004,19 +3063,26 @@ function App() {
     });
   }, []);
 
-  const navigate = (page: Page, routeRequestId = activeRequestId, routeRequestName = "") => {
+  const navigate = (
+    page: Page,
+    routeRequestId = activeRequestId,
+    routeRequestName = "",
+    nextHistoryState: AppHistoryState = {},
+  ) => {
     const targetPath = routeHref(page, routeRequestId, routeRequestName);
 
     setMenuOpen(false);
+    saveCurrentHistoryScrollPosition();
     if (window.location.pathname === targetPath && !window.location.search && !window.location.hash) {
+      window.history.replaceState({ ...getAppHistoryState(), ...nextHistoryState, scrollY: 0 }, "", window.location.href);
       setRoute(page);
-      window.scrollTo({ top: 0, behavior: "smooth" });
+      window.scrollTo({ top: 0, behavior: "auto" });
       return;
     }
 
-    window.history.pushState(null, "", targetPath);
+    window.history.pushState({ scrollY: 0, ...nextHistoryState }, "", targetPath);
     setRoute(page);
-    window.scrollTo({ top: 0, behavior: "smooth" });
+    window.scrollTo({ top: 0, behavior: "auto" });
   };
 
   const requireAuth = (target: Page, mode: AuthMode = "signup") => {
@@ -3041,8 +3107,24 @@ function App() {
 
   const goToDetail = (requestId: string) => {
     const targetRequest = requestListings.find((request) => request.id === requestId);
+    const requestListReturnRoute: RequestListPage | undefined =
+      visibleRoute === "browse" || visibleRoute === "browse-all" ? visibleRoute : undefined;
     setActiveRequestId(requestId);
-    navigate("request-detail", requestId, targetRequest?.name ?? "");
+    navigate(
+      "request-detail",
+      requestId,
+      targetRequest?.name ?? "",
+      requestListReturnRoute ? { requestListReturnRoute } : {},
+    );
+  };
+
+  const returnToRequestList = () => {
+    if (getAppHistoryState().requestListReturnRoute) {
+      window.history.back();
+      return;
+    }
+
+    navigate("browse-all");
   };
 
   const markSignedIn = (provider = "email", email?: string) => {
@@ -3530,16 +3612,16 @@ function App() {
           ) : null}
           {visibleRoute === "request-detail" ? (
             exactRequestLoading ? (
-              <RequestDetailStatusPage status="loading" onBrowse={() => navigate("browse")} />
+              <RequestDetailStatusPage status="loading" onBrowse={returnToRequestList} />
             ) : exactRequestUnavailable ? (
-              <RequestDetailStatusPage status="unavailable" onBrowse={() => navigate("browse")} />
+              <RequestDetailStatusPage status="unavailable" onBrowse={returnToRequestList} />
             ) : requestedRequestMissing ? (
-              <NotFoundPage onBrowse={() => navigate("browse")} onHome={() => navigate("landing")} />
+              <NotFoundPage onBrowse={returnToRequestList} onHome={() => navigate("landing")} />
             ) : (
               <RequestDetailPage
                 signedIn={signedIn}
                 request={activeRequest}
-                onBrowse={() => navigate("browse")}
+                onBrowse={returnToRequestList}
                 onRequireAuth={() => requireCommentAuth(activeRequest)}
                 onStartSearch={() => startPostRequest("shared_request_cta")}
               />
@@ -4769,7 +4851,7 @@ function BrowseAllPage({
           ))}
         </div>
       </section>
-      <section className="request-square-grid full-gallery-grid" aria-label="All request results">
+      <section className="request-square-grid full-gallery-grid request-list-grid" aria-label="All request results">
         {hasVisibleRequests ? (
           visibleRequests.map((request) => (
             <RequestSquareCard request={request} key={request.id} onDetail={onDetail} variant="request" />

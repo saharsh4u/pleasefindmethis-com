@@ -9691,6 +9691,11 @@ small {
     gap: 0.78rem;
   }
 
+  .browse-all-page .request-list-grid,
+  .app-page .browse-all-page .request-list-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
   .browse-all-page .request-card .square-card-hit,
 .app-page .browse-all-page .request-card .square-card-hit {
     grid-template-rows: auto auto minmax(2.7rem, 1fr);
