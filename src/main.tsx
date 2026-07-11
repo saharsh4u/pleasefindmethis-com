@@ -11,7 +11,6 @@ import {
   Camera,
   CheckCircle2,
   Clock3,
-  Copy,
   ExternalLink,
   FileText,
   Filter,
@@ -21,7 +20,6 @@ import {
   LockKeyhole,
   LogOut,
   Menu,
-  MessageCircle,
   MessageSquare,
   PackageCheck,
   Search,
@@ -3630,6 +3628,9 @@ function App() {
           {visibleRoute === "poster-dashboard" ? (
             <PosterDashboardPage
               onOpenRequest={goToDetail}
+              onRequestDeleted={(requestId) => {
+                setPublishedRequest((current) => current?.requestId === requestId ? null : current);
+              }}
               onShareRequest={(request) => {
                 const snapshot = requestRowToPublishedSnapshot(request);
                 setPublishedRequest(snapshot);
@@ -3938,16 +3939,6 @@ function LandingPage({
                 <article className="mobile-find-ticker-card" key={`mobile-rail-top-${request.id}-${index}`}>
                   <img src={request.image} alt="" />
                   <span><strong>{request.name}</strong><small>{showingExamples ? "Example request" : request.location}</small></span>
-                </article>
-              ))}
-            </div>
-          </aside>
-          <aside className="mobile-find-ticker mobile-find-ticker-bottom" aria-hidden="true">
-            <div className="mobile-find-ticker-track mobile-find-ticker-track-right">
-              {tickerRequests.map((request, index) => (
-                <article className="mobile-find-ticker-card" key={`mobile-rail-bottom-${request.id}-${index}`}>
-                  <img src={request.image} alt="" />
-                  <span><strong>{request.name}</strong><small>{showingExamples ? "Example request" : `${request.submissions} clues`}</small></span>
                 </article>
               ))}
             </div>
@@ -4581,26 +4572,6 @@ function PostPublishPage({
   );
 }
 
-function RedditMark() {
-  return (
-    <svg viewBox="0 0 24 24" aria-hidden="true">
-      <circle cx="12" cy="13" r="7" fill="none" stroke="currentColor" strokeWidth="1.8" />
-      <circle cx="9.2" cy="12.4" r="1" fill="currentColor" />
-      <circle cx="14.8" cy="12.4" r="1" fill="currentColor" />
-      <path d="M8.8 15.4c1.8 1.2 4.6 1.2 6.4 0M15.3 7.3l1.1-4 3.1.8" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
-      <circle cx="20" cy="5" r="1.4" fill="none" stroke="currentColor" strokeWidth="1.6" />
-    </svg>
-  );
-}
-
-function XChannelMark() {
-  return (
-    <svg viewBox="0 0 24 24" aria-hidden="true">
-      <path d="M5 4.5h3.8L19 19.5h-3.8L5 4.5Zm.3 15L18.7 4.5" fill="none" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round" />
-    </svg>
-  );
-}
-
 function ShareRequestPage({
   onDashboard,
   onOpenRequest,
@@ -4610,16 +4581,6 @@ function ShareRequestPage({
   onOpenRequest: (request: PublishedRequestSnapshot) => void;
   publishedRequest: PublishedRequestSnapshot | null;
 }) {
-  const shareStorageKey = publishedRequest ? `pleasefindmethis-share-count-${publishedRequest.requestId}` : "";
-  const [shareCount, setShareCount] = useState(() => {
-    if (!shareStorageKey) {
-      return 0;
-    }
-    return Math.max(0, Number(window.sessionStorage.getItem(shareStorageKey)) || 0);
-  });
-  const [copied, setCopied] = useState(false);
-  const [shareMessage, setShareMessage] = useState("");
-
   useEffect(() => {
     if (!publishedRequest) {
       return;
@@ -4641,135 +4602,25 @@ function ShareRequestPage({
     );
   }
 
-  const requestPath = getRequestPath(publishedRequest.requestId, publishedRequest.itemName);
-  const requestUrl = new URL(requestPath, window.location.origin);
-  requestUrl.searchParams.set("utm_source", "product_share");
-  requestUrl.searchParams.set("utm_medium", "referral");
-  requestUrl.searchParams.set("utm_campaign", "request_help");
-  const trackedRequestUrl = requestUrl.toString();
-  const publicRequestUrl = new URL(requestPath, window.location.origin).toString();
-  const message = `I’ve searched everywhere for ${getShareSubject(publishedRequest.itemName)}. Do you recognize it? Log in to leave a clue.`;
-  const encodedMessage = encodeURIComponent(message);
-  const getChannelShareUrl = (channel: string) => {
-    const channelUrl = new URL(trackedRequestUrl);
-    channelUrl.searchParams.set("share_channel", channel);
-    return channelUrl.toString();
-  };
-  const whatsappShareUrl = encodeURIComponent(getChannelShareUrl("whatsapp"));
-  const redditShareUrl = encodeURIComponent(getChannelShareUrl("reddit"));
-  const xShareUrl = encodeURIComponent(getChannelShareUrl("x"));
-  const description = getRequestDescription(publishedRequest.itemName, publishedRequest.details);
-  const progress = Math.min(shareCount, 3);
-
-  const recordShare = (channel: string) => {
-    setShareCount((current) => {
-      const next = current + 1;
-      if (shareStorageKey) {
-        window.sessionStorage.setItem(shareStorageKey, String(next));
-      }
-      return next;
-    });
-    trackAcquisitionEvent("request_share_started", {
-      request_id: publishedRequest.requestId,
-      category: publishedRequest.category,
-      share_channel: channel,
-    });
-  };
-
-  const copyShareLink = async () => {
-    try {
-      await copyTextToClipboard(getChannelShareUrl("copy_link"));
-      recordShare("copy_link");
-      setCopied(true);
-      setShareMessage("Link copied. Send it to someone with a sharp memory.");
-      window.setTimeout(() => setCopied(false), 2000);
-    } catch {
-      setShareMessage("Could not copy the link. Open the live request and copy it from your browser.");
-    }
-  };
-
-  const nativeShare = async () => {
-    if (typeof navigator.share !== "function") {
-      await copyShareLink();
-      return;
-    }
-
-    try {
-      await navigator.share({ title: publishedRequest.itemName, text: message, url: getChannelShareUrl("native_share") });
-      recordShare("native_share");
-      setShareMessage("Shared. The right person may be one forward away.");
-    } catch (error) {
-      if (error instanceof Error && error.name === "AbortError") {
-        return;
-      }
-      setShareMessage("Sharing did not open. Copy the link instead.");
-    }
-  };
+  const requestDescription = getRequestBriefFields(publishedRequest.details).story || publishedRequest.itemName;
 
   return (
     <main className="route-page share-page" aria-labelledby="share-page-title">
       <header className="share-page-intro">
-        <h1 id="share-page-title">Your search is live. Give it a head start.</h1>
-        <p>The fastest finds start with one person saying, “wait—I know that.”</p>
+        <h1 id="share-page-title">Your search is live.</h1>
       </header>
 
-      <section className="share-page-grid">
-        <article className="share-preview-card">
+      <section className="share-page-grid share-page-grid-minimal">
+        <article className="share-preview-card share-preview-card-minimal">
           <div className="share-preview-body">
             <img src={publishedRequest.image} alt={`${publishedRequest.itemName} reference`} />
             <div>
-              <h2>{publishedRequest.itemName}</h2>
-              <span>{description}</span>
-              <p>{message}</p>
+              <p>{requestDescription}</p>
             </div>
-            <span className="hunt-corner-tab" aria-hidden="true" />
           </div>
-          <div className="share-preview-link">
-            <LinkIcon size={18} />
-            <span>{publicRequestUrl.replace(/^https?:\/\//, "")}</span>
-            <button type="button" onClick={() => onOpenRequest(publishedRequest)}>Open request <ExternalLink size={15} /></button>
-          </div>
+          <button className="share-view-button" type="button" onClick={() => onOpenRequest(publishedRequest)}>✅ Check Live Request</button>
         </article>
-
-        <aside className="share-actions-panel" aria-label="Share options">
-          <h2>Put it in front of the right person.</h2>
-          <button className="share-native-button" type="button" onClick={() => void nativeShare()}>
-            <Share2 size={21} /> Share this search
-          </button>
-          <div className="share-channel-grid">
-            <a href={`https://wa.me/?text=${encodedMessage}%20${whatsappShareUrl}`} target="_blank" rel="noreferrer" onClick={() => recordShare("whatsapp")}>
-              <MessageCircle size={20} /> WhatsApp
-            </a>
-            <a href={`https://www.reddit.com/submit?url=${redditShareUrl}&title=${encodedMessage}`} target="_blank" rel="noreferrer" onClick={() => recordShare("reddit")}>
-              <RedditMark /> Reddit
-            </a>
-            <a href={`https://twitter.com/intent/tweet?text=${encodedMessage}&url=${xShareUrl}`} target="_blank" rel="noreferrer" onClick={() => recordShare("x")}>
-              <XChannelMark /> X
-            </a>
-          </div>
-          <button className={copied ? "share-copy-button is-copied" : "share-copy-button"} type="button" onClick={() => void copyShareLink()}>
-            {copied ? <CheckCircle2 size={20} /> : <Copy size={20} />} {copied ? "Link copied" : "Copy link"}
-          </button>
-          <p>Every share opens the same public clue page.</p>
-          {shareMessage ? <span className="share-action-message" role="status">{shareMessage}</span> : null}
-        </aside>
       </section>
-
-      <section className="share-progress" aria-label="Search launch progress">
-        <div className="is-complete"><span><CheckCircle2 size={19} /></span><p><strong>1&nbsp; Posted</strong><small>Your search is live and public.</small></p></div>
-        <div className="is-current"><span>2</span><p><strong>Share with 3 people</strong><small>{progress} of 3</small></p></div>
-        <div><span>3</span><p><strong>Watch clues arrive</strong><small>Hear from people who recognize it.</small></p></div>
-        <div className="share-progress-meter" role="progressbar" aria-valuemin={0} aria-valuemax={3} aria-valuenow={progress}>
-          <span style={{ width: `${(progress / 3) * 100}%` }} />
-        </div>
-        <p className="share-progress-note">This progress only counts share actions from this page.</p>
-      </section>
-
-      <footer className="share-page-footer">
-        <button className="share-view-button" type="button" onClick={() => onOpenRequest(publishedRequest)}>View live request</button>
-        <button className="hunt-save-button" type="button" onClick={onDashboard}>Go to dashboard</button>
-        <strong>The right person may be one forward away.</strong>
-      </footer>
     </main>
   );
 }
@@ -4836,21 +4687,17 @@ function BrowseAllPage({
   showingExamples: boolean;
 }) {
   const [filter, setFilter] = useState("All");
-  const [query, setQuery] = useState("");
   const [visibleCount, setVisibleCount] = useState(16);
   const categories = useMemo(() => ["All", ...Array.from(new Set(requests.map((request) => request.category))).sort()], [requests]);
-  const filteredRequests = useMemo(() => {
-    const normalizedQuery = query.trim().toLowerCase();
-    return [...requests].sort((left, right) => new Date(right.createdAt ?? 0).getTime() - new Date(left.createdAt ?? 0).getTime()).filter((request) => {
-      const matchesCategory = filter === "All" || request.category === filter;
-      const searchable = `${request.name} ${request.detail} ${request.category} ${request.location}`.toLowerCase();
-      return matchesCategory && (!normalizedQuery || searchable.includes(normalizedQuery));
-    });
-  }, [requests, filter, query]);
+  const filteredRequests = useMemo(() => (
+    [...requests]
+      .sort((left, right) => new Date(right.createdAt ?? 0).getTime() - new Date(left.createdAt ?? 0).getTime())
+      .filter((request) => filter === "All" || request.category === filter)
+  ), [requests, filter]);
 
   useEffect(() => {
     setVisibleCount(16);
-  }, [requests.length, filter, query]);
+  }, [requests.length, filter]);
 
   useEffect(() => {
     const loadNearBottom = () => {
@@ -4868,14 +4715,14 @@ function BrowseAllPage({
   const visibleRequests = filteredRequests.slice(0, visibleCount);
   const atEnd = visibleCount >= filteredRequests.length;
   const hasVisibleRequests = visibleRequests.length > 0;
-  const emptyStateSubject = query.trim() ? `"${query.trim()}"` : filter === "All" ? "the current board" : filter;
+  const emptyStateSubject = filter === "All" ? "the current board" : filter;
 
   return (
     <main className="route-page request-gallery-page browse-all-page" aria-labelledby="browse-all-title">
       <section className="gallery-hero compact-gallery-hero">
         <div>
           <h1 id="browse-all-title">{showingExamples ? "Browse example searches" : "Browse all open requests"}</h1>
-          <p>{showingExamples ? "These examples show the detail that helps strangers recognize an exact item." : "Search by item, seller, or category."}</p>
+          <p>{showingExamples ? "These examples show the detail that helps strangers recognize an exact item." : "Explore every open request on the board."}</p>
           {dataLoading ? <p className="dialog-note">Loading open requests...</p> : null}
           {dataError ? <p className="dialog-error" role="status">{dataError} Showing example requests until the live board is ready.</p> : null}
         </div>
@@ -4884,10 +4731,6 @@ function BrowseAllPage({
         </button>
       </section>
       <section className="browse-toolbar" aria-label="Browse filters">
-        <div className="search-field">
-          <Search size={18} />
-          <input aria-label="Search all requests" placeholder="Search by item, seller, or place" value={query} onChange={(event) => setQuery(event.target.value)} />
-        </div>
         <div className="filter-pills">
           {categories.map((category) => (
             <button className={filter === category ? "active" : ""} key={category} type="button" aria-pressed={filter === category} onClick={() => setFilter(category)}>
@@ -4905,7 +4748,7 @@ function BrowseAllPage({
           <div className="empty-state browse-empty-state" role="status">
             <Search size={26} />
             <strong>No requests match {emptyStateSubject}.</strong>
-            <span>Try one short word, then switch to All.</span>
+            <span>Switch to All to see every open request.</span>
           </div>
         )}
       </section>
@@ -5302,9 +5145,11 @@ function RequestDetailPage({
 
 function PosterDashboardPage({
   onOpenRequest,
+  onRequestDeleted,
   onShareRequest,
 }: {
   onOpenRequest: (requestId: string) => void;
+  onRequestDeleted: (requestId: string) => void;
   onShareRequest: (request: RequestRow) => void;
 }) {
   const [requests, setRequests] = useState<RequestRow[]>([]);
@@ -5376,43 +5221,55 @@ function PosterDashboardPage({
     setDeleteMessage("");
 
     try {
-      const user = await getCurrentSupabaseUser();
-      const { data, error } = await supabase
-        .from("requests")
-        .delete()
-        .eq("id", request.id)
-        .eq("user_id", user.id)
-        .select("id")
-        .maybeSingle();
+      const { data: sessionData, error: sessionError } = await supabase.auth.getSession();
+      const accessToken = sessionData.session?.access_token;
 
-      if (error) {
-        throw error;
+      if (sessionError || !accessToken || sessionData.session?.user.is_anonymous) {
+        throw new Error("Sign in again before deleting this request.");
       }
 
-      if (!data) {
-        throw new Error("This request could not be deleted. Refresh and make sure you are logged in with the account that posted it.");
+      const response = await fetch(`/api/requests/public?resource=delete&request_id=${encodeURIComponent(request.id)}`, {
+        method: "DELETE",
+        headers: {
+          Accept: "application/json",
+          Authorization: `Bearer ${accessToken}`,
+        },
+      });
+      const payload = await response.json().catch(() => ({})) as { deletedRequestId?: string; error?: string };
+
+      if (!response.ok) {
+        throw new Error(payload.error || "Could not delete this request.");
       }
+
+      if (payload.deletedRequestId !== request.id) {
+        throw new Error("The server did not confirm that this request was deleted.");
+      }
+
+      setRequests((current) => current.filter((item) => item.id !== request.id));
+      onRequestDeleted(request.id);
+      notifyRequestFeedChanged();
+      if (readStoredPublishedRequest()?.requestId === request.id) {
+        window.sessionStorage.removeItem(publishedRequestStorageKey);
+      }
+      setDeleteMessage(`“${request.item_name}” was deleted.`);
 
       const imagePaths = (request.reference_images ?? [])
         .map((image) => image.path?.trim() ?? "")
         .filter(Boolean);
 
       if (imagePaths.length) {
-        const { error: storageError } = await supabase.storage
-          .from(requestReferenceImagesBucket)
-          .remove(imagePaths);
+        try {
+          const { error: storageError } = await supabase.storage
+            .from(requestReferenceImagesBucket)
+            .remove(imagePaths);
 
-        if (storageError) {
+          if (storageError) {
+            console.warn("The request was deleted, but some uploaded images could not be cleaned up.", storageError);
+          }
+        } catch (storageError) {
           console.warn("The request was deleted, but some uploaded images could not be cleaned up.", storageError);
         }
       }
-
-      setRequests((current) => current.filter((item) => item.id !== request.id));
-      notifyRequestFeedChanged();
-      if (readStoredPublishedRequest()?.requestId === request.id) {
-        window.sessionStorage.removeItem(publishedRequestStorageKey);
-      }
-      setDeleteMessage(`“${request.item_name}” was deleted.`);
     } catch (error) {
       setDashboardError(error instanceof Error ? error.message : "Could not delete this request.");
     } finally {

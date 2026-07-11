@@ -58,6 +58,8 @@ export async function handleRequest(req, res) {
     if (requestUrl.pathname === "/api/requests/public") {
       if (requestUrl.searchParams.get("render") === "request_page") {
         await handlePublicRequestDocument(req, res, requestUrl.searchParams.get("request_id"));
+      } else if (requestUrl.searchParams.get("resource") === "delete") {
+        await handleRequestDeletion(req, res, requestUrl.searchParams.get("request_id"));
       } else if (requestUrl.searchParams.get("resource") === "comments") {
         await handlePublicRequestComments(req, res, requestUrl.searchParams.get("request_id"));
       } else {
@@ -399,6 +401,74 @@ async function loadClueCounts(requestIds) {
   }
 
   return counts;
+}
+
+async function handleRequestDeletion(req, res, rawRequestId) {
+  if (req.method !== "DELETE") {
+    sendJson(res, 405, { error: "Method not allowed." });
+    return;
+  }
+
+  const requestId = parseString(rawRequestId, 80);
+
+  if (!isUuid(requestId)) {
+    sendJson(res, 400, { error: "A valid request id is required." });
+    return;
+  }
+
+  if (!supabaseAdmin) {
+    sendJson(res, 503, { error: "Request deletion is unavailable." });
+    return;
+  }
+
+  try {
+    const authenticatedUser = await requireAuthenticatedRequestUser(req, "Log in to delete this request.");
+    const { data: request, error: requestError } = await supabaseAdmin
+      .from("requests")
+      .select("id,user_id")
+      .eq("id", requestId)
+      .maybeSingle();
+
+    if (requestError) {
+      throw new RequestCommentApiError("Could not verify this request.", 503);
+    }
+
+    if (!request) {
+      throw new RequestCommentApiError("This request no longer exists.", 404);
+    }
+
+    if (request.user_id !== authenticatedUser.id) {
+      throw new RequestCommentApiError("Only the person who posted this request can delete it.", 403);
+    }
+
+    const { data: deletedRequest, error: deleteError } = await supabaseAdmin
+      .from("requests")
+      .delete()
+      .eq("id", requestId)
+      .eq("user_id", authenticatedUser.id)
+      .select("id")
+      .maybeSingle();
+
+    if (deleteError) {
+      throw new RequestCommentApiError("Could not delete this request.", 503);
+    }
+
+    if (!deletedRequest) {
+      throw new RequestCommentApiError("This request was not deleted. Refresh and try again.", 409);
+    }
+
+    sendJson(res, 200, { deletedRequestId: deletedRequest.id });
+  } catch (error) {
+    const statusCode = Number(error?.statusCode) || 500;
+
+    if (statusCode >= 500) {
+      console.error("Request deletion failed", error);
+    }
+
+    sendJson(res, statusCode, {
+      error: error instanceof Error ? error.message : "Request deletion is unavailable.",
+    });
+  }
 }
 
 async function handlePublicRequestComments(req, res, rawRequestId) {
@@ -969,7 +1039,10 @@ function firstHeader(value) {
 }
 
 function sendJson(res, statusCode, payload) {
-  res.writeHead(statusCode, { "Content-Type": "application/json; charset=utf-8" });
+  res.writeHead(statusCode, {
+    "Cache-Control": "private, no-store",
+    "Content-Type": "application/json; charset=utf-8",
+  });
   res.end(JSON.stringify(payload));
 }
 

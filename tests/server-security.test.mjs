@@ -738,6 +738,120 @@ test("request deletion is granted only to the authenticated request owner", asyn
   assert.doesNotMatch(deletionMigration, /to anon|using\s*\(\s*true\s*\)/i);
 });
 
+test("request deletion permanently deletes an authenticated owner's row", async () => {
+  const originalFetch = globalThis.fetch;
+  const requestId = "11111111-1111-4111-8111-111111111111";
+  const ownerId = "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa";
+  const calls = [];
+
+  globalThis.fetch = async (url, options = {}) => {
+    const requestUrl = new URL(String(url));
+    calls.push({ url: requestUrl, options });
+
+    if (requestUrl.pathname.endsWith("/auth/v1/user")) {
+      return authenticatedUserResponse();
+    }
+
+    if (requestUrl.pathname.endsWith("/requests") && options.method === "DELETE") {
+      return new Response(JSON.stringify({ id: requestId }), {
+        status: 200,
+        headers: { "Content-Type": "application/json" },
+      });
+    }
+
+    if (requestUrl.pathname.endsWith("/requests")) {
+      return new Response(JSON.stringify({
+        id: requestId,
+        user_id: ownerId,
+      }), {
+        status: 200,
+        headers: { "Content-Type": "application/json" },
+      });
+    }
+
+    throw new Error(`Unexpected Supabase request: ${requestUrl}`);
+  };
+
+  try {
+    const { handleRequest } = await loadServer({
+      PUBLIC_APP_URL: "https://pleasefindmethis.com",
+      SUPABASE_SERVICE_ROLE_KEY: "service-role-key",
+      SUPABASE_URL: "https://example.supabase.co",
+    });
+    const req = fakeRequest(authenticatedHeaders());
+    const res = fakeResponse();
+
+    req.method = "DELETE";
+    req.url = `/api/requests/public?resource=delete&request_id=${requestId}`;
+
+    await handleRequest(req, res);
+
+    assert.equal(res.statusCode, 200);
+    assert.deepEqual(JSON.parse(res.body), { deletedRequestId: requestId });
+    assert.deepEqual(calls.map(({ url }) => url.pathname), [
+      "/auth/v1/user",
+      "/rest/v1/requests",
+      "/rest/v1/requests",
+    ]);
+    assert.equal(calls[2].options.method, "DELETE");
+    assert.equal(calls[2].url.searchParams.get("id"), `eq.${requestId}`);
+    assert.equal(calls[2].url.searchParams.get("user_id"), `eq.${ownerId}`);
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
+});
+
+test("request deletion refuses a signed-in non-owner before issuing DELETE", async () => {
+  const originalFetch = globalThis.fetch;
+  const requestId = "11111111-1111-4111-8111-111111111111";
+  const calls = [];
+
+  globalThis.fetch = async (url, options = {}) => {
+    const requestUrl = new URL(String(url));
+    calls.push({ url: requestUrl, options });
+
+    if (requestUrl.pathname.endsWith("/auth/v1/user")) {
+      return authenticatedUserResponse();
+    }
+
+    if (requestUrl.pathname.endsWith("/requests")) {
+      return new Response(JSON.stringify({
+        id: requestId,
+        user_id: "bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb",
+      }), {
+        status: 200,
+        headers: { "Content-Type": "application/json" },
+      });
+    }
+
+    throw new Error(`Unexpected Supabase request: ${requestUrl}`);
+  };
+
+  try {
+    const { handleRequest } = await loadServer({
+      PUBLIC_APP_URL: "https://pleasefindmethis.com",
+      SUPABASE_SERVICE_ROLE_KEY: "service-role-key",
+      SUPABASE_URL: "https://example.supabase.co",
+    });
+    const req = fakeRequest(authenticatedHeaders());
+    const res = fakeResponse();
+
+    req.method = "DELETE";
+    req.url = `/api/requests/public?resource=delete&request_id=${requestId}`;
+
+    await handleRequest(req, res);
+
+    assert.equal(res.statusCode, 403);
+    assert.deepEqual(JSON.parse(res.body), {
+      error: "Only the person who posted this request can delete it.",
+    });
+    assert.equal(calls.length, 2);
+    assert.equal(calls.some(({ options }) => options.method === "DELETE"), false);
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
+});
+
 test("public request comments fail closed without Supabase admin configuration", async () => {
   const { handleRequest } = await loadServer({
     PUBLIC_APP_URL: "https://pleasefindmethis.com",

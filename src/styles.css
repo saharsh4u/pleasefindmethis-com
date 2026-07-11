@@ -3640,6 +3640,35 @@ main {
   box-shadow: var(--soft-shadow);
 }
 
+.share-page-grid.share-page-grid-minimal {
+  grid-template-columns: minmax(0, 1fr);
+  width: min(100%, 56rem);
+}
+
+.share-preview-card-minimal::before,
+.share-preview-card-minimal::after {
+  display: none;
+}
+
+.share-preview-card-minimal .share-preview-body p {
+  margin: 0;
+  white-space: pre-line;
+}
+
+.share-preview-card-minimal > .share-view-button {
+  width: calc(100% - 2rem);
+  margin: 0 1rem 1rem;
+  border-color: var(--green);
+  background: var(--green);
+  color: #fff;
+}
+
+.share-preview-card-minimal > .share-view-button:hover {
+  border-color: var(--green-dark);
+  background: var(--green-dark);
+  color: #fff;
+}
+
 .auth-panel {
   display: grid;
   gap: 0.9rem;
@@ -10917,7 +10946,7 @@ small {
 
 @media (max-width: 760px){
   .landing-page {
-    padding-bottom: calc(4.95rem + env(safe-area-inset-bottom));
+    padding-bottom: 0;
   }
 
   .landing-page .hero-section {
