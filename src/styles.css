@@ -711,6 +711,62 @@ main {
   color: var(--green);
 }
 
+.hero-share-prompt {
+  display: grid;
+  justify-items: center;
+  gap: 0.48rem;
+  margin-top: -0.35rem;
+}
+
+.hero-share-tagline {
+  margin: 0;
+  color: #59615c;
+  font-size: 0.75rem;
+  font-weight: 720;
+  line-height: 1.25;
+}
+
+.hero-share-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.48rem;
+  min-width: 8.5rem;
+  min-height: 2.75rem;
+  padding: 0.68rem 1.1rem;
+  border: 1px solid #0d0f0e;
+  border-radius: 999px;
+  background: #0d0f0e;
+  box-shadow: 0 10px 22px rgba(12, 15, 13, 0.14);
+  color: #fff;
+  cursor: pointer;
+  font-size: 0.8rem;
+  font-weight: 850;
+  line-height: 1;
+}
+
+.hero-share-button:hover {
+  border-color: var(--green);
+  background: var(--green);
+  transform: translateY(-1px);
+}
+
+.hero-share-button:active {
+  transform: translateY(0);
+}
+
+.hero-share-button svg {
+  flex: 0 0 auto;
+}
+
+.hero-share-status {
+  min-height: 1rem;
+  color: var(--green);
+  font-size: 0.67rem;
+  font-weight: 720;
+  line-height: 1.25;
+}
+
 @media (max-width: 760px){
   .starter-link-panel {
     display: grid;
@@ -720,6 +776,10 @@ main {
 
   .starter-link-button {
     width: 100%;
+  }
+
+  .hero-share-prompt {
+    margin-top: -0.5rem;
   }
 }
 

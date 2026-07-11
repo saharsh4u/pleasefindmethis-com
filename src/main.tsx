@@ -3847,6 +3847,7 @@ function LandingPage({
   signedIn: boolean;
 }) {
   const [heroHeadline, setHeroHeadline] = useState(heroHeadlineExamples[0]);
+  const [landingShareState, setLandingShareState] = useState<"idle" | "copied" | "error">("idle");
   const displayedRequests = useMemo(() => (requests.length ? requests : exampleRequestListings), [requests]);
   const railRequests = useMemo(() => {
     const doubled = [...displayedRequests, ...displayedRequests];
@@ -3893,6 +3894,39 @@ function LandingPage({
     timeoutId = window.setTimeout(tick, heroHeadlineHoldMs);
     return () => window.clearTimeout(timeoutId);
   }, []);
+
+  const handleLandingShare = async () => {
+    const landingShareUrl = new URL("/", window.location.origin).toString();
+    const shareText = "Help someone find something!";
+
+    setLandingShareState("idle");
+
+    if (typeof navigator.share === "function") {
+      try {
+        await navigator.share({ title: siteName, text: shareText, url: landingShareUrl });
+        trackAcquisitionEvent("website_share_started", {
+          share_channel: "native_share",
+          share_location: "landing_hero",
+        });
+        return;
+      } catch (error) {
+        if (error instanceof Error && error.name === "AbortError") {
+          return;
+        }
+      }
+    }
+
+    try {
+      await copyTextToClipboard(landingShareUrl);
+      setLandingShareState("copied");
+      trackAcquisitionEvent("website_share_started", {
+        share_channel: "copy_link",
+        share_location: "landing_hero",
+      });
+    } catch {
+      setLandingShareState("error");
+    }
+  };
 
   return (
     <main id="top" className="landing-page">
@@ -4054,6 +4088,17 @@ function LandingPage({
             </div>
           ) : null}
           <p className="trust-line"><LockKeyhole size={18} /> Free to post. No hidden fees.</p>
+          <div className="hero-share-prompt">
+            <p className="hero-share-tagline">help someone find something !</p>
+            <button className="hero-share-button" type="button" onClick={() => void handleLandingShare()}>
+              <span>Share</span>
+              <Share2 size={16} aria-hidden="true" />
+            </button>
+            <span className="hero-share-status" role="status" aria-live="polite">
+              {landingShareState === "copied" ? "Link copied to clipboard." : null}
+              {landingShareState === "error" ? "Copy this page's address to share it." : null}
+            </span>
+          </div>
         </div>
       </section>
 
