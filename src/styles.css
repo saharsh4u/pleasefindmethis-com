@@ -168,11 +168,6 @@ main {
   backdrop-filter: blur(8px);
 }
 
-.side-find-rail-bottom {
-  top: auto;
-  bottom: clamp(5.7rem, 7vw, 6.8rem);
-}
-
 .side-find-card p {
   margin: 0;
 }
@@ -361,10 +356,6 @@ main {
     right: auto;
   }
 
-.side-find-rail-bottom {
-  top: auto;
-  bottom: clamp(2.4rem, 6vh, 3.6rem);
-}
 }
 
 .canvas-nav {

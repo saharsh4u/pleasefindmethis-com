@@ -3959,7 +3959,7 @@ function LandingPage({
             <aside className="side-find-rail" aria-hidden="true">
               <div className="side-find-track side-find-track-down">
                 {railRequests.map((request, index) => (
-                  <article className="side-find-card" key={`landing-rail-top-${request.id}-${index}`}>
+                  <article className="side-find-card" key={`landing-rail-left-${request.id}-${index}`}>
                     <strong>{request.name}</strong>
                     <p>{showingExamples ? "Example request" : request.location}</p>
                     <img className="side-find-image" src={request.image} alt="" />
@@ -3967,10 +3967,10 @@ function LandingPage({
                 ))}
               </div>
             </aside>
-            <aside className="side-find-rail side-find-rail-right side-find-rail-bottom" aria-hidden="true">
+            <aside className="side-find-rail side-find-rail-right" aria-hidden="true">
               <div className="side-find-track side-find-track-up">
                 {railRequests.map((request, index) => (
-                  <article className="side-find-card" key={`landing-rail-bottom-${request.id}-${index}`}>
+                  <article className="side-find-card" key={`landing-rail-right-${request.id}-${index}`}>
                     <strong>{request.name}</strong>
                     <p>{showingExamples ? "Example request" : request.category}</p>
                     <img className="side-find-image" src={request.image} alt="" />

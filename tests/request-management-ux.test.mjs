@@ -34,12 +34,13 @@ test("browse-all page has no search UI while retaining sorting and incremental l
   assert.match(browseAllPage, /Loading more requests as you scroll/);
 });
 
-test("homepage removes only the mobile bottom ticker", () => {
+test("homepage aligns the desktop side rails and removes the mobile bottom ticker", () => {
   const landingPage = getSection("function LandingPage", "function AuthPage");
 
   assert.match(landingPage, /mobile-find-ticker-top/);
   assert.doesNotMatch(landingPage, /mobile-find-ticker-bottom|mobile-find-ticker-track-right/);
-  assert.match(landingPage, /side-find-rail side-find-rail-right side-find-rail-bottom/);
+  assert.match(landingPage, /className="side-find-rail side-find-rail-right"/);
+  assert.doesNotMatch(landingPage, /className="[^"]*side-find-rail-bottom/);
 });
 
 test("dashboard deletion uses the authenticated server boundary and clears app-level state", () => {
