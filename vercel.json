@@ -55,6 +55,10 @@
   ],
   "rewrites": [
     {
+      "source": "/sitemaps/requests.xml",
+      "destination": "/api/requests/public?resource=sitemap"
+    },
+    {
       "source": "/requests/:requestId/:slug",
       "destination": "/api/requests/public?render=request_page&request_id=:requestId"
     },

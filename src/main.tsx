@@ -36,6 +36,7 @@ import {
 import { hasSupabaseEnv, supabase } from "./lib/supabase";
 import { authenticatedRequestPages, canLoadRequestData } from "./lib/request-access.mjs";
 import { mergeRequestListings } from "./lib/request-listings.mjs";
+import { createDiscussionForumPostingSchema } from "./lib/request-seo.mjs";
 import {
   initializeGoogleAnalytics,
   trackMarketingEvent,
@@ -876,27 +877,23 @@ function usePublicRequestListings(enabled = true, requestId = "") {
       setAuthenticationRequired(false);
 
       try {
-        if (!supabase) {
-          throw new RequestAuthenticationRequiredError();
-        }
-
-        const { data: sessionData, error: sessionError } = await supabase.auth.getSession();
-        const accessToken = sessionData.session?.access_token;
-
-        if (sessionError || !accessToken || sessionData.session?.user.is_anonymous) {
-          throw new RequestAuthenticationRequiredError();
-        }
-
         const params = new URLSearchParams();
         if (isUuid(requestId)) {
           params.set("request_id", requestId);
         }
         const endpoint = params.size ? `/api/requests/public?${params.toString()}` : "/api/requests/public";
+        const headers: Record<string, string> = { Accept: "application/json" };
+
+        if (supabase) {
+          const { data: sessionData, error: sessionError } = await supabase.auth.getSession();
+          const accessToken = sessionData.session?.access_token;
+          if (!sessionError && accessToken && !sessionData.session?.user.is_anonymous) {
+            headers.Authorization = `Bearer ${accessToken}`;
+          }
+        }
+
         const response = await fetch(endpoint, {
-          headers: {
-            Accept: "application/json",
-            Authorization: `Bearer ${accessToken}`,
-          },
+          headers,
         });
         const payload = (await response.json()) as { requests?: PublicRequestCardRow[]; error?: string };
 
@@ -1260,23 +1257,19 @@ function useRequestComments(request: RequestListing) {
       setError("");
 
       try {
-        if (!supabase) {
-          throw new CommentAuthenticationRequiredError();
-        }
-
-        const { data: sessionData, error: sessionError } = await supabase.auth.getSession();
-        const accessToken = sessionData.session?.access_token;
-
-        if (sessionError || !accessToken || sessionData.session?.user.is_anonymous) {
-          throw new CommentAuthenticationRequiredError();
-        }
-
         const params = new URLSearchParams({ resource: "comments", request_id: request.id });
+        const headers: Record<string, string> = { Accept: "application/json" };
+
+        if (supabase) {
+          const { data: sessionData, error: sessionError } = await supabase.auth.getSession();
+          const accessToken = sessionData.session?.access_token;
+          if (!sessionError && accessToken && !sessionData.session?.user.is_anonymous) {
+            headers.Authorization = `Bearer ${accessToken}`;
+          }
+        }
+
         const response = await fetch(`/api/requests/public?${params.toString()}`, {
-          headers: {
-            Accept: "application/json",
-            Authorization: `Bearer ${accessToken}`,
-          },
+          headers,
         });
         const payload = (await response.json()) as { comments?: PublicRequestCommentRow[]; error?: string };
 
@@ -2811,15 +2804,16 @@ function createStructuredData(page: Page, meta: SeoMeta, requests: RequestListin
   }
 
   if (page === "request-detail" && activeRequest) {
-    graph.push({
-      "@type": "Thing",
-      "@id": `${canonicalUrl}#request`,
-      url: canonicalUrl,
-      name: activeRequest.name,
-      description: activeRequest.description,
-      image: activeRequest.image.startsWith("data:image/") ? defaultSeoImage : toAbsoluteUrl(activeRequest.image),
-      additionalType: activeRequest.category,
-    });
+    graph.push(createDiscussionForumPostingSchema({
+      articleBody: activeRequest.description,
+      canonicalUrl,
+      category: activeRequest.category,
+      commentCount: activeRequest.submissions,
+      datePublished: activeRequest.createdAt,
+      headline: activeRequest.name,
+      imageUrl: activeRequest.image.startsWith("data:image/") ? defaultSeoImage : toAbsoluteUrl(activeRequest.image),
+      websiteId,
+    }));
   }
 
   return {
@@ -2888,7 +2882,7 @@ function App() {
   const [postReferenceImagePersistenceError, setPostReferenceImagePersistenceError] = useState("");
   const [publishedRequest, setPublishedRequest] = useState<PublishedRequestSnapshot | null>(() => readStoredPublishedRequest());
   const [activeRequestId, setActiveRequestId] = useState(() => getRequestIdFromCurrentRoute() || exampleRequestListings[0].id);
-  const requestDataAccessAllowed = authResolved && signedIn && canLoadRequestData(route, { authResolved, signedIn });
+  const requestDataAccessAllowed = canLoadRequestData(route, { authResolved, signedIn });
   const visibleRoute = protectedPages.has(route) && (!authResolved || !signedIn) ? "auth" : route;
   const {
     listings: liveRequests,
@@ -4235,7 +4229,7 @@ function AuthPage({
               </button>
             </div>
           ) : null}
-          <p className="dialog-note">Sign in is required to view requests and anonymous clues.</p>
+          <p className="dialog-note">Sign in is required to post requests and public clues.</p>
         </div>
       </section>
     </main>

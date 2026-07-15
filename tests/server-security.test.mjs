@@ -102,14 +102,42 @@ test("public request lookup rejects an explicitly empty request id", async () =>
   });
 });
 
-test("request feeds and comment threads reject signed-out access before reading request data", async () => {
+test("request feeds and visible comment threads allow signed-out read-only access", async () => {
   const originalFetch = globalThis.fetch;
   const requestId = "11111111-1111-4111-8111-111111111111";
-  let fetchCount = 0;
+  const calls = [];
 
-  globalThis.fetch = async () => {
-    fetchCount += 1;
-    throw new Error("Signed-out request access must fail before Supabase is called.");
+  globalThis.fetch = async (url, options = {}) => {
+    const requestUrl = new URL(String(url));
+    calls.push({ url: requestUrl, options });
+
+    if (requestUrl.pathname.endsWith("/public_request_cards")) {
+      return new Response(JSON.stringify([]), {
+        status: 200,
+        headers: { "Content-Type": "application/json" },
+      });
+    }
+
+    if (requestUrl.pathname.endsWith("/requests")) {
+      return new Response(JSON.stringify({
+        id: requestId,
+        status: "open",
+        duration_days: 30,
+        created_at: new Date().toISOString(),
+      }), {
+        status: 200,
+        headers: { "Content-Type": "application/json" },
+      });
+    }
+
+    if (requestUrl.pathname.endsWith("/request_comments")) {
+      return new Response(JSON.stringify([]), {
+        status: 200,
+        headers: { "Content-Type": "application/json" },
+      });
+    }
+
+    throw new Error(`Unexpected signed-out Supabase request: ${requestUrl}`);
   };
 
   try {
@@ -132,13 +160,89 @@ test("request feeds and comment threads reject signed-out access before reading 
 
       await handleRequest(req, res);
 
-      assert.equal(res.statusCode, 401, url);
-      assert.deepEqual(JSON.parse(res.body), {
-        error: "Log in to view requests.",
+      assert.equal(res.statusCode, 200, url);
+    }
+
+    assert.deepEqual(calls.map(({ url }) => url.pathname), [
+      "/rest/v1/public_request_cards",
+      "/rest/v1/public_request_cards",
+      "/rest/v1/requests",
+      "/rest/v1/request_comments",
+    ]);
+    assert.equal(calls.some(({ url }) => url.pathname === "/auth/v1/user"), false);
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
+});
+
+test("public request reads ignore stale authorization headers", async () => {
+  const originalFetch = globalThis.fetch;
+  const requestId = "11111111-1111-4111-8111-111111111111";
+  const calls = [];
+
+  globalThis.fetch = async (url) => {
+    const requestUrl = new URL(String(url));
+    calls.push(requestUrl.pathname);
+
+    if (requestUrl.pathname.endsWith("/public_request_cards")) {
+      return new Response(JSON.stringify([]), {
+        status: 200,
+        headers: { "Content-Type": "application/json" },
       });
     }
 
-    assert.equal(fetchCount, 0);
+    if (requestUrl.pathname.endsWith("/requests")) {
+      return new Response(JSON.stringify({
+        id: requestId,
+        status: "open",
+        duration_days: 30,
+        created_at: new Date().toISOString(),
+      }), {
+        status: 200,
+        headers: { "Content-Type": "application/json" },
+      });
+    }
+
+    if (requestUrl.pathname.endsWith("/request_comments")) {
+      return new Response(JSON.stringify([]), {
+        status: 200,
+        headers: { "Content-Type": "application/json" },
+      });
+    }
+
+    throw new Error(`Public reads must not validate a session: ${requestUrl}`);
+  };
+
+  try {
+    const { handleRequest } = await loadServer({
+      PUBLIC_APP_URL: "https://pleasefindmethis.com",
+      SUPABASE_SERVICE_ROLE_KEY: "service-role-key",
+      SUPABASE_URL: "https://example.supabase.co",
+    });
+
+    for (const url of [
+      "/api/requests/public",
+      `/api/requests/public?resource=comments&request_id=${requestId}`,
+    ]) {
+      const req = fakeRequest({
+        authorization: "Bearer stale-access-token",
+        host: "pleasefindmethis.com",
+      });
+      const res = fakeResponse();
+
+      req.method = "GET";
+      req.url = url;
+
+      await handleRequest(req, res);
+
+      assert.equal(res.statusCode, 200, url);
+    }
+
+    assert.deepEqual(calls, [
+      "/rest/v1/public_request_cards",
+      "/rest/v1/requests",
+      "/rest/v1/request_comments",
+    ]);
   } finally {
     globalThis.fetch = originalFetch;
   }
@@ -192,9 +296,8 @@ test("public request lookup returns only the requested public card", async () =>
 
     assert.equal(res.statusCode, 200);
     assert.deepEqual(JSON.parse(res.body), { requests: [matchingCard] });
-    assert.equal(calls.length, 2);
-    assert.equal(calls[0].url.pathname, "/auth/v1/user");
-    const requestUrl = calls[1].url;
+    assert.equal(calls.length, 1);
+    const requestUrl = calls[0].url;
     assert.equal(requestUrl.searchParams.get("id"), `eq.${requestId}`);
     assert.doesNotMatch(
       requestUrl.searchParams.get("select") ?? "",
@@ -206,14 +309,33 @@ test("public request lookup returns only the requested public card", async () =>
   }
 });
 
-test("signed-out shared request documents contain no request-specific data", async () => {
+test("signed-out shared request documents render only public request fields", async () => {
   const originalFetch = globalThis.fetch;
   const requestId = "11111111-1111-4111-8111-111111111111";
-  let fetchCount = 0;
+  const publicCard = {
+    id: requestId,
+    item_name: "Vintage rose blanket",
+    category: "Sentimental items",
+    details: "Looking for this exact pink rose print blanket from an older collection.",
+    duration_days: 30,
+    status: "open",
+    created_at: new Date(Date.now() - 86_400_000).toISOString(),
+    closes_at: new Date(Date.now() + 30 * 86_400_000).toISOString(),
+    days_remaining: 30,
+    primary_image_url: "https://pleasefindmethis.com/rose-blanket.jpg",
+    submission_count: 2,
+  };
+  const calls = [];
 
-  globalThis.fetch = async () => {
-    fetchCount += 1;
-    throw new Error("A signed-out request document must not read request data.");
+  globalThis.fetch = async (url, options = {}) => {
+    const requestUrl = new URL(String(url));
+    calls.push({ url: requestUrl, options });
+
+    assert.equal(requestUrl.pathname, "/rest/v1/public_request_cards");
+    return new Response(JSON.stringify(publicCard), {
+      status: 200,
+      headers: { "Content-Type": "application/json" },
+    });
   };
 
   try {
@@ -231,10 +353,83 @@ test("signed-out shared request documents contain no request-specific data", asy
 
     assert.equal(res.statusCode, 200);
     assert.equal(res.headers["Content-Type"], "text/html; charset=utf-8");
-    assert.equal(res.headers["Cache-Control"], "private, no-store");
-    assert.equal(res.headers["X-Robots-Tag"], "noindex, nofollow");
-    assert.doesNotMatch(res.body, /Help me find this rose blanket|Pink rose print|rose-blanket\.jpg/);
-    assert.equal(fetchCount, 0);
+    assert.match(res.headers["Cache-Control"], /^public,/);
+    assert.match(res.headers["X-Robots-Tag"], /^index, follow/);
+    assert.equal(
+      res.headers["Content-Location"],
+      `https://pleasefindmethis.com/requests/${requestId}/vintage-rose-blanket`,
+    );
+    assert.match(res.headers.Link, /rel="canonical"/);
+    assert.match(res.body, /Vintage rose blanket/);
+    assert.match(res.body, /Looking for this exact pink rose print blanket/);
+    assert.match(res.body, /rose-blanket\.jpg/);
+    assert.match(res.body, /"@type":"DiscussionForumPosting"/);
+    assert.match(res.body, /"userInteractionCount":2/);
+    assert.doesNotMatch(res.body, /reward|payment|payout|provider|customer/i);
+    assert.equal(calls.length, 1);
+    assert.equal(calls.some(({ url }) => url.pathname === "/auth/v1/user"), false);
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
+});
+
+test("request sitemap lists only indexable public request pages", async () => {
+  const originalFetch = globalThis.fetch;
+  const currentRequestId = "11111111-1111-4111-8111-111111111111";
+  const expiredRequestId = "22222222-2222-4222-8222-222222222222";
+  const now = Date.now();
+  const calls = [];
+
+  globalThis.fetch = async (url) => {
+    const requestUrl = new URL(String(url));
+    calls.push(requestUrl.pathname);
+    assert.equal(requestUrl.pathname, "/rest/v1/public_request_cards");
+
+    return new Response(JSON.stringify([
+      {
+        id: currentRequestId,
+        item_name: "Vintage rose blanket",
+        category: "Sentimental items",
+        details: "Looking for this exact pink rose print blanket from an older collection.",
+        status: "open",
+        created_at: new Date(now - 86_400_000).toISOString(),
+        closes_at: new Date(now + 30 * 86_400_000).toISOString(),
+        primary_image_url: "https://pleasefindmethis.com/rose-blanket.jpg",
+      },
+      {
+        id: expiredRequestId,
+        item_name: "Expired item request",
+        category: "Other",
+        details: "This otherwise valid request has already passed its public closing date.",
+        status: "open",
+        created_at: new Date(now - 60 * 86_400_000).toISOString(),
+        closes_at: new Date(now - 30 * 86_400_000).toISOString(),
+      },
+    ]), {
+      status: 200,
+      headers: { "Content-Type": "application/json" },
+    });
+  };
+
+  try {
+    const { handleRequest } = await loadServer({
+      PUBLIC_APP_URL: "https://pleasefindmethis.com",
+      SUPABASE_SERVICE_ROLE_KEY: "service-role-key",
+      SUPABASE_URL: "https://example.supabase.co",
+    });
+    const req = fakeRequest({ host: "pleasefindmethis.com" });
+    const res = fakeResponse();
+
+    req.method = "GET";
+    req.url = "/sitemaps/requests.xml";
+    await handleRequest(req, res);
+
+    assert.equal(res.statusCode, 200);
+    assert.equal(res.headers["Content-Type"], "application/xml; charset=utf-8");
+    assert.match(res.body, new RegExp(`/requests/${currentRequestId}/vintage-rose-blanket`));
+    assert.match(res.body, /<image:image>/);
+    assert.doesNotMatch(res.body, new RegExp(expiredRequestId));
+    assert.deepEqual(calls, ["/rest/v1/public_request_cards"]);
   } finally {
     globalThis.fetch = originalFetch;
   }
@@ -317,7 +512,6 @@ test("public requests endpoint serves comments through its resource query", asyn
     assert.equal(res.statusCode, 200);
     assert.deepEqual(JSON.parse(res.body), { comments: [comment] });
     assert.deepEqual(calls.map(({ url }) => url.pathname), [
-      "/auth/v1/user",
       "/rest/v1/requests",
       "/rest/v1/request_comments",
     ]);
@@ -369,7 +563,7 @@ test("expired requests are not exposed as commentable", async () => {
     await handleRequest(req, res);
 
     assert.equal(res.statusCode, 404);
-    assert.deepEqual(calls, ["/auth/v1/user", "/rest/v1/requests"]);
+    assert.deepEqual(calls, ["/rest/v1/requests"]);
   } finally {
     globalThis.fetch = originalFetch;
   }

@@ -43,6 +43,13 @@ test("homepage aligns the desktop side rails and removes the mobile bottom ticke
   assert.doesNotMatch(landingPage, /className="[^"]*side-find-rail-bottom/);
 });
 
+test("authentication copy keeps public discovery separate from protected participation", () => {
+  const authPage = getSection("function AuthPage", "function PostDescribePage");
+
+  assert.match(authPage, /Sign in is required to post requests and public clues\./);
+  assert.doesNotMatch(authPage, /Sign in is required to view requests|view requests and anonymous clues/i);
+});
+
 test("dashboard deletion uses the authenticated server boundary and clears app-level state", () => {
   const dashboardPage = getSection("function PosterDashboardPage", "function PolicyPage");
 

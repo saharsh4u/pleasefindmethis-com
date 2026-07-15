@@ -6,6 +6,7 @@ import { fileURLToPath } from "node:url";
 import { createClient } from "@supabase/supabase-js";
 import { trackAICrawlerRequest } from "@datafast/ai-crawl";
 import { animals, colors, uniqueNamesGenerator } from "unique-names-generator";
+import { createDiscussionForumPostingSchema } from "./src/lib/request-seo.mjs";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const root = __dirname;
@@ -53,6 +54,11 @@ export async function handleRequest(req, res) {
       return;
     }
 
+    if (requestUrl.pathname === "/sitemaps/requests.xml") {
+      await handlePublicRequestSitemap(req, res);
+      return;
+    }
+
     if (isBlockedPublicPath(requestUrl.pathname)) {
       sendText(res, 404, "Not found");
       return;
@@ -61,6 +67,8 @@ export async function handleRequest(req, res) {
     if (requestUrl.pathname === "/api/requests/public") {
       if (requestUrl.searchParams.get("render") === "request_page") {
         await handlePublicRequestDocument(req, res, requestUrl.searchParams.get("request_id"));
+      } else if (requestUrl.searchParams.get("resource") === "sitemap") {
+        await handlePublicRequestSitemap(req, res);
       } else if (requestUrl.searchParams.get("resource") === "delete") {
         await handleRequestDeletion(req, res, requestUrl.searchParams.get("request_id"));
       } else if (requestUrl.searchParams.get("resource") === "comments") {
@@ -237,15 +245,6 @@ async function handlePublicRequests(req, res, requestUrl) {
     return;
   }
 
-  try {
-    await requireAuthenticatedRequestUser(req, "Log in to view requests.");
-  } catch (error) {
-    sendJson(res, Number(error?.statusCode) || 401, {
-      error: error instanceof Error ? error.message : "Log in to view requests.",
-    });
-    return;
-  }
-
   let publicRequestsQuery = supabaseAdmin
     .from("public_request_cards")
     .select("id,item_name,category,details,duration_days,status,created_at,closes_at,days_remaining,primary_image_url,submission_count");
@@ -278,20 +277,364 @@ async function handlePublicRequests(req, res, requestUrl) {
   }
 }
 
-async function handlePublicRequestDocument(req, res, _rawRequestId) {
+async function handlePublicRequestDocument(req, res, rawRequestId) {
   if (req.method !== "GET" && req.method !== "HEAD") {
     sendJson(res, 405, { error: "Method not allowed." });
     return;
   }
 
+  const requestId = parseString(rawRequestId, 80);
+
+  if (!isUuid(requestId)) {
+    sendPublicRequestDocumentError(res, 404, "Request not found.");
+    return;
+  }
+
+  if (!supabaseAdmin) {
+    sendPublicRequestDocumentError(res, 503, "Public request is temporarily unavailable.");
+    return;
+  }
+
+  let publicRequest;
+
+  try {
+    publicRequest = await loadPublicRequestForSeo(requestId);
+  } catch (error) {
+    console.error("Could not load public request SEO document", error);
+    sendPublicRequestDocumentError(res, 503, "Public request is temporarily unavailable.");
+    return;
+  }
+
+  if (!publicRequest) {
+    sendPublicRequestDocumentError(res, 404, "Request not found.");
+    return;
+  }
+
+  const indexable = isIndexablePublicRequestForSeo(publicRequest);
   const template = await loadPublicRequestDocumentTemplate(req);
+  const canonicalUrl = getPublicRequestCanonicalUrl(publicRequest);
+  const document = renderPublicRequestSeoDocument(template, publicRequest, indexable);
 
   res.writeHead(200, {
     "Content-Type": "text/html; charset=utf-8",
+    "Cache-Control": indexable ? "public, s-maxage=300, stale-while-revalidate=3600" : "private, no-store",
+    "Content-Location": canonicalUrl,
+    Link: `<${canonicalUrl}>; rel="canonical"`,
+    "X-Robots-Tag": indexable
+      ? "index, follow, max-image-preview:large, max-snippet:-1, max-video-preview:-1"
+      : "noindex, follow",
+  });
+  res.end(req.method === "HEAD" ? "" : document);
+}
+
+async function handlePublicRequestSitemap(req, res) {
+  if (req.method !== "GET" && req.method !== "HEAD") {
+    sendJson(res, 405, { error: "Method not allowed." });
+    return;
+  }
+
+  if (!supabaseAdmin) {
+    res.writeHead(503, { "Content-Type": "text/plain; charset=utf-8", "Retry-After": "300" });
+    res.end(req.method === "HEAD" ? "" : "Request sitemap is temporarily unavailable.");
+    return;
+  }
+
+  try {
+    const requests = await loadIndexablePublicRequestsForSeo();
+    const sitemap = renderPublicRequestSitemap(requests);
+    res.writeHead(200, {
+      "Content-Type": "application/xml; charset=utf-8",
+      "Cache-Control": "public, s-maxage=300, stale-while-revalidate=3600",
+    });
+    res.end(req.method === "HEAD" ? "" : sitemap);
+  } catch (error) {
+    console.error("Could not build public request sitemap", error);
+    res.writeHead(503, { "Content-Type": "text/plain; charset=utf-8", "Retry-After": "300" });
+    res.end(req.method === "HEAD" ? "" : "Request sitemap is temporarily unavailable.");
+  }
+}
+
+async function loadPublicRequestForSeo(requestId) {
+  const { data, error } = await supabaseAdmin
+    .from("public_request_cards")
+    .select("id,item_name,category,details,duration_days,status,created_at,closes_at,days_remaining,primary_image_url,submission_count")
+    .eq("id", requestId)
+    .maybeSingle();
+
+  if (!error) {
+    return data ? normalizePublicRequestForSeo(data) : null;
+  }
+
+  const schemaCacheMiss = error.code === "PGRST205" || /public_request_cards/.test(error.message ?? "");
+
+  if (!schemaCacheMiss) {
+    throw error;
+  }
+
+  const fallback = await loadPublicRequestsFallback(requestId);
+  return fallback[0] ? normalizePublicRequestForSeo(fallback[0]) : null;
+}
+
+async function loadIndexablePublicRequestsForSeo() {
+  const { data, error } = await supabaseAdmin
+    .from("public_request_cards")
+    .select("id,item_name,category,details,duration_days,status,created_at,closes_at,days_remaining,primary_image_url,submission_count")
+    .eq("status", "open")
+    .order("created_at", { ascending: false })
+    .limit(1000);
+
+  let requests;
+
+  if (!error) {
+    requests = data ?? [];
+  } else {
+    const schemaCacheMiss = error.code === "PGRST205" || /public_request_cards/.test(error.message ?? "");
+
+    if (!schemaCacheMiss) {
+      throw error;
+    }
+
+    requests = await loadPublicRequestsFallback();
+  }
+
+  return requests.map(normalizePublicRequestForSeo).filter(isIndexablePublicRequestForSeo);
+}
+
+function normalizePublicRequestForSeo(request) {
+  return {
+    id: parseString(request?.id, 80),
+    item_name: parseString(request?.item_name, 120),
+    category: parseString(request?.category, 80),
+    details: parseString(request?.details, 1000),
+    status: parseString(request?.status, 20),
+    created_at: parseString(request?.created_at, 80),
+    closes_at: parseString(request?.closes_at, 80),
+    days_remaining: Number.isFinite(Number(request?.days_remaining)) ? Number(request.days_remaining) : null,
+    primary_image_url: parseString(request?.primary_image_url, 2000),
+    submission_count: Math.max(0, Number(request?.submission_count) || 0),
+  };
+}
+
+function isIndexablePublicRequestForSeo(request) {
+  const createdAt = Date.parse(request?.created_at ?? "");
+  const closesAt = Date.parse(request?.closes_at ?? "");
+  const isStillOpen = !Number.isFinite(closesAt) || closesAt > Date.now();
+
+  return Boolean(
+    isUuid(request?.id)
+      && request?.status === "open"
+      && request?.item_name?.length >= 3
+      && request?.details?.length >= 40
+      && Number.isFinite(createdAt)
+      && isStillOpen,
+  );
+}
+
+function renderPublicRequestSeoDocument(template, request, indexable) {
+  const itemName = request.item_name;
+  const canonicalUrl = getPublicRequestCanonicalUrl(request);
+  const imageUrl = getPublicRequestImageUrl(request);
+  const title = truncateSeoText(`Help Find ${itemName} | pleasefindmethis`, 60);
+  const description = truncateSeoText(`Help find ${itemName}. ${request.details}`, 158);
+  const imageAlt = `Reference photo for the public request to find ${itemName}.`;
+  const schema = createPublicRequestSeoSchema(request, canonicalUrl, imageUrl, title, description);
+  const fallback = renderPublicRequestSeoFallback(request);
+  const robots = indexable
+    ? "index,follow,max-image-preview:large,max-snippet:-1,max-video-preview:-1"
+    : "noindex,follow";
+
+  return template
+    .replace(/<title>[\s\S]*?<\/title>/i, `<title>${escapeSeoHtml(title)}</title>`)
+    .replace(/<meta\b(?=[^>]*\bname="description")[^>]*>/i, `<meta name="description" content="${escapeSeoAttribute(description)}" />`)
+    .replace(/<meta\b(?=[^>]*\bname="robots")[^>]*>/i, `<meta name="robots" content="${robots}" />`)
+    .replace(/<meta\b(?=[^>]*\bproperty="og:title")[^>]*>/i, `<meta property="og:title" content="${escapeSeoAttribute(title)}" />`)
+    .replace(/<meta\b(?=[^>]*\bproperty="og:description")[^>]*>/i, `<meta property="og:description" content="${escapeSeoAttribute(description)}" />`)
+    .replace(/<meta\b(?=[^>]*\bproperty="og:url")[^>]*>/i, `<meta property="og:url" content="${escapeSeoAttribute(canonicalUrl)}" />`)
+    .replace(/<meta\b(?=[^>]*\bproperty="og:image")[^>]*>/i, `<meta property="og:image" content="${escapeSeoAttribute(imageUrl)}" />`)
+    .replace(/<meta\b(?=[^>]*\bproperty="og:image:secure_url")[^>]*>/i, `<meta property="og:image:secure_url" content="${escapeSeoAttribute(imageUrl)}" />`)
+    .replace(/<meta\b(?=[^>]*\bproperty="og:image:type")[^>]*>/i, `<meta property="og:image:type" content="${getPublicRequestImageType(imageUrl)}" />`)
+    .replace(/<meta\b(?=[^>]*\bproperty="og:image:width")[^>]*>\s*/i, "")
+    .replace(/<meta\b(?=[^>]*\bproperty="og:image:height")[^>]*>\s*/i, "")
+    .replace(/<meta\b(?=[^>]*\bproperty="og:image:alt")[^>]*>/i, `<meta property="og:image:alt" content="${escapeSeoAttribute(imageAlt)}" />`)
+    .replace(/<meta\b(?=[^>]*\bname="twitter:title")[^>]*>/i, `<meta name="twitter:title" content="${escapeSeoAttribute(title)}" />`)
+    .replace(/<meta\b(?=[^>]*\bname="twitter:description")[^>]*>/i, `<meta name="twitter:description" content="${escapeSeoAttribute(description)}" />`)
+    .replace(/<meta\b(?=[^>]*\bname="twitter:image")[^>]*>/i, `<meta name="twitter:image" content="${escapeSeoAttribute(imageUrl)}" />`)
+    .replace(/<meta\b(?=[^>]*\bname="twitter:image:alt")[^>]*>/i, `<meta name="twitter:image:alt" content="${escapeSeoAttribute(imageAlt)}" />`)
+    .replace(/<link\s+rel="canonical"\s+href="[^"]*"\s*\/?>/i, `<link rel="canonical" href="${escapeSeoAttribute(canonicalUrl)}" />`)
+    .replace(/<script type="application\/ld\+json" data-seo-schema="site">[\s\S]*?<\/script>/i, `<script type="application/ld+json" data-seo-schema="site">${safeSeoJsonLd(schema)}</script>`)
+    .replace(/<main data-static-fallback>[\s\S]*?<\/main>/i, fallback);
+}
+
+function createPublicRequestSeoSchema(request, canonicalUrl, imageUrl, title, description) {
+  const organizationId = `${seoSiteOrigin}/#organization`;
+  const websiteId = `${seoSiteOrigin}/#website`;
+  const posting = createDiscussionForumPostingSchema({
+    articleBody: request.details,
+    canonicalUrl,
+    category: request.category,
+    commentCount: request.submission_count,
+    datePublished: request.created_at,
+    headline: request.item_name,
+    imageUrl,
+    websiteId,
+  });
+
+  return {
+    "@context": "https://schema.org",
+    "@graph": [
+      {
+        "@type": "Organization",
+        "@id": organizationId,
+        name: "pleasefindmethis.com",
+        url: seoSiteOrigin,
+        logo: `${seoSiteOrigin}/magnifying-glass.png`,
+      },
+      {
+        "@type": "WebSite",
+        "@id": websiteId,
+        name: "pleasefindmethis.com",
+        url: seoSiteOrigin,
+        publisher: { "@id": organizationId },
+      },
+      {
+        "@type": "WebPage",
+        "@id": `${canonicalUrl}#webpage`,
+        url: canonicalUrl,
+        name: title,
+        description,
+        datePublished: request.created_at,
+        dateModified: request.created_at,
+        inLanguage: "en",
+        isPartOf: { "@id": websiteId },
+        publisher: { "@id": organizationId },
+        primaryImageOfPage: { "@type": "ImageObject", url: imageUrl },
+        mainEntity: { "@id": posting["@id"] },
+      },
+      posting,
+      {
+        "@type": "BreadcrumbList",
+        "@id": `${canonicalUrl}#breadcrumb`,
+        itemListElement: [
+          { "@type": "ListItem", position: 1, name: "Home", item: `${seoSiteOrigin}/` },
+          { "@type": "ListItem", position: 2, name: "Request categories", item: `${seoSiteOrigin}/requests/` },
+          { "@type": "ListItem", position: 3, name: request.item_name, item: canonicalUrl },
+        ],
+      },
+    ],
+  };
+}
+
+function renderPublicRequestSeoFallback(request) {
+  const category = request.category ? `<p>Category: ${escapeSeoHtml(request.category)}</p>` : "";
+
+  return `<main data-static-fallback>
+        <nav aria-label="Breadcrumbs">
+          <a href="/">Home</a> / <a href="/requests/">Request categories</a> / <span>${escapeSeoHtml(request.item_name)}</span>
+        </nav>
+        <p>Open public find request</p>
+        <h1>Help find ${escapeSeoHtml(request.item_name)}</h1>
+        <p>${escapeSeoHtml(request.details)}</p>
+        ${category}
+        <p>Share a current listing, seller path, model clue, compatibility note, or safety warning if you recognize this exact item.</p>
+        <nav aria-label="Related links">
+          <a href="/browse">Browse open requests</a>
+          <a href="/guides/help-me-find-this-item/">How to find an exact item</a>
+          <a href="/requests/">Request categories</a>
+        </nav>
+      </main>`;
+}
+
+function renderPublicRequestSitemap(requests) {
+  return `<?xml version="1.0" encoding="UTF-8"?>
+<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9" xmlns:image="http://www.google.com/schemas/sitemap-image/1.1">
+${requests
+    .map((request) => {
+      const imageUrl = getPublicRequestImageUrl(request);
+      const image = hasUniquePublicRequestImage(request)
+        ? `\n    <image:image>\n      <image:loc>${escapeSeoXml(imageUrl)}</image:loc>\n      <image:title>${escapeSeoXml(request.item_name)}</image:title>\n    </image:image>`
+        : "";
+      return `  <url>\n    <loc>${escapeSeoXml(getPublicRequestCanonicalUrl(request))}</loc>\n    <lastmod>${escapeSeoXml(request.created_at)}</lastmod>${image}\n  </url>`;
+    })
+    .join("\n")}
+</urlset>
+`;
+}
+
+const seoSiteOrigin = "https://pleasefindmethis.com";
+const defaultPublicRequestImage = `${seoSiteOrigin}/og/pleasefindmethis-request-board.png`;
+
+function getPublicRequestCanonicalUrl(request) {
+  return `${seoSiteOrigin}/requests/${encodeURIComponent(request.id)}/${slugifyPublicRequestItem(request.item_name)}`;
+}
+
+function slugifyPublicRequestItem(value) {
+  return String(value || "item-request")
+    .normalize("NFKD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "")
+    .slice(0, 72) || "item-request";
+}
+
+function getPublicRequestImageUrl(request) {
+  const rawImage = parseString(request?.primary_image_url, 2000);
+
+  if (!rawImage) {
+    return defaultPublicRequestImage;
+  }
+
+  try {
+    const imageUrl = new URL(rawImage, seoSiteOrigin);
+    return imageUrl.protocol === "http:" || imageUrl.protocol === "https:" ? imageUrl.href : defaultPublicRequestImage;
+  } catch {
+    return defaultPublicRequestImage;
+  }
+}
+
+function hasUniquePublicRequestImage(request) {
+  return getPublicRequestImageUrl(request) !== defaultPublicRequestImage;
+}
+
+function getPublicRequestImageType(imageUrl) {
+  const pathname = new URL(imageUrl).pathname.toLowerCase();
+  if (pathname.endsWith(".webp")) return "image/webp";
+  if (pathname.endsWith(".png")) return "image/png";
+  if (pathname.endsWith(".gif")) return "image/gif";
+  return "image/jpeg";
+}
+
+function truncateSeoText(value, maxLength) {
+  const normalized = String(value || "").replace(/\s+/g, " ").trim();
+  return normalized.length <= maxLength ? normalized : `${normalized.slice(0, Math.max(0, maxLength - 3)).trimEnd()}...`;
+}
+
+function escapeSeoHtml(value) {
+  return String(value ?? "")
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;");
+}
+
+function escapeSeoAttribute(value) {
+  return escapeSeoHtml(value).replace(/"/g, "&quot;");
+}
+
+function escapeSeoXml(value) {
+  return escapeSeoAttribute(value).replace(/'/g, "&apos;");
+}
+
+function safeSeoJsonLd(value) {
+  return JSON.stringify(value).replace(/</g, "\\u003c").replace(/>/g, "\\u003e").replace(/&/g, "\\u0026");
+}
+
+function sendPublicRequestDocumentError(res, statusCode, message) {
+  res.writeHead(statusCode, {
+    "Content-Type": "text/plain; charset=utf-8",
     "Cache-Control": "private, no-store",
     "X-Robots-Tag": "noindex, nofollow",
   });
-  res.end(req.method === "HEAD" ? "" : template);
+  res.end(message);
 }
 
 async function loadPublicRequestDocumentTemplate(req) {
@@ -493,10 +836,9 @@ async function handlePublicRequestComments(req, res, rawRequestId) {
   }
 
   try {
-    const authenticatedUser = await requireAuthenticatedRequestUser(
-      req,
-      req.method === "POST" ? "Log in to post a comment." : "Log in to view requests.",
-    );
+    const authenticatedUser = req.method === "POST"
+      ? await requireAuthenticatedRequestUser(req, "Log in to post a comment.")
+      : null;
 
     const publicRequest = await loadPublicRequestForComments(requestId);
 

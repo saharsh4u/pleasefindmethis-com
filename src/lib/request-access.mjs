@@ -1,8 +1,4 @@
-export const authenticatedRequestPages = Object.freeze([
-  "browse",
-  "browse-all",
-  "request-detail",
-]);
+export const authenticatedRequestPages = Object.freeze([]);
 
 const authenticatedRequestPageSet = new Set(authenticatedRequestPages);
 

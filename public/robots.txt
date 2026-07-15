@@ -6,3 +6,4 @@ Disallow: /poster-dashboard
 Disallow: /account/
 
 Sitemap: https://pleasefindmethis.com/sitemap.xml
+Sitemap: https://pleasefindmethis.com/sitemaps/requests.xml
